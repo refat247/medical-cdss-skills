@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CLINICAL PRECEPTOR CDSS ORCHESTRATOR (v1.1.0)
+CLINICAL PRECEPTOR CDSS ORCHESTRATOR (v1.2.0)
 Universal Multi-Folder Autonomous Manufacturing Pipeline & 13-Modality Clinical Runtime Engine
 
 Supports any physician-authored case series, clinical teaching archive, or medical preceptor corpus.
@@ -27,20 +27,33 @@ try:
 except Exception:
     pass
 
-__version__ = "1.1.0"
-VERSION = "1.1.0"
+__version__ = "1.2.0"
+VERSION = "1.2.0"
 
-DEFAULT_WORKSPACE = Path(r"D:\HABIJABI_FULL")
+def _default_workspace() -> Path:
+    """CDSS_HABIJABI_ROOT, else D:\\HABIJABI_FULL on Windows, else ~/HABIJABI_FULL (on POSIX the old literal
+    created a directory actually named 'D:\\HABIJABI_FULL' in the cwd)."""
+    env = os.environ.get("CDSS_HABIJABI_ROOT")
+    if env:
+        return Path(env)
+    return Path(r"D:\HABIJABI_FULL") if os.name == "nt" else Path.home() / "HABIJABI_FULL"
+
+
+DEFAULT_WORKSPACE = _default_workspace()
 
 # ==============================================================================
 # 0. WORKSPACE SCAFFOLDING & INITIALIZATION
 # ==============================================================================
 def init_workspace(workspace_dir: Path, clinician_name: str = "Clinician", series_name: str = "Clinical Cases"):
     print("=" * 80)
-    print("🏗️  CLINICAL PRECEPTOR CDSS — WORKSPACE PRE-SCAFFOLDING (v1.1.0)")
+    print("🏗️  CLINICAL PRECEPTOR CDSS — WORKSPACE PRE-SCAFFOLDING (v1.2.0)")
     print(f"    Target Directory : {workspace_dir}")
     print(f"    Clinician / Series: {clinician_name} | {series_name}")
     print("=" * 80)
+
+    (workspace_dir / "00_CONTROL").mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "00_CONTROL" / "workspace.json").write_text(
+        json.dumps({"clinician_name": clinician_name, "series_name": series_name}, ensure_ascii=False, indent=2), encoding="utf-8")
 
     directories = [
         workspace_dir / "00_CONTROL",
@@ -148,14 +161,35 @@ def init_workspace(workspace_dir: Path, clinician_name: str = "Clinician", serie
 # ==============================================================================
 # PIPELINE ENGINES
 # ==============================================================================
+def _norm_query(query: Optional[str]) -> str:
+    """'' / None / 'all' mean "no filter". argparse passes const="all" for a bare flag, which the handlers used to
+    treat as a substring ("all" matched only rows containing the letters 'all': the toxic-drug matrix showed 2 of 10)."""
+    q = (query or "").strip().lower()
+    return "" if q == "all" else q
+
+
 def resolve_workspace(p: Optional[str]) -> Path:
     if p:
         return Path(p)
-    if "CDSS_WORKSPACE" in os.environ:
+    if os.environ.get("CDSS_WORKSPACE"):
         return Path(os.environ["CDSS_WORKSPACE"])
-    return DEFAULT_WORKSPACE
+    return _default_workspace()
 
-def run_pipeline_stage(workspace: Path, stage: str):
+_STAGE_SCRIPTS = [
+    ("prune-comments", "prune_non_clinical_comments.py", False),
+    ("english-synthesis", "generate_english_synthesis.py", False),
+    ("claims", "expand_clinical_claims.py", False),
+    ("bridge", "build_davidson_bridge.py", False),
+    ("extended-modalities", "generate_extended_modalities.py", True),   # also ships inside this skill
+    ("audits", "run_full_corpus_audits.py", False),
+]
+
+
+def run_pipeline_stage(workspace: Path, stage: str) -> int:
+    """Runs the requested stage(s), each tool as its own subprocess (so a tool's argparse/sys.exit cannot hit this
+    process), and reports a per-stage status. Exit 1 if any stage failed, or if an explicitly requested stage had no
+    script (previously: silently skipped, then 'completed successfully')."""
+    import subprocess
     print("=" * 80)
     print(f"🚀 EXECUTING PIPELINE STAGE: [{stage.upper()}] on {workspace}")
     print("=" * 80)
@@ -164,46 +198,37 @@ def run_pipeline_stage(workspace: Path, stage: str):
         print("Workspace not scaffolded. Running automatic initialization...")
         init_workspace(workspace)
 
-    if stage in ["auto", "prune-comments"]:
-        prune_script = workspace / "tools" / "prune_non_clinical_comments.py"
-        if prune_script.exists():
-            import runpy
-            runpy.run_path(str(prune_script), run_name="__main__")
+    results = []
+    for name, script_name, ships_with_skill in _STAGE_SCRIPTS:
+        if stage not in ("auto", name):
+            continue
+        script = workspace / "tools" / script_name
+        if not script.exists() and ships_with_skill:
+            script = Path(__file__).parent / script_name
+        if not script.exists():
+            results.append((name, "SKIPPED (script missing: " + str(script) + ")"))
+            continue
+        cmd = [sys.executable, str(script)]
+        if script_name == "generate_extended_modalities.py":
+            cmd += ["--workspace", str(workspace)]     # the only tool known to take this flag
+        env = {**os.environ, "CDSS_HABIJABI_ROOT": str(workspace), "CDSS_WORKSPACE": str(workspace)}
+        proc = subprocess.run(cmd, env=env)
+        results.append((name, "OK" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"))
 
-    if stage in ["auto", "english-synthesis"]:
-        eng_script = workspace / "tools" / "generate_english_synthesis.py"
-        if eng_script.exists():
-            import runpy
-            runpy.run_path(str(eng_script), run_name="__main__")
-
-    if stage in ["auto", "claims"]:
-        claims_script = workspace / "tools" / "expand_clinical_claims.py"
-        if claims_script.exists():
-            import runpy
-            runpy.run_path(str(claims_script), run_name="__main__")
-
-    if stage in ["auto", "bridge"]:
-        bridge_script = workspace / "tools" / "build_davidson_bridge.py"
-        if bridge_script.exists():
-            import runpy
-            runpy.run_path(str(bridge_script), run_name="__main__")
-
-    if stage in ["auto", "extended-modalities"]:
-        ext_script = workspace / "tools" / "generate_extended_modalities.py"
-        skill_ext = Path(__file__).parent / "generate_extended_modalities.py"
-        target_script = ext_script if ext_script.exists() else skill_ext
-        if target_script.exists():
-            import subprocess
-            subprocess.run([sys.executable, str(target_script), "--workspace", str(workspace)])
-
-    if stage in ["auto", "audits"]:
-        audit_script = workspace / "tools" / "run_full_corpus_audits.py"
-        if audit_script.exists():
-            import runpy
-            runpy.run_path(str(audit_script), run_name="__main__")
-
-    print(f"\n✅ Pipeline Stage [{stage.upper()}] completed successfully.")
+    print("\nSTAGE STATUS:")
+    for name, status in results:
+        print(f"  {name:20s} {status}")
+    failed = [n for n, s in results if s.startswith("FAILED")]
+    skipped = [n for n, s in results if s.startswith("SKIPPED")]
+    explicit_missing = stage != "auto" and skipped
+    if failed or explicit_missing:
+        print(f"\n❌ Pipeline stage [{stage.upper()}] did NOT complete: failed={failed} skipped={skipped}")
+        print("=" * 80)
+        return 1
+    note = f" ({len(skipped)} stage(s) skipped: {', '.join(skipped)})" if skipped else ""
+    print(f"\n✅ Pipeline stage [{stage.upper()}] finished{note}.")
     print("=" * 80)
+    return 0
 
 # ==============================================================================
 # EXTENDED RUNTIME MODALITY HANDLERS (7 MODALITIES)
@@ -303,7 +328,7 @@ def run_causal_graph(workspace: Path, query: Optional[str]):
             if line.strip():
                 triplets.append(json.loads(line))
 
-    q = (query or "").lower()
+    q = _norm_query(query)
     matched = [t for t in triplets if q in t["subject_entity"].lower() or q in t["predicate"].lower() or q in t["object_entity"].lower() or q in t["clinical_domain"].lower()] if q else triplets
 
     print("=" * 80)
@@ -332,25 +357,23 @@ def run_sbar(workspace: Path, query: Optional[str]):
             if line.strip():
                 cards.append(json.loads(line))
 
-    matched = None
-    if query:
-        q = query.lower()
-        for c in cards:
-            if q in c["condition"].lower() or q in c["record_id"].lower() or q in c["situation"].lower():
-                matched = c
-                break
-
-    if not matched and cards:
-        matched = cards[0]
-
-    print("=" * 80)
-    print(f"🚨 ACUTE ON-CALL SBAR WARD HANDOVER: {matched['condition']} ({matched['record_id']})")
-    print("=" * 80)
-    print(f"S — SITUATION:\n{matched['situation']}\n")
-    print(f"B — BACKGROUND:\n{matched['background']}\n")
-    print(f"A — ASSESSMENT:\n{matched['assessment']}\n")
-    print(f"R — RECOMMENDATION:\n{matched['recommendation']}")
-    print("=" * 80)
+    q = _norm_query(query)
+    if q:
+        selected = [c for c in cards if q in c["condition"].lower() or q in c["record_id"].lower() or q in c["situation"].lower()]
+        if not selected:
+            print(f"NO MATCH for {query!r} among {len(cards)} SBAR cards (not showing an unrelated card).")
+            return
+    else:
+        selected = cards                      # bare flag / "all": every card (previously only the first)
+    for matched in selected:
+        print("=" * 80)
+        print(f"🚨 ACUTE ON-CALL SBAR WARD HANDOVER: {matched['condition']} ({matched['record_id']})")
+        print("=" * 80)
+        print(f"S — SITUATION:\n{matched['situation']}\n")
+        print(f"B — BACKGROUND:\n{matched['background']}\n")
+        print(f"A — ASSESSMENT:\n{matched['assessment']}\n")
+        print(f"R — RECOMMENDATION:\n{matched['recommendation']}")
+        print("=" * 80)
 
 def run_patient_leaflet(workspace: Path, query: Optional[str]):
     leaflets_md = workspace / "08_EXPORTS" / "PATIENT_LEAFLETS" / "patient_counseling_leaflets_bengali.md"
@@ -361,22 +384,22 @@ def run_patient_leaflet(workspace: Path, query: Optional[str]):
     content = leaflets_md.read_text(encoding="utf-8")
     sections = content.split("\n## ")
 
-    matched = None
-    if query:
-        q = query.lower()
-        for s in sections[1:]:
-            if q in s.lower():
-                matched = s
-                break
+    q = _norm_query(query)
+    leaflets = sections[1:]
+    if q:
+        selected = [s for s in leaflets if q in s.lower()]
+        if not selected:
+            print(f"NO MATCH for {query!r} among {len(leaflets)} leaflets (not showing an unrelated leaflet).")
+            return
+    else:
+        selected = leaflets or [content]
 
     print("=" * 80)
     print("🗣️  রোগীবান্ধব স্বাস্থ্য সচেতনতা ও পরামর্শ পত্র (HABIJABI PATIENT LEAFLET)")
     print("=" * 80)
-    if matched:
-        print("## " + matched.strip())
-    else:
-        # Print first leaflet
-        print("## " + sections[1].strip() if len(sections) > 1 else content)
+    for s in selected:
+        print("## " + s.strip() if s is not content else content)
+        print("-" * 40)
     print("=" * 80)
 
 def run_anki_deck(workspace: Path, query: Optional[str]):
@@ -393,7 +416,7 @@ def run_anki_deck(workspace: Path, query: Optional[str]):
             if r and len(r) >= 3:
                 cards.append(r)
 
-    q = (query or "").lower()
+    q = _norm_query(query)
     matched = [c for c in cards if q in c[1].lower() or q in c[2].lower() or (len(c) > 3 and q in c[3].lower())] if q else cards
 
     print("=" * 80)
@@ -422,7 +445,7 @@ def run_never_events(workspace: Path, query: Optional[str]):
     with matrix_csv.open("r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
-    q = (query or "").lower()
+    q = _norm_query(query)
     matched = [r for r in rows if q in r["prescribed_agent"].lower() or q in r["forbidden_clinical_context"].lower() or q in r["lethal_adverse_consequence"].lower()] if q else rows
 
     print("=" * 80)
@@ -446,34 +469,36 @@ def dispatch_runtime(workspace: Path, args: argparse.Namespace):
     # Check Extended 7 Modalities first
     if args.visual_spotter is not None:
         run_visual_spotter(workspace, args.visual_spotter)
-        return
+        return 0
     if args.curriculum is not None:
         run_curriculum(workspace, args.curriculum)
-        return
+        return 0
     if args.causal_graph is not None:
         run_causal_graph(workspace, args.causal_graph)
-        return
+        return 0
     if args.sbar is not None:
         run_sbar(workspace, args.sbar)
-        return
+        return 0
     if args.patient_leaflet is not None:
         run_patient_leaflet(workspace, args.patient_leaflet)
-        return
+        return 0
     if args.anki_deck is not None:
         run_anki_deck(workspace, args.anki_deck)
-        return
+        return 0
     if args.never_events is not None:
         run_never_events(workspace, args.never_events)
-        return
+        return 0
 
-    # Forward Core 6 Modalities to skill/navigator
-    nav_script = workspace / "tools" / "habijabi_navigator.py"
-    skill_nav = Path(r"C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scripts\habijabi_navigator.py")
-
-    target_script = skill_nav if skill_nav.exists() else nav_script
-    if not target_script.exists():
-        print(f"Error: Could not locate clinical runtime engine at {target_script}")
-        return
+    # Forward Core 6 Modalities to the Kawsar navigator (the skill ships it as a sibling directory)
+    candidates = []
+    if os.environ.get("CDSS_KAWSAR_NAVIGATOR"):
+        candidates.append(Path(os.environ["CDSS_KAWSAR_NAVIGATOR"]))
+    candidates += [Path(__file__).resolve().parents[2] / "kawsar-habijabi-cdss-navigator" / "scripts" / "habijabi_navigator.py",
+                   workspace / "tools" / "habijabi_navigator.py"]
+    target_script = next((c for c in candidates if c.exists()), None)
+    if target_script is None:
+        print("Error: could not locate the clinical runtime engine. Tried: " + "; ".join(str(c) for c in candidates), file=sys.stderr)
+        return 2
 
     import subprocess
     cmd = [sys.executable, str(target_script)]
@@ -495,14 +520,17 @@ def dispatch_runtime(workspace: Path, args: argparse.Namespace):
     elif args.search:
         cmd.extend(["--search", args.search, "--lang", args.lang, "--top_k", str(args.top_k)])
 
-    subprocess.run(cmd)
+    # The navigator reads its corpus root from CDSS_HABIJABI_ROOT: forward the chosen workspace (it used to
+    # query D:\HABIJABI_FULL regardless of --workspace) and return the child's exit status (it used to be dropped).
+    env = {**os.environ, "CDSS_HABIJABI_ROOT": str(workspace)}
+    return subprocess.run(cmd, env=env).returncode
 
 # ==============================================================================
 # MASTER CLI PARSER
 # ==============================================================================
 def main():
     parser = argparse.ArgumentParser(
-        description="Clinical Preceptor CDSS Orchestrator (v1.1.0) — Universal Pipeline & 13-Modality Runtime Engine"
+        description="Clinical Preceptor CDSS Orchestrator (v1.2.0) — Universal Pipeline & 13-Modality Runtime Engine"
     )
     parser.add_argument("--workspace", type=str, default=None, help="Target clinical corpus workspace (default: D:\\HABIJABI_FULL)")
     parser.add_argument("--init-workspace", action="store_true", help="Pre-scaffold standardized CDSS architecture")
@@ -537,7 +565,7 @@ def main():
     if args.init_workspace:
         init_workspace(workspace, args.clinician_name, args.series_name)
     elif args.pipeline:
-        run_pipeline_stage(workspace, args.pipeline)
+        sys.exit(run_pipeline_stage(workspace, args.pipeline))
     elif any([
         args.preceptor, args.exam_sba, args.prescribing_safety, args.federated,
         args.tropical_calc, args.ward_facilities, args.search,
@@ -546,7 +574,7 @@ def main():
         args.patient_leaflet is not None, args.anki_deck is not None,
         args.never_events is not None
     ]):
-        dispatch_runtime(workspace, args)
+        sys.exit(dispatch_runtime(workspace, args) or 0)
     else:
         parser.print_help()
 

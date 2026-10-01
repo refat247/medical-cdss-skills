@@ -1,8 +1,8 @@
-# Clinical Preceptor CDSS Orchestrator (v1.1.0)
+# Clinical Preceptor CDSS Orchestrator (v1.2.0)
 
 Universal Clinical Preceptor & Bedside Case CDSS Orchestrator for physician-authored clinical series, medical vignettes, and preceptor corpora.
 
-Installed (v1.1.0)
+Installed (v1.2.0)
 
 ## Quick Start
 

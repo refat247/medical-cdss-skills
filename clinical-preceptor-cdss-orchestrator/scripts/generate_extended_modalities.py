@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-GENERATE EXTENDED MODALITIES (v1.1.0)
+GENERATE EXTENDED MODALITIES (v1.2.0)
 Extracts and manufactures the 7 Additional Untapped Clinical & Educational Modalities
 from D:\HABIJABI_FULL:
 1. Multimodal Clinical Image VQA & OSCE Visual Spotters (169 Media Files)
@@ -28,8 +28,8 @@ from typing import List, Dict, Any, Tuple
 if sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
-__version__ = "1.1.0"
-VERSION = "1.1.0"
+__version__ = "1.2.0"
+VERSION = "1.2.0"
 
 CORPUS_ROOT = Path(r"D:\HABIJABI_FULL")
 MEDIA_DIR = CORPUS_ROOT / "02_RAW_MEDIA"
