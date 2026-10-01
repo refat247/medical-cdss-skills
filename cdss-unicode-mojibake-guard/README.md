@@ -1,6 +1,6 @@
-# CDSS Unicode & Anti-Mojibake Guard (v1.5.2)
+# CDSS Unicode & Anti-Mojibake Guard (v1.6.0)
 
-Installed (v1.5.2)
+Installed (v1.6.0)
 
 Production-grade encoding integrity guard and pre-flight sanitizer for medical textbook Clinical Decision Support Systems (CDSS). Prevents and repairs character corruption (mojibake) and enforces ISMP/FDA clinical symbol safety across all corpora.
 
@@ -14,5 +14,6 @@ python scripts/guard.py audit --target-dir "D:\01_Medical_Study\SPLIT Pdfs\David
 python scripts/guard.py fix --target-dir "D:\01_Medical_Study\SPLIT Pdfs\Davidson_25_Split" --enforce-ismp
 
 # 3. Cleanroom pre-sanitization before Word (.docx) export
-python scripts/guard.py fix --target-dir "D:\01_Medical_Study\CDSS_human_test" --cleanroom-docx
+python scripts/guard.py fix --target-dir "D:\01_Medical_Study\CDSS_human_test" --dry-run   # preview first, then run without --dry-run
+python scripts/guard.py cleanroom-docx --file note.md --out clean/note.md   # separate subcommand for generated notes
 ```

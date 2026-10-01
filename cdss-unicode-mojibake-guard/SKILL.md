@@ -1,13 +1,13 @@
 ---
 name: cdss-unicode-mojibake-guard
-version: 1.5.2
+version: 1.6.0
 description: |
   Autonomous Unicode, Anti-Mojibake, ISMP Clinical Safety, and LaTeX De-Delimiter Guard for medical textbook CDSS corpora.
   Provides pre-flight audits, in-place UTF-8 repair, Unicode NFKC canonicalization, zero-width token-breaker stripping,
   FDA/ISMP clinical symbol safety enforcement, and automatic LaTeX de-mathifying across all medical books.
 ---
 
-# CDSS Unicode & Anti-Mojibake Guard (v1.5.2)
+# CDSS Unicode & Anti-Mojibake Guard (v1.6.0)
 
 Production-grade encoding integrity guard and pre-flight sanitizer for medical textbook Clinical Decision Support Systems (CDSS). Prevents and repairs character corruption (**mojibake** like `â‰¥`, `Âµg`, `â€™`) and enforces clinical symbol safety before text is ingested into RAG pipelines or emitted into LLM prompt contexts.
 
@@ -27,7 +27,9 @@ Activate this skill automatically whenever:
 
 ---
 
-## 🛡️ 2. The 6-Layer Protection Standard
+## 🛡️ 2. The Layered Protection Standard (7 layers; *source repair* and *generated-output sanitising* are different modes)
+
+> **Two modes.** `fix` / `repair_source_text` restore the ORIGINAL character in SOURCE text (`Âµg` → `µg`, `â‰¥` → `≥`) and never apply ISMP rewrites. `sanitize` / `cleanroom-docx` produce GENERATED OUTPUT (`µg` → `mcg`, `≥` → `>=`, dose rewrites). `fix` skips directories with checkpoint/trust markers and everything beneath them, and never touches UTF-16/32 or binary-looking files. Layer 3 (NFKC) is **not** applied to superscripts, subscripts, fractions or µ (that would turn `10⁹/L` into `109/L`); only ligatures and invisible characters are flattened.
 
 | Layer | Guard Mechanism | Rationale & Safety Rule |
 | :--- | :--- | :--- |
