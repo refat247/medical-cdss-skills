@@ -8,5 +8,5 @@ Autonomous AI environment audit and harness optimizer for Antigravity and Codex 
 
 ```powershell
 # Scan visible harness configuration for a project
-python scripts/scan_visible_harness.py <TARGET_PROJECT> --surface antigravity --output-dir <SCAN_DIR>
+python scripts/scan_visible_harness.py <TARGET_PROJECT> --surface antigravity --model <MODEL_NAME> --output-dir <SCAN_DIR>
 ```

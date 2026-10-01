@@ -125,3 +125,38 @@ def test_preready_zero_byte_inlined_not_skipped(tmp_path):
 
 
 
+
+
+# ---- second-sweep 3.6: `guard` (audit) must not pass --enforce-ismp, which guard.py's audit rejects ----
+def test_cmd_guard_audit_does_not_pass_enforce_ismp(monkeypatch):
+    import scripts.orchestrator as orch
+    seen = {}
+    monkeypatch.setattr(orch, "run_subcommand", lambda cmd, **k: seen.setdefault("cmd", cmd) and 0)
+    orch.cmd_guard("X", fix=False, enforce_ismp=True)
+    assert "audit" in seen["cmd"] and "--enforce-ismp" not in seen["cmd"]
+
+
+def test_cmd_guard_audit_command_is_accepted_by_guard_cli(tmp_path):
+    import subprocess, sys, os
+    guard = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                         "cdss-unicode-mojibake-guard", "scripts", "guard.py")
+    r = subprocess.run([sys.executable, guard, "audit", "--target-dir", str(tmp_path)], capture_output=True, text=True)
+    assert r.returncode in (0, 1), r.stderr
+
+
+# ---- second-sweep 3.12: exit codes must reflect what happened ----
+def test_status_on_missing_directory_returns_false(tmp_path):
+    import scripts.orchestrator as orch
+    assert orch.audit_book_status(tmp_path / "nope") is False
+
+
+def test_publish_manifest_with_no_topics_is_an_error(tmp_path):
+    import scripts.orchestrator as orch
+    m = tmp_path / "m.json"; m.write_text('{"chapter": "1", "title": "t", "topics": []}')
+    assert orch.cmd_publish_manifest(str(m), str(tmp_path)) == 1
+
+
+def test_publish_manifest_with_string_topics_is_an_error_not_a_traceback(tmp_path):
+    import scripts.orchestrator as orch
+    m = tmp_path / "m.json"; m.write_text('{"chapter": "1", "title": "t", "topics": ["a", "b"]}')
+    assert orch.cmd_publish_manifest(str(m), str(tmp_path)) == 1

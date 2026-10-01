@@ -52,7 +52,7 @@ Use **Quick Check** unless the user explicitly asks for a maintainer audit. Choo
 
 Run the bundled scanner on each approved root:
 ```bash
-python "C:\Users\User\.gemini\config\skills\clean-my-ai-harness\scripts\scan_visible_harness.py" TARGET --surface antigravity --output-dir SCAN_DIR
+python "C:\Users\User\.gemini\config\skills\clean-my-ai-harness\scripts\scan_visible_harness.py" TARGET --surface antigravity --model MODEL_NAME --output-dir SCAN_DIR
 ```
 
 Group reviewed controls into:
