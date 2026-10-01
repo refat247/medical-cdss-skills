@@ -32,13 +32,8 @@ that only held for Chapter 05").
 """
 import re
 
-from pipeline.stages.ocr_cleanup_rules import RUNNING_HEADER_RE, normalize_bare_page_lines, strip_toc_preamble
-
-# Piracy/watermark trigger patterns -- unchanged from SKILL.md's Stage 2 block.
-PIRACY_TRIGGERS = [
-    r"Medical Higher Study", r"apps?\.apple\.com", r"play\.google\.com",
-    r"Join.*[Tt]elegram", r"t\.me/", r"bit\.ly/", r"[ঀ-৿]{5,}",
-]
+from pipeline.stages.ocr_cleanup_rules import (PIRACY_TRIGGERS, RUNNING_HEADER_RE, normalize_bare_page_lines,
+                                               strip_toc_preamble, sweep_piracy)
 
 ICON_PATS = [
     r"^Information icon:.*$\n?", r"^Information icon\s*$\n?",
@@ -168,16 +163,7 @@ def repair_stage2(text):
     R.append(f"Removed {total_icons} icon/alt-text noise lines")
 
     lines_list = text.split('\n')
-    protected_idx = _protected_paragraph_indices(lines_list)
-    piracy_idx = set()
-    for i, line in enumerate(lines_list):
-        for pat in PIRACY_TRIGGERS:
-            if re.search(pat, line):
-                for j in range(max(0, i - 10), min(len(lines_list), i + 15)):
-                    if j not in protected_idx:
-                        piracy_idx.add(j)
-                break
-    clean = [l for i, l in enumerate(lines_list) if i not in piracy_idx]
+    clean, _removed = sweep_piracy(lines_list)
     n_rem = len(lines_list) - len(clean)
     text = '\n'.join(clean)
     R.append(f"Removed {n_rem} piracy/watermark lines")

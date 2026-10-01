@@ -526,3 +526,40 @@ def test_1_30_single_stage_pending_manual_has_its_own_nonzero_exit_code(monkeypa
     with pytest.raises(SystemExit) as e:
         rs.main()
     assert e.value.code == 4
+
+
+# ---------- 1.17 piracy sweep: remove watermark blocks, never clinical prose; Stages 1/2/3 agree ----------
+def _s2full(text):
+    out = repair_stage2(text)
+    return out[0] if isinstance(out, tuple) else out
+
+
+@pytest.mark.parametrize("line", ["Medical Higher Study: free treatment notes", "Join our Telegram for free treatment guides",
+                                  "Download on the App Store", "Get it on Google Play", "Free Download of the full book"])
+def test_1_17_watermark_lines_are_removed_even_if_they_contain_clinical_words(line):
+    out = _s2full(f"## S\nHypertension is common in adults.\n\n{line}\n\nAnother paragraph about diagnosis.\n")
+    assert line not in out
+    assert "Hypertension is common in adults." in out and "Another paragraph about diagnosis." in out
+
+
+def test_1_17_neighbouring_clinical_prose_is_not_deleted():
+    out = _s2full("## S\nPatients present with fever.\n\nExamination reveals a murmur.\n\nMedical Higher Study\n\nTreatment is supportive.\n")
+    assert "Patients present with fever." in out and "Examination reveals a murmur." in out
+    assert "Treatment is supportive." in out and "Medical Higher Study" not in out
+
+
+def test_1_17_a_pure_promo_block_around_a_trigger_is_removed():
+    out = _s2full("## S\nReal text here about aspirin.\n\nJoin us\n\nt.me/someone\n\nFollow\n\nMore real text about statins.\n")
+    assert "t.me/" not in out and "Join us" not in out
+    assert "Real text here about aspirin." in out and "More real text about statins." in out
+
+
+def test_1_17_structural_lines_are_never_swept():
+    out = _s2full("## S\n| drug | note |\n|---|---|\n| aspirin | see t.me/x |\n")
+    assert "| aspirin | see t.me/x |" in out
+
+
+def test_1_17_stage3_flags_every_trigger_stage2_removes():
+    rep = "## S\nSome text.\n\nDownload on the App Store\n"
+    r = compute_reaudit(rep, rep)
+    assert any("Piracy" in i for i in r["issues"])

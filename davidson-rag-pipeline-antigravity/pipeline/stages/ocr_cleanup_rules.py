@@ -61,3 +61,74 @@ def strip_toc_preamble(text):
             continue
         kept.append(line)
     return "\n".join(kept) + text[first_h2.start():], removed
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Piracy / watermark sweep (second-sweep 1.17). One trigger list shared by Stages 1, 2 and 3.
+# Old behaviour: the trigger line itself was "protected" by clinical keywords ("free treatment notes" survived and
+# Stage 3 called it PASSED), a -10/+15 line window deleted ordinary clinical sentences with no keyword, and Stage 3
+# only knew two of the trigger patterns.
+# ---------------------------------------------------------------------------------------------------------
+PIRACY_TRIGGERS = [
+    r"Medical Higher Study", r"HIGHER STUDY", r"apps?\.apple\.com", r"play\.google\.com", r"App Store", r"Google Play",
+    r"Join.*[Tt]elegram", r"t\.me/", r"bit\.ly/", r"(?:Free|free)\s+(?:Download|download)", r"[\u0980-\u09ff]{5,}",
+]
+_PROMO_WORDS = re.compile(r"\b(?:join|follow|subscribe|download|telegram|whatsapp|facebook|youtube|instagram|channel|group|"
+                          r"link|pdf|notes|free|visit|click|www|http|medical|higher study)\b", re.I)
+_STRUCTURAL = [
+    re.compile(r"^<!--\s*(?:page|pdf_page):"), re.compile(r"^#{1,4}\s"), re.compile(r"^\|"),
+    re.compile(r"^-?\s*[A-E][\.\)]\s"), re.compile(r"^(Answer|Q\d)"), re.compile(r"^\d+(?:\.\d+)*\.\s"), re.compile(r"^[-*\u2022]\s"),
+]
+
+
+def is_structural(line):
+    """Markdown/MCQ structure that a watermark sweep must never delete (a clinical KEYWORD is not structure)."""
+    l = line.strip()
+    return bool(l) and any(rx.match(l) for rx in _STRUCTURAL)
+
+
+def has_piracy_trigger(line):
+    return any(re.search(p, line) for p in PIRACY_TRIGGERS)
+
+
+def _junk_like(line):
+    s = line.strip()
+    if not s:
+        return True
+    if is_structural(s):
+        return False
+    return len(s.split()) <= 2 or bool(_PROMO_WORDS.search(s)) or has_piracy_trigger(s)
+
+
+def sweep_piracy(lines, window=3):
+    """Returns (kept_lines, removed_count). Deletes (a) every non-structural trigger line and (b) the blank-bounded
+    paragraphs within `window` paragraphs of a trigger ONLY when every line of such a paragraph is junk-like
+    (short, promo wording, URL, trigger). Clinical prose paragraphs next to a watermark are always kept."""
+    # paragraphs as (start, end) index ranges of non-blank runs
+    paras, start = [], None
+    for i, l in enumerate(list(lines) + [""]):
+        if l.strip():
+            if start is None:
+                start = i
+        elif start is not None:
+            paras.append((start, i))
+            start = None
+    drop = set()
+    trig_paras = [k for k, (a, b) in enumerate(paras) if any(has_piracy_trigger(lines[i]) for i in range(a, b))]
+    for k in trig_paras:
+        a, b = paras[k]
+        for i in range(a, b):
+            if has_piracy_trigger(lines[i]) and not is_structural(lines[i]):
+                drop.add(i)
+        for step in (-1, 1):
+            j, seen = k + step, 0
+            while 0 <= j < len(paras) and seen < window:
+                pa, pb = paras[j]
+                if all(_junk_like(lines[i]) for i in range(pa, pb)):
+                    drop.update(range(pa, pb))
+                    j += step
+                    seen += 1
+                else:
+                    break
+    kept = [l for i, l in enumerate(lines) if i not in drop]
+    return kept, len(drop)
