@@ -36,23 +36,37 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
         body = parts[2].strip() if len(parts) >= 3 else block
         l2.append({"id": cid.group(1).strip() if cid else "?", "body": body})
 
+    def norm(s):
+        s = re.sub(r"^\s*#+\s*", "", s)
+        s = re.sub(r"[*_`]+", "", s)
+        return re.sub(r"\s+", " ", s).strip()
+
+    rep_norm = norm(repaired)
+    rep_lines = {norm(l) for l in repaired.splitlines() if norm(l)}
+
+    def line_in_source(line):
+        return line in rep_lines or line in rep_norm
+
     passed, failed, skipped = 0, [], 0
     for chunk in l2:
-        body = chunk["body"].strip()
-        if not body or len(body) < 40:
+        # Whole-body check (the old version tested ONE 100-char window and passed on a single hit, so a
+        # changed dose elsewhere in the chunk -- "4 g" -> "40 g" -- was never seen).
+        lines = [norm(l) for l in chunk["body"].splitlines() if norm(l)]
+        if not lines:
             skipped += 1
             continue
-        found = False
-        for offset in [len(body) // 2, 0, len(body) // 4, len(body) * 3 // 4]:
-            sl = body[offset:offset + 100].strip()
-            sl_clean = re.sub(r"\*+|_+|`+|^#+\s", "", sl, flags=re.MULTILINE).strip()
-            if sl_clean and len(sl_clean) >= 30 and (sl_clean in repaired or sl in repaired):
-                found = True
-                break
-        if found:
-            passed += 1
-        else:
+        numeric = [l for l in lines if re.search(r"\d", l)]
+        prose = [l for l in lines if not re.search(r"\d", l) and len(l) >= 12]
+        bad_numeric = [l for l in numeric if not line_in_source(l)]
+        bad_prose = [l for l in prose if not line_in_source(l)]
+        # numbers/doses must match exactly; free text tolerates up to 5% non-verbatim lines
+        if bad_numeric or (prose and len(bad_prose) / len(prose) > 0.05):
             failed.append(chunk["id"])
+        else:
+            passed += 1
+
+    if not l2:
+        failed.append("<no L2 chunks found -- nothing was verified>")
 
     src_figs = sorted(set(re.findall(r"\*\*Fig\.?\s*[\d.]+\*\*[^\n]+", repaired)))
     chunk_figs = sorted(set(re.findall(r"\*\*Fig\.?\s*[\d.]+\*\*[^\n]+", chunks)))

@@ -343,3 +343,44 @@ def test_1_10_stage7_dose_change_does_not_score_perfect(tmp_path, monkeypatch):
     res = s7.run_stage_7(str(rep), str(rag), str(tmp_path), "P")
     val = res["dimensions"]["dosing_preservation"]["score"]
     assert val is not None and val < 1.0
+
+
+# ---------- 1.11 Stage 4.5 verbatim check must cover the whole chunk body ----------
+from pipeline.stages import stage_4_5_spotcheck as sc45
+
+
+def _run_45(tmp_path, monkeypatch, source, chunks):
+    monkeypatch.setattr(sc45, "load_checkpoint", lambda o, p: ({}, "x.json"))
+    monkeypatch.setattr(sc45, "should_run_stage", lambda c, s: True)
+    for fn in ("mark_stage_complete", "mark_stage_blocked"):
+        monkeypatch.setattr(sc45, fn, lambda *a, **k: None)
+    rep, ch = tmp_path / "rep.md", tmp_path / "chunks.md"
+    rep.write_text(source, encoding="utf-8"); ch.write_text(chunks, encoding="utf-8")
+    return sc45.run_stage_4_5(str(rep), str(ch), str(tmp_path), "P")
+
+
+SRC = ("## Heparin\n\nStart unfractionated heparin with an 80 U/kg bolus and then 18 U/kg/h infusion.\n"
+       "Check the aPTT every six hours until stable.\nThe maximum dose is 4 g per day in adults.\n")
+
+
+def _c(body):
+    return f"---\nchunk_id: L2-1\nchunk_level: 2\n---\n\n{body}\n"
+
+
+def test_1_11_verbatim_chunk_passes(tmp_path, monkeypatch):
+    assert _run_45(tmp_path, monkeypatch, SRC, _c(SRC.split("\n\n", 1)[1].strip()))["verdict"] == "CLEARED"
+
+
+def test_1_11_late_dose_change_fails(tmp_path, monkeypatch):
+    body = SRC.split("\n\n", 1)[1].strip().replace("4 g per day", "40 g per day")
+    r = _run_45(tmp_path, monkeypatch, SRC, _c(body))
+    assert r["verdict"] == "FAIL" and "L2-1" in r["failed_ids"]
+
+
+def test_1_11_zero_l2_chunks_is_not_cleared(tmp_path, monkeypatch):
+    assert _run_45(tmp_path, monkeypatch, SRC, "no chunks at all")["verdict"] == "FAIL"
+
+
+def test_1_11_short_chunk_with_a_number_is_still_checked(tmp_path, monkeypatch):
+    r = _run_45(tmp_path, monkeypatch, "Give 5 mg stat.\n", _c("Give 50 mg stat."))
+    assert r["verdict"] == "FAIL"
