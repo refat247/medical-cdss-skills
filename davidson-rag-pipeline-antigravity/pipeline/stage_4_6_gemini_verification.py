@@ -638,15 +638,21 @@ def export_for_manual_review(chunks_data, levels=(2,), batch_size=35, body_chars
 def apply_manual_corrections(chunks_data, corrections):
     preamble, c_parts = _split_chunks(chunks_data)
     changed, unparsed, out_parts = 0, [], [preamble]
+    seen_ids = set()
     for part in c_parts:
         cid_m = re.search(r'chunk_id:\s*(\S+)', part)
         cid = cid_m.group(1) if cid_m else None
+        seen_ids.add(cid)
         if cid not in corrections:
             out_parts.append(part)
             continue
         current_type = _get_semantic_type(part)
         new_type = corrections[cid]
-        if new_type not in SEMANTIC_TYPES or new_type == current_type:
+        if new_type not in SEMANTIC_TYPES:
+            unparsed.append(cid)          # typo / unknown type: not a valid review
+            out_parts.append(part)
+            continue
+        if new_type == current_type:      # explicit confirmation of the existing type is a valid review
             out_parts.append(part)
             continue
         expected_line = f'semantic_type: {current_type}'
@@ -657,6 +663,7 @@ def apply_manual_corrections(chunks_data, corrections):
         out_parts.append(part.replace(expected_line, f'semantic_type: {new_type}', 1))
         changed += 1
 
+    unparsed.extend(sorted(set(corrections) - seen_ids))   # stale / unknown chunk ids fail loudly
     new_text = ''.join(out_parts)
     metadata = _build_metadata(
         new_text, gemini_used=True, gemini_failed_fallback=False,

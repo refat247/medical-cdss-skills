@@ -138,32 +138,23 @@ def test_apply_manual_corrections_changes_matching_chunk():
     assert meta["verification_method"] == "manual"
 
 
-def test_apply_manual_corrections_ignores_chunk_id_with_no_matching_chunk():
-    """Documents ACTUAL current behavior (not a v2.6.2 change): the loop
-    only ever visits chunk_ids that exist in chunks_data, so a corrections
-    key with no matching chunk is silently never applied and never
-    reported in unparsed_chunk_ids either -- it simply isn't iterated over.
-    This is a real gap in the legacy module (a truly bogus key is neither
-    applied nor flagged), documented here as existing control flow, not
-    fixed here (out of this stabilization release's narrow scope)."""
+def test_apply_manual_corrections_reports_chunk_id_with_no_matching_chunk():
+    """Second-sweep 1.9 (supersedes the old 'silently ignored' behaviour): a corrections key with no
+    matching chunk is stale/bogus and must be reported in unparsed_chunk_ids, never counted as a review."""
     chunks = _chunk("L2-01", "clinical_feature", "X", "body")
     new_text, meta = s46.apply_manual_corrections(chunks, {"L2-99-does-not-exist": "drug_info"})
     assert meta["chunks_corrected"] == 0
-    assert meta["unparsed_chunk_ids"] == []  # silently ignored, not reported
+    assert meta["unparsed_chunk_ids"] == ["L2-99-does-not-exist"]
     assert new_text == chunks  # unchanged
 
 
-def test_apply_manual_corrections_invalid_semantic_type_is_a_silent_noop():
-    """Also documents actual current behavior: an existing chunk_id paired
-    with a NEW type outside SEMANTIC_TYPES is treated as a no-op (same
-    code path as 'already correct'), NOT added to unparsed_chunk_ids --
-    `unparsed` is only ever populated by the (hard to trigger under normal
-    conditions) case where _get_semantic_type()'s regex-derived current
-    type doesn't literally appear as 'semantic_type: X' in the chunk text."""
+def test_apply_manual_corrections_reports_invalid_semantic_type():
+    """Second-sweep 1.9: an existing chunk_id paired with a type outside SEMANTIC_TYPES is a typo,
+    not a review; it is reported in unparsed_chunk_ids."""
     chunks = _chunk("L2-01", "clinical_feature", "X", "body")
     new_text, meta = s46.apply_manual_corrections(chunks, {"L2-01": "not_a_real_type"})
     assert meta["chunks_corrected"] == 0
-    assert meta["unparsed_chunk_ids"] == []
+    assert meta["unparsed_chunk_ids"] == ["L2-01"]
     assert new_text == chunks
 
 

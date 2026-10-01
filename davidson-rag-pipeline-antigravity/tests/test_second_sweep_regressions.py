@@ -210,3 +210,24 @@ def test_1_16_execute_stage_4_5d_pending_manual_records_in_progress(tmp_path, mo
     r = rs.execute_stage("4.5d", str(src), out_dir=str(tmp_path / "o"), prefix="p", force=True)
     assert r["status"] == "PENDING_MANUAL"
     assert "in_progress" in calls
+
+
+# ---------- 1.9 invalid manual corrections must be counted as unparsed, not as reviews ----------
+@pytest.mark.parametrize("mod", ["stage_4_6_gemini_verification", "stage_4_6_sonnet_verification"])
+def test_1_9_unknown_ids_and_invalid_types_are_unparsed(mod):
+    import importlib
+    m = importlib.import_module(f"pipeline.{mod}")
+    chunks = _chunk46("L2-1", "clinical_feature", "Presentation", "text")
+    _, meta = m.apply_manual_corrections(chunks, {"L2-99": "drug_info", "L2-1": "drug_infoo"})
+    assert meta["chunks_unparsed"] == 2
+    assert meta["chunks_corrected"] == 0
+
+
+@pytest.mark.parametrize("mod", ["stage_4_6_gemini_verification", "stage_4_6_sonnet_verification"])
+def test_1_9_valid_confirmation_and_correction_still_work(mod):
+    import importlib
+    m = importlib.import_module(f"pipeline.{mod}")
+    chunks = _chunk46("L2-1", "clinical_feature", "Presentation", "text") + _chunk46("L2-2", "clinical_feature", "X", "t")
+    text, meta = m.apply_manual_corrections(chunks, {"L2-1": "clinical_feature", "L2-2": "drug_info"})
+    assert meta["chunks_unparsed"] == 0 and meta["chunks_corrected"] == 1
+    assert "semantic_type: drug_info" in text
