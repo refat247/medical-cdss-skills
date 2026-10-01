@@ -52,6 +52,7 @@ Chapter 05's specific 55-candidate adjudication documented above -- not a
 general-purpose tool for other chapters.
 """
 import argparse
+import os
 import sys
 import json
 

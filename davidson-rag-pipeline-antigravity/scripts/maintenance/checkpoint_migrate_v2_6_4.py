@@ -10,6 +10,7 @@ Example:
     python checkpoint_migrate_v2_6_4.py "D:\\davidson_25_full_pipeline\\**\\*_CHECKPOINT.json"
     python checkpoint_migrate_v2_6_4.py "D:\\davidson_25_full_pipeline\\**\\*_CHECKPOINT.json" --apply
 """
+import os
 import sys
 import io
 import glob
@@ -20,6 +21,9 @@ from pipeline.stages.checkpoint_migration_v2_6_4 import migrate_checkpoint_file
 
 
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     if len(sys.argv) < 2:
         print(__doc__)
         raise SystemExit(1)

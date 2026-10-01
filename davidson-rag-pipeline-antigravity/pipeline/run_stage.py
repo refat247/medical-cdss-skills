@@ -40,7 +40,8 @@ def sync_chapter_assets(source_path: str, out_dir: str) -> None:
 
 
 def derive_chapter_info(source_path: str) -> dict:
-    basename = os.path.basename(source_path)
+    # Split on both separators so Windows-style paths work on POSIX too.
+    basename = re.split(r"[\\/]", source_path.rstrip("\\/"))[-1]
     # Strip any leading upload / file-id prefix (e.g. 12345678_Davidson_25_...)
     clean_name = re.sub(r"^[a-fA-F0-9\-]{6,}_", "", basename)
     
@@ -52,8 +53,8 @@ def derive_chapter_info(source_path: str) -> dict:
 
     m = (
         re.search(r"Davidson_25_(\d+)_(.+?)\.pdf", source_path) or
-        re.search(r"Davidson_25_Ch(\d+)_(.+?)(?:_|$|\.)", clean_name) or
-        re.search(r"Davidson_25_(\d+)_(.+?)(?:_|$|\.)", clean_name)
+        re.search(r"Davidson_25_Ch(\d+)_(.+?)(?:\.pdf|\.markdown|\.md|$)", clean_name) or
+        re.search(r"Davidson_25_(\d+)_(.+?)(?:\.pdf|\.markdown|\.md|$)", clean_name)
     )
     m_harrison = (
         re.search(r"Harrison_22_PART[_\-\s]*(\d+)[_\-\s]*(.*?)(?:\.pdf|\.markdown|$)", clean_name, re.IGNORECASE) or
@@ -95,6 +96,7 @@ def derive_chapter_info(source_path: str) -> dict:
         "therapeutics", "pharmacol", "cardiol", "cardio", "infectious",
         "respiratory", "gastro", "nephrol", "endocrin",
         "haematol", "oncol", "rheumatol", "dermatol", "dengue",
+        "prescrib", "poison", "toxicol",
     ]
     is_pharma = any(k in ch_display.lower() for k in pharma_keywords)
     return {
