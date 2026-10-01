@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 SKILL_NAME = "davidson-ocr-preready"
-SKILL_VERSION = "1.6.0"
+from preready import __version__ as SKILL_VERSION  # single source of truth (was a stale duplicate: 1.6.0)
 
 
 def _format_provenance_header(source_path: str) -> str:

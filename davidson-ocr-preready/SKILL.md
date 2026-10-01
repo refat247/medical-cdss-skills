@@ -1,6 +1,6 @@
 ---
 name: davidson-ocr-preready
-version: 1.7.5
+version: 1.7.6
 description: |
   Automated Pre-Ready Inliner and Multi-Modal Asset Normalizer for raw OCR outputs of Davidson 25th Edition chapters
   and clinical practice guidelines (ADA, KDIGO, ESC, NICE). Converts Mistral OCR / Document AI page directories
@@ -9,7 +9,7 @@ description: |
   davidson-rag-pipeline-antigravity skill.
 ---
 
-# Davidson OCR Pre-Ready Pipeline (v1.7.5)
+# Davidson OCR Pre-Ready Pipeline (v1.7.6)
 
 Production-grade pre-processing and inlining utility designed to bridge raw multi-page OCR extractions (`TRUE_MD_WITH_IMAGES/`) into the canonical `markdown_inlined.md` format required by `davidson-rag-pipeline-antigravity`.
 
@@ -21,7 +21,7 @@ Production-grade pre-processing and inlining utility designed to bridge raw mult
 >    <!--
 >    PROVENANCE METADATA:
 >      skill_name: "davidson-ocr-preready"
->      skill_version: "1.7.5"
+>      skill_version: "1.7.6"
 >      generated_at: "YYYY-MM-DDTHH:MM:SSZ"
 >      source_path: "<PATH>"
 >    -->

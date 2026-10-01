@@ -1,4 +1,4 @@
-"""Unified Runner CLI for Davidson OCR Pre-Ready Pipeline (v1.7.0).
+"""Unified Runner CLI for Davidson OCR Pre-Ready Pipeline .
 
 v2.6.3 SAFETY GUARDRAIL: Pre-processing helper for asset extraction and markdown inlining.
 Only writes to target chapter output directory and assets/figures/.
@@ -15,13 +15,17 @@ from preready.auditor import _format_provenance_header, write_audit_reports
 
 
 
+_GUIDELINE_TOKENS = frozenset({"guideline", "guidelines", "consensus", "kdigo", "ada", "esc", "nice", "who"})
+
+
 def detect_document_archetype(source_dir: str) -> str:
-    """Detects whether the input is a textbook chapter or a clinical guideline/monograph."""
+    """Detects whether the input is a textbook chapter or a clinical guideline/monograph.
+    Whole-token match on the folder name: the old substring test ("ada_", "nice_", "who_") classified
+    'canada_...' and 'venice_...' as guidelines."""
     base = os.path.basename(os.path.abspath(source_dir)).lower()
-    if any(k in base for k in ["guideline", "standards_of_care", "consensus", "kdigo", "ada_", "esc_", "nice_", "who_"]):
+    tokens = [x for x in re.split(r"[^a-z0-9]+", base) if x]
+    if any(tok in _GUIDELINE_TOKENS for tok in tokens) or "standards_of_care" in base.replace("-", "_").replace(" ", "_"):
         return "GUIDELINE"
-    if "davidson" in base or "chapter" in base or "ch_" in base or "ch-" in base:
-        return "TEXTBOOK"
     return "TEXTBOOK"
 
 

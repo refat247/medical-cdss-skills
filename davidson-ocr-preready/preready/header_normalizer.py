@@ -18,9 +18,13 @@ def clean_ocr_running_headers(md_text: str) -> str:
         "diabetesjournals.org/care", "diabetes carear"
     }
 
-    for l in lines:
+    def _blank(i):
+        return i < 0 or i >= len(lines) or not lines[i].strip()
+
+    for idx, l in enumerate(lines):
         s = l.strip()
         s_lower = s.lower()
+        isolated = _blank(idx - 1) and _blank(idx + 1)   # a real page number sits on its own paragraph
 
         # Skip isolated running header watermarks and OCR math hallucinations
         if s_lower in skip_exact or re.match(r'^\\\(.*\\therefore.*\\\)$', s):
@@ -33,12 +37,14 @@ def clean_ocr_running_headers(md_text: str) -> str:
             continue
         if re.match(r'^diabetes care volume \d+,\s*supplement \d+,\s*[a-z]+ \d{4}$', s_lower):
             continue
-        if re.match(r'^(?:https?://|doi(?:\.org)?/|downloaded from ).*$', s_lower):
+        # Only mastheads/DOIs/"downloaded from" lines: a bare https:// line may be a clinical resource
+        # (guideline links under "Useful websites") and is kept.
+        if re.match(r'^(?:https?://(?:dx\.)?doi\.org/|doi(?:\.org)?/|downloaded from ).*$', s_lower):
             continue
         
         # Convert isolated running page numbers to page marker:
         # Bare digits (1-4 digits alone), supplement pages (S1-S9999, Suppl. 12, P-12, A1-A99)
-        m_page = re.match(r'^(?:([A-Za-z]{1,2}|suppl\.?)[-\s]?)?(\d{1,4})$', s, re.IGNORECASE)
+        m_page = re.match(r'^(?:(S|A|P|suppl\.?)[-\s]?)?(\d{1,4})$', s, re.IGNORECASE) if isolated else None
         if m_page:
             raw_pfx = m_page.group(1) or ""
             page_num = m_page.group(2)
@@ -65,19 +71,45 @@ def clean_ocr_running_headers(md_text: str) -> str:
 
     result = "\n".join(cleaned)
     # Collapse duplicate consecutive page comments
-    result = re.sub(r'(<!-- page: [A-Za-z0-9\-]+ -->\n?)+', r'\1', result)
+    # Collapse only EXACT repeats: adjacent distinct markers (page 12 then 13) both carry page-citation info.
+    result = re.sub(r'(<!-- page: ([A-Za-z0-9\-]+) -->\n?)(?:\s*<!-- page: \2 -->\n?)+', r'\1', result)
     # Collapse 3+ consecutive newlines to 2
     result = re.sub(r'\n{3,}', '\n\n', result)
     return result
 
 
+_PROSE_VERBS = re.compile(r"\b(shows?|showed|is|are|was|were|demonstrates?|indicates?|suggests?|means?|gives?|requires?)\b", re.I)
+
+
+def _looks_like_heading(rest: str) -> bool:
+    """A heading is short, not a sentence, not a dose/unit line."""
+    rest = rest.strip()
+    if not rest or len(rest.split()) > 14 or rest.endswith((".", "!", "?", ";", ",")):
+        return False
+    if _PROSE_VERBS.search(rest):
+        return False
+    if re.search(r"\d\s*(?:mg|mcg|g|kg|ml|l|mmol|iu|units?|%|/)", rest, re.I) or re.search(r"\bm?l/h\b|\bmg\b|\bmcg\b", rest, re.I):
+        return False
+    return True
+
+
 def normalize_heading_hierarchy(md_text: str) -> str:
-    """Ensures consistent # (Title), ## (Section), ### (Subsection/Box) hierarchy."""
+    """Ensures consistent # (Title), ## (Section), ### (Subsection/Box) hierarchy.
+    Only line-shaped headings are promoted (prose such as "Table 1.2 shows that..." and dose lines such as
+    "0.9 Normal saline at 100 mL/h" used to become ###), and fenced code is left untouched."""
     lines = md_text.splitlines()
     normalized = []
 
     seen_h1 = False
+    in_fence = False
     for l in lines:
+        if l.strip().startswith("```"):
+            in_fence = not in_fence
+            normalized.append(l)
+            continue
+        if in_fence:
+            normalized.append(l)
+            continue
         if l.startswith("# "):
             if not seen_h1:
                 normalized.append(l)
@@ -85,10 +117,9 @@ def normalize_heading_hierarchy(md_text: str) -> str:
             else:
                 # Down-level subsequent # headers to ##
                 normalized.append(f"## {l[2:].strip()}")
-        elif re.match(r'^(?:Box|Table)\s*\d+\.\d+', l.strip(), re.IGNORECASE):
-            # Ensure Box/Table headings have ###
+        elif (m := re.match(r'^((?:Box|Table)\s*\d+\.\d+)(.*)$', l.strip(), re.IGNORECASE)) and _looks_like_heading(m.group(2).lstrip(" :.-–—")):
             normalized.append(f"### {l.strip()}")
-        elif re.match(r'^\d+\.\d+\s+[A-Z]', l.strip()):
+        elif (m := re.match(r'^(\d+\.\d+)\s+([A-Z].*)$', l.strip())) and _looks_like_heading(m.group(2)):
             # e.g. "1.1 Root causes of diagnostic error" -> "### 1.1 Root causes..."
             normalized.append(f"### {l.strip()}")
         else:

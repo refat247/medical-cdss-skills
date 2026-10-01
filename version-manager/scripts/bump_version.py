@@ -16,6 +16,21 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 
+
+DRY_RUN = False
+
+
+def _write_file(path: str, content: str) -> None:
+    """Single write choke point: honours dry-run, preserves newlines (no CRLF->LF churn), and replaces the file
+    atomically so an interrupted write cannot leave a half-written declaration file."""
+    if DRY_RUN:
+        return
+    tmp = f"{path}.tmp-bump"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        f.write(content)
+    os.replace(tmp, path)
+
+
 def parse_semver(v_str: str) -> Tuple[int, int, int, Optional[str]]:
     """Parses a SemVer string into (major, minor, patch, prerelease)."""
     m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$", v_str.strip())
@@ -73,10 +88,10 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             if fname == "SKILL.md":
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.match(r"^version:\s*([0-9\.]+)", line.strip())
+                        m = re.match(r"^version:\s*[\"']?([0-9][0-9A-Za-z.+\-]*)[\"']?\s*$", line.rstrip("\r\n"))
                         if m:
                             declarations.append(VersionDeclaration(fpath, "SKILL_FRONTMATTER", m.group(1), idx, line.strip()))
-                        m_hdr = re.search(r"^#\s+.*\(v([0-9\.]+)\)", line.strip())
+                        m_hdr = re.search(r"^#\s+.*\(v([0-9][0-9A-Za-z.+\-]*)\)", line.strip())
                         if m_hdr:
                             declarations.append(VersionDeclaration(fpath, "SKILL_HEADER", m_hdr.group(1), idx, line.strip()))
 
@@ -84,7 +99,7 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname == "package.json":
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.search(r'"version"\s*:\s*"([0-9\.]+)"', line)
+                        m = re.search(r'"version"\s*:\s*"([0-9][0-9A-Za-z.+\-]*)"', line)
                         if m:
                             declarations.append(VersionDeclaration(fpath, "PACKAGE_JSON", m.group(1), idx, line.strip()))
                             break
@@ -93,7 +108,7 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname == "pyproject.toml":
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.match(r'^version\s*=\s*["\']([0-9\.]+)["\']', line.strip())
+                        m = re.match(r'^version\s*=\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line.strip())
                         if m:
                             declarations.append(VersionDeclaration(fpath, "PYPROJECT_TOML", m.group(1), idx, line.strip()))
                             break
@@ -102,7 +117,7 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname.startswith("test_") and ("version" in fname or "consistency" in fname):
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.search(r'assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\']([0-9\.]+)["\']', line)
+                        m = re.search(r'assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line)
                         if m:
                             declarations.append(VersionDeclaration(fpath, "TEST_ASSERTION", m.group(1), idx, line.strip()))
 
@@ -110,10 +125,10 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname.endswith(".py"):
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m_init = re.match(r'^__version__\s*=\s*["\']([0-9\.]+)["\']', line.strip())
+                        m_init = re.match(r'^__version__\s*=\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line.strip())
                         if m_init:
                             declarations.append(VersionDeclaration(fpath, "PYTHON_INIT", m_init.group(1), idx, line.strip()))
-                        m_const = re.match(r'^(?:PIPELINE_VERSION|VERSION|APP_VERSION)\s*=\s*["\']([0-9\.]+)["\']', line.strip())
+                        m_const = re.match(r'^(?:PIPELINE_VERSION|SKILL_VERSION|VERSION|APP_VERSION)\s*=\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line.strip())
                         if m_const:
                             declarations.append(VersionDeclaration(fpath, "PYTHON_CONST", m_const.group(1), idx, line.strip()))
 
@@ -121,10 +136,10 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname == "README.md":
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m_inst = re.search(r"Installed\s*\(v([0-9\.]+)\)", line)
+                        m_inst = re.search(r"Installed\s*\(v([0-9][0-9A-Za-z.+\-]*)\)", line)
                         if m_inst:
                             declarations.append(VersionDeclaration(fpath, "README_INSTALLED", m_inst.group(1), idx, line.strip()))
-                        m_hdr = re.search(r"^#\s+.*\(v([0-9\.]+)\)", line)
+                        m_hdr = re.search(r"^#\s+.*\(v([0-9][0-9A-Za-z.+\-]*)\)", line)
                         if m_hdr:
                             declarations.append(VersionDeclaration(fpath, "README_HEADER", m_hdr.group(1), idx, line.strip()))
 
@@ -132,7 +147,7 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname == "CHANGELOG.md":
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.match(r"^##\s*\[([0-9\.]+)\]", line.strip())
+                        m = re.match(r"^##\s*\[([0-9][0-9A-Za-z.+\-]*)\]", line.strip())
                         if m:
                             declarations.append(VersionDeclaration(fpath, "CHANGELOG_LATEST", m.group(1), idx, line.strip()))
                             break
@@ -158,9 +173,20 @@ def check_consistency(root_dir: str) -> Tuple[bool, Optional[str], Dict[str, Lis
 def apply_version_bump(
     root_dir: str,
     target_version: str,
-    release_notes: Optional[str] = None
+    release_notes: Optional[str] = None,
+    dry_run: bool = False,
 ) -> List[str]:
-    """Atomically updates all discovered version declarations to target_version."""
+    """Updates all discovered version declarations to target_version (each file atomically).
+    With dry_run=True nothing is written; the list of files that WOULD change is returned."""
+    global DRY_RUN
+    DRY_RUN = dry_run
+    try:
+        return _apply_version_bump(root_dir, target_version, release_notes)
+    finally:
+        DRY_RUN = False
+
+
+def _apply_version_bump(root_dir: str, target_version: str, release_notes: Optional[str] = None) -> List[str]:
     decls = discover_versions(root_dir)
     if not decls:
         raise RuntimeError(f"No version declarations discovered in: {root_dir}")
@@ -171,78 +197,72 @@ def apply_version_bump(
     # 1. Update SKILL.md
     skill_path = os.path.join(root, "SKILL.md")
     if os.path.exists(skill_path):
-        with open(skill_path, "r", encoding="utf-8") as f:
+        with open(skill_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
-        new_content = re.sub(r"^(version:\s*)([0-9\.]+)", rf"\g<1>{target_version}", content, flags=re.MULTILINE)
-        new_content = re.sub(r'^(#\s+.*\(v)([0-9\.]+)(\))', rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
-        new_content = re.sub(r'(skill_version:\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", new_content)
+        new_content = re.sub(r"^(version:[ \t]*[\"']?)([0-9][0-9A-Za-z.+\-]*)", rf"\g<1>{target_version}", content, flags=re.MULTILINE)
+        new_content = re.sub(r'^(#\s+.*\(v)([0-9][0-9A-Za-z.+\-]*)(\))', rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
+        new_content = re.sub(r'(skill_version:\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])', rf"\g<1>{target_version}\g<3>", new_content)
         if new_content != content:
-            with open(skill_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+            _write_file(skill_path, new_content)
             modified_files.add(skill_path)
 
     # 2. Update package.json
     pkg_path = os.path.join(root, "package.json")
     if os.path.exists(pkg_path):
-        with open(pkg_path, "r", encoding="utf-8") as f:
+        with open(pkg_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
-        new_content = re.sub(r'("version"\s*:\s*")([0-9\.]+)(")', rf"\g<1>{target_version}\g<3>", content)
+        new_content = re.sub(r'("version"\s*:\s*")([0-9][0-9A-Za-z.+\-]*)(")', rf"\g<1>{target_version}\g<3>", content)
         if new_content != content:
-            with open(pkg_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+            _write_file(pkg_path, new_content)
             modified_files.add(pkg_path)
 
     # 3. Update pyproject.toml
     pyproj_path = os.path.join(root, "pyproject.toml")
     if os.path.exists(pyproj_path):
-        with open(pyproj_path, "r", encoding="utf-8") as f:
+        with open(pyproj_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
-        new_content = re.sub(r'^(version\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
+        new_content = re.sub(r'^(version\s*=\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
         if new_content != content:
-            with open(pyproj_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+            _write_file(pyproj_path, new_content)
             modified_files.add(pyproj_path)
 
     # 4. Update __init__.py files
     for d in decls:
         if d.file_type == "PYTHON_INIT":
-            with open(d.file_path, "r", encoding="utf-8") as f:
+            with open(d.file_path, "r", encoding="utf-8", newline="") as f:
                 content = f.read()
-            new_content = re.sub(r'(__version__\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content)
-            new_content = re.sub(r'(\(v)([0-9\.]+)(\))', rf"\g<1>{target_version}\g<3>", new_content)
+            new_content = re.sub(r'(__version__\s*=\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])', rf"\g<1>{target_version}\g<3>", content)
+            new_content = re.sub(r'(\(v)([0-9][0-9A-Za-z.+\-]*)(\))', rf"\g<1>{target_version}\g<3>", new_content)
             if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
+                _write_file(d.file_path, new_content)
                 modified_files.add(d.file_path)
 
     # 5. Update Python constant declarations (PIPELINE_VERSION, etc.)
     for d in decls:
         if d.file_type == "PYTHON_CONST":
-            with open(d.file_path, "r", encoding="utf-8") as f:
+            with open(d.file_path, "r", encoding="utf-8", newline="") as f:
                 content = f.read()
-            new_content = re.sub(r'^((?:PIPELINE_VERSION|VERSION|APP_VERSION)\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
+            new_content = re.sub(r'^((?:PIPELINE_VERSION|SKILL_VERSION|VERSION|APP_VERSION)\s*=\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
             if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
+                _write_file(d.file_path, new_content)
                 modified_files.add(d.file_path)
 
     # 6. Update README.md
     readme_path = os.path.join(root, "README.md")
     if os.path.exists(readme_path):
-        with open(readme_path, "r", encoding="utf-8") as f:
+        with open(readme_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
-        new_content = re.sub(r"(Installed\s*\(v)([0-9\.]+)(\))", rf"\g<1>{target_version}\g<3>", content)
-        new_content = re.sub(r"^([#]+\s+.*\(v)([0-9\.]+)(\))", rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
-        new_content = re.sub(r"(`v)([0-9\.]+)(`)", rf"\g<1>{target_version}\g<3>", new_content)
+        new_content = re.sub(r"(Installed\s*\(v)([0-9][0-9A-Za-z.+\-]*)(\))", rf"\g<1>{target_version}\g<3>", content)
+        new_content = re.sub(r"^([#]+\s+.*\(v)([0-9][0-9A-Za-z.+\-]*)(\))", rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
+        new_content = re.sub(r"(`v)([0-9][0-9A-Za-z.+\-]*)(`)", rf"\g<1>{target_version}\g<3>", new_content)
         if new_content != content:
-            with open(readme_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+            _write_file(readme_path, new_content)
             modified_files.add(readme_path)
 
     # 7. Update CHANGELOG.md
     changelog_path = os.path.join(root, "CHANGELOG.md")
     if os.path.exists(changelog_path):
-        with open(changelog_path, "r", encoding="utf-8") as f:
+        with open(changelog_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
 
         today = _today_iso()
@@ -257,24 +277,23 @@ def apply_version_bump(
             new_entry = f"\n## [{target_version}] - {today}\n\n{body}\n"
 
             # Insert above the first existing release heading
-            first_release = re.search(r"^##\s*\[[0-9\.]+\]", content, re.MULTILINE)
+            first_release = re.search(r"^##\s*\[[0-9][0-9A-Za-z.+\-]*\]", content, re.MULTILINE)
             if first_release:
                 idx = first_release.start()
                 new_content = content[:idx] + new_entry.lstrip("\n") + "\n" + content[idx:]
             else:
                 new_content = content + "\n" + new_entry
 
-            with open(changelog_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+            _write_file(changelog_path, new_content)
             modified_files.add(changelog_path)
 
     # 8. Update test assertions
     for d in decls:
         if d.file_type == "TEST_ASSERTION":
-            with open(d.file_path, "r", encoding="utf-8") as f:
+            with open(d.file_path, "r", encoding="utf-8", newline="") as f:
                 content = f.read()
             new_content = re.sub(
-                r'(assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\'])([0-9\.]+)(["\'])',
+                r'(assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])',
                 rf"\g<1>{target_version}\g<3>",
                 content
             )
@@ -286,8 +305,7 @@ def apply_version_bump(
                 new_content
             )
             if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
+                _write_file(d.file_path, new_content)
                 modified_files.add(d.file_path)
 
     return sorted(list(modified_files))
@@ -317,7 +335,8 @@ def bump_all(
     root_dir: str,
     bump_type: str,
     message: Optional[str] = None,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    notes: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """Computes target version, updates all files, and appends a changelog entry.
     
@@ -333,13 +352,15 @@ def bump_all(
     is_consistent, current_v, groups = check_consistency(root_dir)
     if not current_v:
         # If drift exists, select highest version as baseline
-        versions = sorted(list(groups.keys()), key=lambda s: parse_semver(s), reverse=True)
+        versions = sorted(list(groups.keys()), key=lambda s: parse_semver(s)[:3], reverse=True)
         current_v = versions[0]
 
     target_v = bump_semver(current_v, bump_type)
 
     release_notes = None
-    if message:
+    if notes:
+        release_notes = notes.strip() + "\n"      # full release notes are used verbatim (was wrapped as ONE bullet)
+    elif message:
         cat = category.strip().capitalize() if category else ("Added" if bump_type == "minor" else "Changed")
         release_notes = f"### {cat}\n- {message.strip()}\n"
 
@@ -471,9 +492,14 @@ def main():
     parser.add_argument("--set-version", help="Explicit target version string (e.g. 2.25.0)")
     parser.add_argument("--message", "-m", help="Summary message for changelog")
     parser.add_argument("--notes", help="Full markdown release notes content for CHANGELOG.md")
+    parser.add_argument("--dry-run", action="store_true", help="Show which files a bump WOULD change; write nothing")
     parser.add_argument("--category", default="Changed", help="Changelog category (Added, Changed, Fixed, etc.)")
 
     args = parser.parse_args()
+
+    if args.suite and (args.bump or args.set_version):
+        print("Error: --suite is audit-only; run the bump on one skill directory at a time.", file=sys.stderr)
+        sys.exit(2)
 
     # Suite mode branch
     if args.suite:
@@ -523,12 +549,20 @@ def main():
 
     bump_action = args.bump or args.set_version
     if bump_action:
-        msg = args.notes or args.message
+        if args.dry_run:
+            cur = check_consistency(target_dir)[1] or "0.0.0"
+            tv = bump_semver(cur, bump_action)
+            files = apply_version_bump(target_dir, tv, dry_run=True)
+            print(f"[DRY-RUN] v{cur} -> v{tv}: would modify {len(files)} file(s):")
+            for f in files:
+                print(f"  {f}")
+            sys.exit(0)
         success, target_v = bump_all(
             root_dir=target_dir,
             bump_type=bump_action,
-            message=msg,
-            category=args.category
+            message=args.message,
+            category=args.category,
+            notes=args.notes,
         )
         if success:
             print(f"\n[SUCCESS] Version bump to v{target_v} complete and 100% consistent!")

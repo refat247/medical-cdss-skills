@@ -1,0 +1,74 @@
+"""Regression tests for davidson-ocr-preready (skill_audits/SECOND_SWEEP.md 2.6, P1, P2, M13-M17)."""
+import os
+import re
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from preready import __version__  # noqa: E402
+from preready import auditor  # noqa: E402
+from preready.header_normalizer import clean_ocr_running_headers, normalize_heading_hierarchy  # noqa: E402
+from preready.runner import detect_document_archetype  # noqa: E402
+
+
+def test_p1_provenance_stamp_equals_the_skill_version():
+    assert auditor.SKILL_VERSION == __version__
+    assert f'skill_version: "{__version__}"' in auditor._format_provenance_header("x")
+
+
+@pytest.mark.parametrize("folder,expected", [
+    ("ADA_2026_DM_guideline", "GUIDELINE"), ("KDIGO_2024_CKD", "GUIDELINE"), ("NICE_NG28", "GUIDELINE"),
+    ("canada_notes_ch3", "TEXTBOOK"), ("venice_2020_chapter", "TEXTBOOK"), ("Davidson_25_Ch5", "TEXTBOOK"),
+    ("Standards_of_Care_2026", "GUIDELINE"),
+])
+def test_p2_archetype_uses_whole_tokens_not_substrings(folder, expected, tmp_path):
+    d = tmp_path / folder; d.mkdir()
+    assert detect_document_archetype(str(d)) == expected
+
+
+@pytest.mark.parametrize("line", ["T4", "S3x", "CD4", "B12", "IL-6", "pH 7"])
+def test_m13_short_clinical_tokens_are_not_page_markers(line):
+    out = clean_ocr_running_headers(f"Text before.\n\n{line}\n\nText after.\n")
+    assert line in out and "page:" not in out
+
+
+@pytest.mark.parametrize("line,marker", [("42", "<!-- page: 42 -->"), ("S12", "<!-- page: S12 -->"), ("P-7", "<!-- page: P7 -->")])
+def test_m13_real_page_numbers_still_become_markers(line, marker):
+    assert marker in clean_ocr_running_headers(f"Text.\n\n{line}\n\nMore.\n")
+
+
+def test_m13_number_inside_running_text_is_kept():
+    out = clean_ocr_running_headers("Give aspirin\n300\nmg stat\n")
+    assert "\n300\n" in out
+
+
+def test_m14_https_resource_lines_are_not_deleted_but_downloaded_from_is():
+    out = clean_ocr_running_headers("Useful websites\n\nhttps://www.who.int/dengue\n\nDownloaded from x.org\n")
+    assert "https://www.who.int/dengue" in out and "Downloaded from" not in out
+
+
+def test_m15_adjacent_distinct_page_markers_are_both_kept():
+    out = clean_ocr_running_headers("a\n\n12\n\n13\n\nb\n")
+    assert "<!-- page: 12 -->" in out and "<!-- page: 13 -->" in out
+
+
+def test_m15_exact_duplicate_markers_still_collapse():
+    out = clean_ocr_running_headers("a\n\n12\n\n12\n\nb\n")
+    assert out.count("<!-- page: 12 -->") == 1
+
+
+@pytest.mark.parametrize("line", ["Table 1.2 shows that the dose doubles in renal failure.", "0.9 Normal saline at 100 mL/h",
+                                  "2.5 mg is the usual starting dose."])
+def test_m16_prose_and_dose_lines_are_not_turned_into_headings(line):
+    assert normalize_heading_hierarchy(f"{line}\n") == f"{line}"
+
+
+@pytest.mark.parametrize("line", ["Table 1.2 Causes of anaemia", "Box 3.1 Diagnostic criteria", "1.1 Root causes of diagnostic error"])
+def test_m16_real_headings_still_normalised(line):
+    assert normalize_heading_hierarchy(f"{line}\n") == f"### {line}"
+
+
+def test_m16_hash_comment_inside_code_fence_is_not_demoted():
+    md = "# Title\n\n```\n# comment\n```\n"
+    assert "# comment" in normalize_heading_hierarchy(md) and "## comment" not in normalize_heading_hierarchy(md)

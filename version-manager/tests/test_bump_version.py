@@ -88,7 +88,7 @@ def mock_project():
 
 def test_version_manager_self_version():
     from scripts import __version__
-    assert __version__ == "1.1.1"
+    assert __version__ == "1.2.0"
 
 
 def test_discover_and_verify_consistent(mock_project):
@@ -171,3 +171,74 @@ def test_discover_and_audit_suite(tmp_path):
     alpha_res = [r for r in drift_results if r["name"] == "skill-alpha"][0]
     assert alpha_res["is_consistent"] is False
 
+
+
+# ---------------- second-sweep 3.8 / 3.1 (version-manager) ----------------
+import os
+from pathlib import Path
+
+
+def _skill(tmp_path, version="1.0.0", extra_py=None, crlf=False):
+    d = tmp_path / "s"; (d / "scripts").mkdir(parents=True)
+    nl = "\r\n" if crlf else "\n"
+    (d / "SKILL.md").write_bytes(f"---{nl}name: s{nl}version: {version}{nl}---{nl}# S (v{version}){nl}".encode())
+    (d / "scripts" / "__init__.py").write_text(f'__version__ = "{version}"\n')
+    (d / "CHANGELOG.md").write_text(f"# Changelog\n\n## [{version}] - 2026-01-01\n- init\n")
+    if extra_py:
+        (d / "scripts" / "extra.py").write_text(extra_py)
+    return d
+
+
+def test_skill_version_constant_is_discovered_and_drift_detected(tmp_path):
+    from scripts.bump_version import check_consistency
+    d = _skill(tmp_path, "1.7.5", extra_py='SKILL_VERSION = "1.6.0"\n')
+    ok, _, groups = check_consistency(str(d))
+    assert ok is False and {"1.6.0", "1.7.5"} <= set(groups)
+
+
+def test_skill_version_constant_is_bumped_with_the_rest(tmp_path):
+    from scripts.bump_version import bump_all, check_consistency
+    d = _skill(tmp_path, "1.0.0", extra_py='SKILL_VERSION = "1.0.0"\n')
+    ok, v = bump_all(str(d), "minor", message="m")
+    assert ok and v == "1.1.0"
+    assert 'SKILL_VERSION = "1.1.0"' in (d / "scripts" / "extra.py").read_text()
+
+
+def test_prerelease_bump_stays_consistent(tmp_path):
+    from scripts.bump_version import bump_all, check_consistency
+    d = _skill(tmp_path, "1.1.1")
+    ok, v = bump_all(str(d), "2.0.0-rc.1", message="rc")
+    assert ok and v == "2.0.0-rc.1"
+    assert "version: 2.0.0-rc.1" in (d / "SKILL.md").read_text()
+    assert check_consistency(str(d))[0] is True
+
+
+def test_nested_version_key_is_not_a_declaration(tmp_path):
+    from scripts.bump_version import discover_versions
+    d = _skill(tmp_path)
+    (d / "SKILL.md").write_text("---\nname: s\nversion: 1.0.0\nmetadata:\n  version: 9.9.9\n---\n# S (v1.0.0)\n")
+    assert {x.current_version for x in discover_versions(str(d))} == {"1.0.0"}
+
+
+def test_dry_run_changes_nothing(tmp_path):
+    from scripts import bump_version as bv
+    d = _skill(tmp_path)
+    before = {p: p.read_bytes() for p in d.rglob("*") if p.is_file()}
+    changed = bv.apply_version_bump(str(d), "1.1.0", dry_run=True)
+    assert changed and all(p.read_bytes() == before[p] for p in before)
+
+
+def test_crlf_line_endings_are_preserved(tmp_path):
+    from scripts.bump_version import bump_all
+    d = _skill(tmp_path, crlf=True)
+    bump_all(str(d), "patch", message="x")
+    raw = (d / "SKILL.md").read_bytes()
+    assert b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b"")
+
+
+def test_notes_are_used_verbatim_not_wrapped_in_one_bullet(tmp_path):
+    from scripts.bump_version import bump_all
+    d = _skill(tmp_path)
+    bump_all(str(d), "minor", notes="### Added\n- A\n\n### Fixed\n- B\n")
+    text = (d / "CHANGELOG.md").read_text()
+    assert "- ### Added" not in text and "### Added\n- A" in text
