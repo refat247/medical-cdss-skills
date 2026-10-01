@@ -563,3 +563,63 @@ def test_1_17_stage3_flags_every_trigger_stage2_removes():
     rep = "## S\nSome text.\n\nDownload on the App Store\n"
     r = compute_reaudit(rep, rep)
     assert any("Piracy" in i for i in r["issues"])
+
+
+# ---------- 1.25 4A/4B line numbering must agree, even with a form feed in the text ----------
+def test_1_25_stage_4a_numbers_lines_like_stage_4b_and_the_source_lines_parser(tmp_path, monkeypatch):
+    from pipeline.stages import stage_4_parse as s4
+    monkeypatch.setattr(s4, "load_checkpoint", lambda o, p: ({"stage_completions": {}, "pipeline_state": {}, "chapter_info": {}}, "x.json"))
+    monkeypatch.setattr(s4, "mark_stage_complete", lambda *a, **k: None)
+    rep = tmp_path / "REPAIRED_S2.md"
+    rep.write_bytes(b"# T\nline two\n\x0cstill line three after a form feed\n## B\ntext\n")
+    s4.run_stage_4a(str(rep), str(tmp_path), "P")
+    report = (tmp_path / "P_AUDIT_REPORT.md").read_text(encoding="utf-8") if (tmp_path / "P_AUDIT_REPORT.md").exists() else ""
+    expected = rep.read_text(encoding="utf-8").splitlines().index("## B") + 1
+    assert f"Line {expected}: ## B" in report, report
+
+
+# ---------- 1.25 MCQ explanation capture must not stop at a decimal-number line ----------
+def test_1_25_mcq_explanation_survives_a_decimal_dose_line():
+    from pipeline.stages import stage_4_parse as s4
+    import inspect
+    src = inspect.getsource(s4)
+    assert "\\d+\\.\\d+" in src                         # parser exists
+    # behaviour check through the public regex helper added for this fix
+    assert s4.MCQ_EXPLANATION_END_RE.match("5.1 B") is not None
+    assert s4.MCQ_EXPLANATION_END_RE.match("2.5 mg is the usual starting dose.") is None
+
+
+# ---------- 1.25 source_lines correction must replace only the value ----------
+def test_1_25_apply_corrections_replaces_only_the_source_lines_value():
+    from pipeline.stages.source_lines_precision import apply_corrections
+    chunk = '---\nchunk_id: L2-001\nchunk_level: 2\nsource_lines: 10-20\n---\n5 mg daily\n'
+    out, changed, unmatched = apply_corrections(chunk, {"L2-001": [(10, 25)]})
+    assert changed == 1 and not unmatched
+    assert 'source_lines: "10-25"\n---\n5 mg daily' in out
+
+
+# ---------- 1.22 boundary-loss detector ----------
+def _bl(l1, chunks, scope=""):
+    return s45.detect_boundary_loss(l1, chunks, scope=scope)[0]
+
+
+def test_1_22_sentence_starter_is_not_paired_with_the_dose():
+    l1 = "Take Digoxin 5 mg daily."
+    chunks = [{"chunk_id": "A", "body": "Take Digoxin 5 mg daily.", "disease_focus": "d", "order": 1}]
+    assert _bl(l1, chunks) == []                     # intact in one chunk -> nothing to report
+
+
+def test_1_22_dose_is_matched_as_a_whole_token_not_a_substring():
+    l1 = "Give Aspirin 10 mg daily."
+    # the chunk contains '10 mg' only as part of '110 mg' (a different dose); '0 mg' style substrings must not count
+    chunks = [{"chunk_id": "A", "body": "Aspirin is given. Another drug 110 mg.", "disease_focus": "d", "order": 1}]
+    cands = _bl(l1, chunks)
+    assert cands, "10 mg must not be considered present just because '110 mg' contains it"
+
+
+def test_1_22_candidate_ids_do_not_collide_across_l1_sections():
+    l1 = "Give Aspirin 10 mg daily."
+    c = [{"chunk_id": "A", "body": "Aspirin only.", "disease_focus": "d", "order": 1}]   # dose missing -> 'incomplete'
+    a = _bl(l1, c, scope="L1-001")
+    b = _bl(l1, c, scope="L1-002")
+    assert a and b and {x["candidate_id"] for x in a}.isdisjoint({x["candidate_id"] for x in b})

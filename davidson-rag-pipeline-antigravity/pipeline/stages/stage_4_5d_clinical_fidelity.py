@@ -541,10 +541,41 @@ def detect_sequence(source_span, chunk_body, chunk_id):
 # VERIFIED CRITICAL_SEPARATION is a hard failure.
 # --------------------------------------------------------------------------
 
+# Capitalised words that start a sentence are not drug names ("Take Digoxin 5 mg" used to pair "Take" with the dose).
+_NOT_A_DRUG = frozenset({
+    "Give", "Take", "The", "This", "That", "These", "Those", "Use", "Start", "Stop", "Add", "Avoid", "Consider", "Dose",
+    "Doses", "Dosing", "Initial", "Usual", "Maximum", "Minimum", "Total", "Daily", "Single", "Each", "Per", "Then", "Increase",
+    "Reduce", "Titrate", "Administer", "Prescribe", "Adults", "Adult", "Children", "Child", "Patients", "Patient", "If", "In",
+    "For", "With", "Without", "Up", "After", "Before", "Once", "Twice", "Or", "And", "At", "On", "To", "Of", "A", "An",
+})
+
 DRUG_DOSE_ADJACENCY_RE = re.compile(
-    r'\b([A-Z][a-z]+(?:in|ol|ide|ate|azole|cillin|mycin)?)\b[^.\n]{0,40}'
-    r'(\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|units?|IU)\b)', re.MULTILINE,
+    r'\b([A-Z][a-z]+(?:in|ol|ide|ate|azole|cillin|mycin)?)\b[^.\n]{0,40}?'
+    r'(?<![\w.])(\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|units?|IU)\b)', re.MULTILINE,
 )
+
+
+_DOSE_RE = re.compile(r'(?<![\w.])(\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|units?|IU)\b)')
+_CAP_WORD_RE = re.compile(r'\b([A-Z][a-z]+(?:in|ol|ide|ate|azole|cillin|mycin)?)\b')
+
+
+def _drug_dose_pairs(text):
+    """(drug, dose) pairs: for each dose, the NEAREST capitalised non-sentence-starter word within 40 characters to
+    its left on the same line. (Pairing from the left by regex consumed 'Give' and then missed 'Aspirin'.)"""
+    pairs = []
+    for m in _DOSE_RE.finditer(text):
+        line_start = text.rfind("\n", 0, m.start()) + 1
+        window = text[max(line_start, m.start() - 40):m.start()]
+        window = window[window.rfind(".") + 1:] if "." in window else window       # stay inside the sentence
+        words = [w for w in _CAP_WORD_RE.findall(window) if w not in _NOT_A_DRUG]
+        if words:
+            pairs.append((words[-1], m.group(1)))
+    return pairs
+
+
+def _contains_token(haystack, token):
+    """Whole-token containment: '10 mg' must not be found inside '110 mg' (the old `in` test did exactly that)."""
+    return re.search(r'(?<![\w.])' + re.escape(token) + r'(?![\w])', haystack) is not None
 
 
 def classify_boundary(same_chunk, same_disease_focus, adjacent_chunk_ids,
@@ -585,7 +616,7 @@ def _heading_exists_between(repaired_s2_text, end_of_first, start_of_second):
     return False
 
 
-def detect_boundary_loss(l1_body, l2_chunks, repaired_s2_text=None):
+def detect_boundary_loss(l1_body, l2_chunks, repaired_s2_text=None, scope=""):
     """l2_chunks: list of dicts {chunk_id, body, disease_focus, order,
     (optional) source_lines: (lo, hi)} for every L2 chunk belonging to this
     L1 section, in document order. Finds drug-name/dose adjacency pairs in
@@ -607,21 +638,21 @@ def detect_boundary_loss(l1_body, l2_chunks, repaired_s2_text=None):
     need or have real source text."""
     candidates = []
     scanned = 0
-    for m in DRUG_DOSE_ADJACENCY_RE.finditer(l1_body):
-        drug, dose = m.group(1), m.group(2)
+    prefix = f"{scope}:" if scope else ""     # keeps ids unique across L1 sections (they collided on "?")
+    for drug, dose in _drug_dose_pairs(l1_body):
         scanned += 1
-        intact = any(drug in c["body"] and dose in c["body"] for c in l2_chunks)
+        intact = any(_contains_token(c["body"], drug) and _contains_token(c["body"], dose) for c in l2_chunks)
         if intact:
             continue
-        drug_chunks = [c for c in l2_chunks if drug in c["body"]]
-        dose_chunks = [c for c in l2_chunks if dose in c["body"]]
+        drug_chunks = [c for c in l2_chunks if _contains_token(c["body"], drug)]
+        dose_chunks = [c for c in l2_chunks if _contains_token(c["body"], dose)]
         if not drug_chunks or not dose_chunks:
             # One half missing entirely from every L2 chunk -- this is a
             # Stage 4.5c coverage-gap shaped problem, not a boundary-loss
             # shaped one; still surfaced here as AMBIGUOUS so it isn't
             # silently dropped, but not auto-classified as a drug/dose split.
             candidates.append(_candidate(
-                "boundary_loss", "?", source_value=f"{drug} {dose}", chunk_value=None,
+                "boundary_loss", f"{prefix}?", source_value=f"{drug} {dose}", chunk_value=None,
                 kind="incomplete", extra={"boundary_classification": "AMBIGUOUS"},
             ))
             continue
@@ -642,7 +673,7 @@ def detect_boundary_loss(l1_body, l2_chunks, repaired_s2_text=None):
             adjacent_chunk_ids=adjacent, split_at_declared_heading=split_at_heading,
         )
         candidates.append(_candidate(
-            "boundary_loss", f"{c1['chunk_id']}/{c2['chunk_id']}",
+            "boundary_loss", f"{prefix}{c1['chunk_id']}/{c2['chunk_id']}",
             source_value=f"{drug} {dose}", chunk_value=None, kind="split",
             extra={
                 "boundary_classification": classification,

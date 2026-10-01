@@ -191,9 +191,11 @@ def run_stage_4_5d(out_dir, prefix, write_dir=None):
             # v2.6.2: pass repaired_s2_text so detect_boundary_loss can
             # actually reach INTENTIONAL_SECTION_SPLIT from real heading
             # evidence, not just AMBIGUOUS/SAFE/CRITICAL.
-            cands, _scanned = s45d.detect_boundary_loss(l1["body"], children, repaired_s2_text=repaired)
+            cands, _scanned = s45d.detect_boundary_loss(l1["body"], children, repaired_s2_text=repaired, scope=l1["chunk_id"])
             all_candidates.extend(cands)
     detectors_run.add("boundary_loss")
+    # one global uniqueness pass: ids are (check, chunk_id, ordinal, hash); duplicates across sections used to collide
+    s45d.assign_candidate_ids(all_candidates)
 
     gate = s45d.build_clinical_fidelity_gate(
         all_candidates, sorted(detectors_run), PIPELINE_VERSION, prefix,

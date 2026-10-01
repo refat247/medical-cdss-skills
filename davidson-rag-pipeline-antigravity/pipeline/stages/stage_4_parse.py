@@ -295,6 +295,11 @@ def make_chunk(
     return f"{header}\n\n{body_text.strip()}"
 
 
+# An explanation ends only at the next ANSWER entry ("5.1 B", "Answer 5.2: C"), not at any line that merely begins
+# with a decimal ("2.5 mg is the usual starting dose" used to cut the explanation and drop it from the L2 chunk).
+MCQ_EXPLANATION_END_RE = re.compile(r"(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b", re.IGNORECASE)
+
+
 def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
     """Executes Stage 4A pre-flight heading map and manifest."""
     checkpoint, checkpoint_path = load_checkpoint(out_dir, prefix)
@@ -302,7 +307,9 @@ def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
         return {"status": "skipped", "reason": "already complete"}
 
     with open(rep_path, encoding="utf-8") as f:
-        lines = f.readlines()
+        # splitlines(), like Stage 4B and the source_lines parser: readlines() split on "\n" only, so a form feed
+        # (common in PDF OCR) made Stage 4A's "Line N" disagree with Stage 4B's source_lines.
+        lines = f.read().splitlines()
 
     hmap = [f"Line {i+1}: {l.rstrip()}" for i, l in enumerate(lines) if re.match(r"^#{1,4}\s", l)]
 
@@ -436,11 +443,11 @@ def run_stage_4b(rep_path: str, out_dir: str, prefix: str) -> dict:
             if ans_block_start is not None:
                 ans_text = "\n".join(sec_lines[ans_block_start:])
                 # Multi-item True/False answers (e.g. 1.1 A: True, B: False, C: True, D: False, E: False)
-                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*((?:[A-E]\s*[:—–-]?\s*(?:True|False|T|F)\b\s*[,;]?\s*)+)(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
+                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*((?:[A-E]\s*[:—–-]?\s*(?:True|False|T|F)\b\s*[,;]?\s*)+)(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
                     q_num, ans_opts, exp = m.group(1), m.group(2).strip(), m.group(3).strip()
                     mcq_answers[q_num] = f"**Answers: {ans_opts}**\n{exp}".strip()
                 # Single-letter choice answers (e.g. 1.1 Answer: A)
-                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?)?\s*([A-E])\b[.:—–\s]*(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
+                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?)?\s*([A-E])\b[.:—–\s]*(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
                     q_num, ans_opt, exp = m.group(1), m.group(2), m.group(3).strip()
                     if q_num not in mcq_answers:
                         mcq_answers[q_num] = f"**Answer: {ans_opt.upper()}**\n{exp}".strip()

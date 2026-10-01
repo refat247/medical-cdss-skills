@@ -578,7 +578,9 @@ def apply_corrections(chunks_text, corrections):
             unmatched.append(chunk_id)
             continue
         new_value = segments_to_source_lines_string(segments)
-        new_block = re.sub(r'source_lines:\s*"?[\d,\s\-]+"?', f'source_lines: "{new_value}"', block, count=1)
+        # replace ONLY the value on the source_lines line (the old pattern's \s also matched the newline, so an
+        # unquoted value swallowed the closing '---' and the first digits of the body)
+        new_block = re.sub(r'(?m)^source_lines:[ \t]*[^\n]*$', lambda _m: f'source_lines: "{new_value}"', block, count=1)
         if new_block == block:
             unmatched.append(chunk_id)
             continue
