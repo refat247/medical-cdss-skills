@@ -375,6 +375,11 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         with open(log_path, "w", encoding="utf-8") as f:
             f.write(remap_log_content.replace("Status: success", f"Status: {action}"))
 
+        # Persist HOW the review was done, so a later reader can tell an LLM/human review from the
+        # offline title-rule pass (the checkpoint used to say only "COMPLETED").
+        decision_metadata["verification_method"] = meta.get("verification_method", "llm_gemini" if use_llm else "unknown")
+        decision_metadata["independent_verification"] = bool(meta.get("independent_verification", use_llm))
+
         if action == "complete":
             with open(chunk_path, "w", encoding="utf-8") as f:
                 f.write(final)
@@ -382,7 +387,6 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
             print(f"Stage 4.6 -> {log_path} | {meta.get('chunks_corrected', 0)} corrected | action={action}")
             return {"status": "COMPLETED", "stage": "4.6", "corrected": meta.get("chunks_corrected", 0), "action": action}
         elif action in ("pending_manual", "review_incomplete"):
-            from pipeline.checkpoint_utils import mark_stage_in_progress
             mark_stage_in_progress(checkpoint, checkpoint_path, "4.6", output_file=os.path.basename(log_path), **decision_metadata)
             print(f"Stage 4.6 -> {log_path} | {meta.get('chunks_corrected', 0)} corrected | action={action} (manual review pending)")
             return {"status": "PENDING_MANUAL", "stage": "4.6", "corrected": meta.get("chunks_corrected", 0), "action": action}

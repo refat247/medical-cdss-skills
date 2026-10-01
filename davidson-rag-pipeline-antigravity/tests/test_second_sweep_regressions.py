@@ -166,3 +166,47 @@ def test_1_4_preserved_negation_is_not_flagged(src, chunk):
 ])
 def test_1_29_detector_vocabulary_gaps(src, chunk, check):
     assert [c for c in _cands(src, chunk) if c["check"] == check], (src, chunk)
+
+
+# ---------- 1.8 Stage 4.6 offline adjudicator must not relabel from body regexes ----------
+from pipeline import stage_4_6_gemini_verification as s46
+
+
+def _chunk46(cid, stype, topic, body):
+    return (f"---\nchunk_id: {cid}\nchunk_level: 2\nsemantic_type: {stype}\ntopic_primary: \"{topic}\"\n"
+            f"disease_focus: x\ncoverage_status: complete\n---\n\n{body}\n\n")
+
+
+def test_1_8_offline_adjudicator_leaves_correct_types_alone():
+    chunks = (_chunk46("L2-01", "diagnostic_criteria", "Diagnosis of hypothyroidism",
+                       "Hypothyroidism is defined as TSH above range. Treatment is levothyroxine.") +
+              _chunk46("L2-02", "clinical_feature", "Presentation", "Patients present with fatigue; some take 5 mg of a drug."))
+    new_text, meta = s46.offline_adjudicate_all(chunks, levels=(2,))
+    assert "semantic_type: diagnostic_criteria" in new_text
+    assert "semantic_type: clinical_feature" in new_text
+    assert meta["chunks_corrected"] == 0
+
+
+def test_1_8_offline_method_is_declared_not_independent():
+    _, meta = s46.offline_adjudicate_all(_chunk46("L2-01", "clinical_feature", "Presentation", "text"), levels=(2,))
+    assert meta["verification_method"].startswith("offline")
+    assert meta.get("independent_verification") is False
+
+
+# ---------- 1.16 execute_stage 4.5d pending_manual must not raise UnboundLocalError ----------
+def test_1_16_execute_stage_4_5d_pending_manual_records_in_progress(tmp_path, monkeypatch):
+    import pipeline.run_stage as rs
+    import scripts.maintenance.run_stage_4_5d as m
+    from pipeline.stages import stage_4_5d_clinical_fidelity as s45d
+    calls = {}
+    monkeypatch.setattr(m, "run_stage_4_5d", lambda out, prefix: (
+        {"verdict": "BLOCKED", "candidate_count": 2, "unresolved_candidates": ["c1"], "detectors_run": ["d"]}, []))
+    monkeypatch.setattr(s45d, "decide_checkpoint_action", lambda gate: ("pending_manual", {}))
+    monkeypatch.setattr(rs, "load_checkpoint", lambda out, prefix: ({}, "x.json"))
+    monkeypatch.setattr(rs, "should_run_stage", lambda c, s: True)
+    monkeypatch.setattr(rs, "sync_chapter_assets", lambda *a, **k: None)
+    monkeypatch.setattr(rs, "mark_stage_in_progress", lambda *a, **k: calls.setdefault("in_progress", (a, k)))
+    src = tmp_path / "ch.md"; src.write_text("x")
+    r = rs.execute_stage("4.5d", str(src), out_dir=str(tmp_path / "o"), prefix="p", force=True)
+    assert r["status"] == "PENDING_MANUAL"
+    assert "in_progress" in calls

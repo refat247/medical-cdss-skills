@@ -709,17 +709,11 @@ def offline_adjudicate_all(chunks_data, levels=(2,)):
             else:
                 rec_type = "management_step"
                 
-        # 3. Strong body rule
-        body_type = None
-        if _is_pure_epidemiology(body):
-            body_type = "epidemiology_concept"
-        else:
-            for nt, pats in BODY_RULES:
-                if any(re.search(p, body, re.I) for p in pats):
-                    body_type = nt
-                    break
-                    
-        adjudicated = title_type or rec_type or body_type or current
+        # 3. Body-regex relabelling is intentionally NOT applied here. The module's own history shows
+        #    BODY_RULES re-labelling introduced 76 new errors on 312 previously-correct chunks, and an
+        #    offline pass cannot tell a correct type from a wrong one. Body cues stay in the *flagging*
+        #    baseline (candidates for human/LLM review) and never overwrite an existing type.
+        adjudicated = title_type or rec_type or current
         if adjudicated in SEMANTIC_TYPES and adjudicated != current:
             out_parts.append(part.replace(f'semantic_type: {current}', f'semantic_type: {adjudicated}', 1))
             changed += 1
@@ -734,6 +728,8 @@ def offline_adjudicate_all(chunks_data, levels=(2,)):
         tokens_used=0, chunks_reviewed=targets_count,
     )
     meta["verification_method"] = "offline_deterministic_clinical_rules"
+    # Title/recommendation-number rules only: types are NOT independently verified by an LLM or a human.
+    meta["independent_verification"] = False
     meta["needs_manual_verification"] = False
     meta["corrections_applied"] = corrections
     meta["review_priority"] = []
