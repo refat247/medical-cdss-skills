@@ -57,3 +57,46 @@ def test_1_3_clinical_glyphs_survive_stage4b_sanitizer(s):
 
 def test_1_3_ligatures_and_invisibles_are_still_cleaned():
     assert sanitize_chunk_text("ﬁrst line​﻿") == "first line"
+
+
+# ---------- 1.5 / 1.6 / 1.7 Stage 2 OCR cleanup must not destroy clinical text ----------
+from pipeline.stages.stage_2_repair import repair_stage2
+from pipeline.stages.stage_3_reaudit import compute_reaudit
+
+
+def _s2(text):
+    out = repair_stage2(text)
+    return out[0] if isinstance(out, tuple) else out
+
+
+def test_1_5_running_header_does_not_eat_next_paragraph():
+    out = _s2("## Sec\n5 • HYPERTENSION\n\nACE inhibitors are first line for 10 mg daily.\n")
+    assert "ACE inhibitors are first line" in out
+    assert "<!-- page: 5 -->" in out
+
+
+def test_1_5_running_header_does_not_eat_drug_name():
+    out = _s2("## Sec\n3 • NaCl 0.9% infusion at 100 mL/h\n")
+    assert "NaCl 0.9% infusion at 100 mL/h" in out
+
+
+def test_1_6_inline_number_line_is_not_a_page_marker():
+    out = _s2("## Dose\nGive aspirin\n300\nmg stat\n")
+    assert "\n300\n" in out and "page: 300" not in out
+
+
+def test_1_6_isolated_number_is_still_a_page_marker():
+    out = _s2("## Sec\ntext\n\n42\n\nmore text\n")
+    assert "<!-- page: 42 -->" in out
+
+
+def test_1_7_toc_strip_keeps_h1():
+    out = _s2("# Vitamin B12\n\nContents 3\nIntro ........ 5\n\n## Section\ntext\n")
+    assert "# Vitamin B12" in out
+    assert "Intro ........ 5" not in out
+
+
+def test_1_5_stage3_agrees_with_stage2_on_clean_text():
+    src = "# Title\n\n## Sec\n5 • HYPERTENSION\n\nACE inhibitors 3 • NaCl 0.9%\n"
+    r = compute_reaudit(src, _s2(src))
+    assert r["verdict"].startswith("PASS") or r["verdict"] in ("PASSED", "PASS"), r

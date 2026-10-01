@@ -11,19 +11,17 @@ not a rewrite.
 import re
 import difflib
 
+from pipeline.stages.ocr_cleanup_rules import RUNNING_HEADER_RE, normalize_bare_page_lines, strip_toc_preamble
+
 
 def compute_reaudit(orig_text, rep_text):
     """Same logic as the original SKILL.md Stage 3 inline block. Returns a
     dict: {preservation_percent, h1_count, issues, verdict}."""
     orig_s = re.sub(r'<!--[\s\S]*?-->\n?', '', orig_text)
     orig_s = re.sub(r'!\[img-\d+\.jpeg\]\(img-\d+\.jpeg\)\n?', '', orig_s)
-    orig_s = re.sub(r'^\d{1,3}\s*\n', '', orig_s, flags=re.MULTILINE)
-    orig_s = re.sub(r'^[0-9]+ [·•] [A-Z\s\-]+\n?', '', orig_s, flags=re.MULTILINE)
-    first_h2 = re.search(r'^##\s', orig_s, re.MULTILINE)
-    if first_h2:
-        toc_block = orig_s[:first_h2.start()]
-        cleaned_toc = re.sub(r'^.+\d{1,3}\s*$\n?', '', toc_block, flags=re.MULTILINE)
-        orig_s = cleaned_toc + orig_s[first_h2.start():]
+    orig_s, _ = normalize_bare_page_lines(orig_s, marker=False)
+    orig_s = RUNNING_HEADER_RE.sub('', orig_s)
+    orig_s, _ = strip_toc_preamble(orig_s)
     orig_s = re.sub(r'\n{3,}', '\n\n', orig_s)
 
     rep_s = re.sub(r'<!--[\s\S]*?-->\n?', '', rep_text)

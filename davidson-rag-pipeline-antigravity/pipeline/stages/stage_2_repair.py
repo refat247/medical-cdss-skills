@@ -32,6 +32,8 @@ that only held for Chapter 05").
 """
 import re
 
+from pipeline.stages.ocr_cleanup_rules import RUNNING_HEADER_RE, normalize_bare_page_lines, strip_toc_preamble
+
 # Piracy/watermark trigger patterns -- unchanged from SKILL.md's Stage 2 block.
 PIRACY_TRIGGERS = [
     r"Medical Higher Study", r"apps?\.apple\.com", r"play\.google\.com",
@@ -149,13 +151,12 @@ def repair_stage2(text):
     R.append(f"Removed {n} raw OCR image tag lines")
     image_tags_removed = n
 
-    n = len(re.findall(r'^\d{1,3}\s*$', text, re.MULTILINE))
-    text = re.sub(r'^(\d{1,3})\s*\n', r'<!-- page: \1 -->\n', text, flags=re.MULTILINE)
+    text, n = normalize_bare_page_lines(text)
     R.append(f"Normalized {n} bare page number lines to page markers")
     bare_page_numbers_removed = n
 
-    n = len(re.findall(r'^[0-9]+ [·•] [A-Z\s\-]+$', text, re.MULTILINE))
-    text = re.sub(r'^([0-9]+)\s+[·•]\s+[A-Z\s\-]+\n?', r'<!-- page: \1 -->\n', text, flags=re.MULTILINE)
+    n = len(RUNNING_HEADER_RE.findall(text))
+    text = RUNNING_HEADER_RE.sub(lambda m: f"<!-- page: {m.group(1)} -->\n", text)
     R.append(f"Normalized {n} running chapter headers to page markers")
     running_headers_removed = n
 
@@ -183,13 +184,9 @@ def repair_stage2(text):
     if n_rem:
         R.append("  WARNING: manually verify boundary lines in REPAIRED_S2.md")
 
-    first_h2 = re.search(r'^##\s', text, re.MULTILINE)
     toc_preamble_lines_removed = 0
-    if first_h2:
-        toc_block = text[:first_h2.start()]
-        cleaned = re.sub(r'^.+\d{1,3}\s*$\n?', '', toc_block, flags=re.MULTILINE)
-        n = toc_block.count('\n') - cleaned.count('\n')
-        text = cleaned + text[first_h2.start():]
+    if re.search(r'^##\s', text, re.MULTILINE):
+        text, n = strip_toc_preamble(text)
         R.append(f"Removed {n} TOC preamble lines")
         toc_preamble_lines_removed = n
 

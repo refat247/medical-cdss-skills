@@ -6,6 +6,8 @@ import difflib
 import io
 import os
 import re
+
+from pipeline.stages.ocr_cleanup_rules import RUNNING_HEADER_RE, count_bare_page_lines, strip_toc_preamble
 import sys
 from collections import Counter
 
@@ -46,13 +48,13 @@ def audit_stage1(text: str) -> dict:
     table_rows = len([l for l in lines if l.strip().startswith("|")])
     image_refs = len(re.findall(r"!\[.*?\]\(.*?\.jpeg\)", text))
     page_breaks = len(re.findall(r"^\{[0-9]+\}-+", text, re.MULTILINE))
-    bare_pages = len([l for l in lines if re.match(r"^\d{1,3}$", l.strip())])
-    running_headers = len(re.findall(r"^[0-9]+ [·•] [A-Z\s\-]+$", text, re.MULTILINE))
+    bare_pages = count_bare_page_lines(text)
+    running_headers = len(RUNNING_HEADER_RE.findall(text))
 
     first_h2 = re.search(r"^##\s", text, re.MULTILINE)
     toc_lines = 0
     if first_h2:
-        toc_lines = len(re.findall(r"^.+\d{1,3}\s*$", text[:first_h2.start()], re.MULTILINE))
+        toc_lines = strip_toc_preamble(text)[1]
 
     dead_tbl_links = re.findall(r"\[tbl-\d+\.md\]\(tbl-\d+\.md\)", text)
 
