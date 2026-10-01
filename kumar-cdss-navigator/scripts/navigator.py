@@ -18,6 +18,9 @@ ROUTER_PATH = str(_PACKAGE_DIR / "04_Kumar_and_Clark_11" / "Index" / "cdss_qa_ro
 INDEX_DIR = Path(ROUTER_PATH).parent
 
 
+LAST_RETURNCODE = 0   # exit status of the most recent router call; becomes the CLI exit code
+
+
 class KumarNavigator:
     """Interface to the Kumar & Clark 11th Edition CDSS Router and Index Assets."""
 
@@ -38,13 +41,25 @@ class KumarNavigator:
         return text
 
     def run_router_cli(self, args: List[str]) -> str:
-        """Executes the underlying cdss_qa_router.py CLI."""
+        """Run the underlying cdss_qa_router.py. Failures are reported, not hidden: a non-zero router exit is
+        surfaced (and becomes this process's exit code), stderr is never swallowed, undecodable bytes are replaced
+        visibly (U+FFFD) instead of silently dropped (errors="ignore" hid encoding corruption), and the word
+        budget is not applied to --json output (truncating it produced invalid JSON)."""
+        global LAST_RETURNCODE
         if not self.router_path.exists():
+            LAST_RETURNCODE = 1
             return f"[ERROR] Router not found at: {self.router_path}"
         cmd = [sys.executable, str(self.router_path)] + args
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-        output = res.stdout or res.stderr
-        return self._enforce_token_budget(output)
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        LAST_RETURNCODE = res.returncode
+        out = res.stdout
+        if res.returncode != 0:
+            out = f"[ERROR] router exited with code {res.returncode}\n{res.stderr.strip()}\n{out}".strip()
+        elif not out and res.stderr:
+            out = res.stderr
+        if "--json" in args:
+            return out
+        return self._enforce_token_budget(out)
 
     def query(self, text: str, top_k: int = 3, compress: bool = False, json_output: bool = False) -> str:
         """Run a clinical symptom or diagnostic query."""
@@ -202,3 +217,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    sys.exit(1 if LAST_RETURNCODE else 0)

@@ -5,6 +5,11 @@ import os
 import pytest
 from scripts.navigator import KumarNavigator, ROUTER_PATH
 
+# These tests exercise the real packaged router/corpus; without it they SKIP (wrapper behaviour is covered
+# hermetically by test_navigator_contract.py).
+pytestmark = pytest.mark.skipif(not os.path.exists(ROUTER_PATH), reason="real CDSS package not present (set CDSS_PACKAGE_DIR)")
+
+
 
 def test_navigator_init():
     nav = KumarNavigator()

@@ -1,6 +1,6 @@
 ---
 name: kumar-cdss-navigator
-version: 1.0.1
+version: 1.0.2
 description: |
   Autonomous Clinical Decision Support System (CDSS) and zero-token precision index retrieval navigator for
   Kumar and Clark's Clinical Medicine (11th Edition 2026). Use when querying Kumar & Clark as a single standalone book
@@ -8,7 +8,7 @@ description: |
   Provides multi-turn clinical QA, case vignette decomposition, and 120-word span compression across 9,394 chunks.
 ---
 
-# Kumar & Clark CDSS Navigator (v1.0.1)
+# Kumar & Clark CDSS Navigator (v1.0.2)
 
 Production-grade Clinical Decision Support System and Index Retrieval Engine grounded directly in the 11th Edition of *Kumar and Clark's Clinical Medicine (2026)* (50 clinical chapters, 9,394 L2 micro-chunks, 1,803 visual figure assets, and 33,454 indexed vocabulary terms).
 
