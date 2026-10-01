@@ -22,6 +22,27 @@ from pipeline.checkpoint_utils import (
 )
 
 
+
+# Typographic ligatures and exotic spaces are safe to flatten. Everything else NFKC touches is NOT:
+# it rewrites superscripts/subscripts (10^9 -> 109, m^2 -> m2, CO2), vulgar fractions, micro sign
+# (U+00B5 -> Greek mu) and units, which silently changes clinical values.
+_SAFE_COMPAT = {
+    "\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
+    "\ufb05": "st", "\ufb06": "st",
+    "\u00a0": " ", "\u2007": " ", "\u2009": " ", "\u200a": " ", "\u202f": " ",
+}
+_INVISIBLE = ("\ufeff", "\u200b", "\u00ad")
+
+
+def sanitize_chunk_text(text):
+    """Stage 4B text hygiene: flatten ligatures / odd spaces and strip zero-width artifacts.
+    Deliberately NOT unicodedata.NFKC -- see _SAFE_COMPAT."""
+    for k, v in _SAFE_COMPAT.items():
+        text = text.replace(k, v)
+    for ch in _INVISIBLE:
+        text = text.replace(ch, "")
+    return text
+
 def slugify(s: str) -> str:
     s = s.lower()
     s = re.sub(r"^\d+\.\d+\s*", "", s)
@@ -568,10 +589,7 @@ def run_stage_4b(rep_path: str, out_dir: str, prefix: str) -> dict:
     s4b_prov = format_markdown_provenance_header(rep_path, "4b")
     all_chunks = s4b_prov + "\n\n".join(l1_chunks + l2_chunks)
 
-    # Sanitize and normalize Unicode (NFKC, strip zero-width artifacts)
-    import unicodedata
-    all_chunks = unicodedata.normalize("NFKC", all_chunks)
-    all_chunks = all_chunks.replace("\ufeff", "").replace("\u200b", "").replace("\u00ad", "")
+    all_chunks = sanitize_chunk_text(all_chunks)
 
     with open(chunk_path, "w", encoding="utf-8") as f:
         f.write(all_chunks)

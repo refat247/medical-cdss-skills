@@ -44,3 +44,16 @@ def test_1_29_gate_must_list_required_detectors_as_run():
     r = s6.run_stage_6(GOOD_CHUNK, "ok", gate)
     assert r["verdict"] == "HARD-FAIL"
     assert any("not run" in f.lower() or "detectors_run" in f for f in r["failures"])
+
+
+# ---------- 1.3 Stage 4B must not NFKC-normalise clinical text ----------
+from pipeline.stages.stage_4_parse import sanitize_chunk_text
+
+
+@pytest.mark.parametrize("s", ["Platelets 10⁹/L", "BSA 1.7 m²", "5 µg", "½ tablet", "CO₂ 24 mmol/L", "10⁶ IU", "℃"])
+def test_1_3_clinical_glyphs_survive_stage4b_sanitizer(s):
+    assert sanitize_chunk_text(s) == s
+
+
+def test_1_3_ligatures_and_invisibles_are_still_cleaned():
+    assert sanitize_chunk_text("ﬁrst line​﻿") == "first line"
