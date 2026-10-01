@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/clean-my-ai-harness/semantic-review.schema.json",
+  "title": "Bounded semantic review for Clean My AI Harness",
+  "description": "The only model-authored input accepted by build_review_packet.py. Scanner inventory JSON is never edited by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "edition",
+    "review_mode",
+    "baseline",
+    "runtime",
+    "profile_date",
+    "semantic_files_reviewed",
+    "decisions",
+    "unreviewed_control_ids",
+    "coverage_gaps",
+    "shared_core",
+    "model_recommendations"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "edition": {"enum": ["CLAUDE", "CODEX"]},
+    "review_mode": {"enum": ["QUICK_CHECK", "MAINTAINER_AUDIT"]},
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_sha256", "map_sha256"],
+      "properties": {
+        "scope_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "map_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "surface_evidence_state", "model", "model_evidence_state"],
+      "properties": {
+        "surface": {"type": "string", "minLength": 1, "maxLength": 160},
+        "surface_evidence_state": {"$ref": "#/$defs/evidenceState"},
+        "model": {"type": "string", "minLength": 1, "maxLength": 160},
+        "model_evidence_state": {"$ref": "#/$defs/evidenceState"}
+      }
+    },
+    "profile_date": {"type": "string", "format": "date"},
+    "semantic_files_reviewed": {"type": "integer", "minimum": 0, "maximum": 500},
+    "decisions": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {"$ref": "#/$defs/decision"}
+    },
+    "unreviewed_control_ids": {
+      "type": "array",
+      "maxItems": 5000,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 160}
+    },
+    "coverage_gaps": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {"$ref": "#/$defs/coverageGap"}
+    },
+    "shared_core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "context", "authority", "acceptance"],
+      "properties": {
+        "outcome": {"$ref": "#/$defs/longText"},
+        "context": {"$ref": "#/$defs/longText"},
+        "authority": {"$ref": "#/$defs/longText"},
+        "acceptance": {"$ref": "#/$defs/longText"}
+      }
+    },
+    "model_recommendations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/modelRecommendation"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"review_mode": {"const": "QUICK_CHECK"}},
+        "required": ["review_mode"]
+      },
+      "then": {
+        "properties": {
+          "semantic_files_reviewed": {"maximum": 50},
+          "decisions": {"maxItems": 50}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "evidenceState": {
+      "enum": ["VERIFIED", "USER_REPORTED", "INFERRED", "INACCESSIBLE", "NOT_APPLICABLE"]
+    },
+    "shortText": {"type": "string", "minLength": 1, "maxLength": 500},
+    "longText": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "reader_name",
+        "decision",
+        "evidence_state",
+        "current_effect",
+        "proposed_change",
+        "reason",
+        "must_survive",
+        "risk_if_wrong",
+        "rollback"
+      ],
+      "properties": {
+        "control_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "reader_name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "decision": {"enum": ["KEEP", "ONE_HOME", "LOAD_LATER", "MAKE_A_CHECK", "PROBATION", "RETIRE"]},
+        "evidence_state": {"$ref": "#/$defs/evidenceState"},
+        "current_effect": {"$ref": "#/$defs/shortText"},
+        "proposed_change": {"$ref": "#/$defs/longText"},
+        "reason": {"$ref": "#/$defs/longText"},
+        "must_survive": {"$ref": "#/$defs/shortText"},
+        "risk_if_wrong": {"$ref": "#/$defs/shortText"},
+        "rollback": {"$ref": "#/$defs/shortText"}
+      }
+    },
+    "coverageGap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area", "evidence_state", "detail"],
+      "properties": {
+        "area": {"type": "string", "minLength": 1, "maxLength": 160},
+        "evidence_state": {"$ref": "#/$defs/evidenceState"},
+        "detail": {"$ref": "#/$defs/longText"}
+      }
+    },
+    "modelRecommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recommendation", "status", "evidence_state", "evidence", "why_here", "would_disprove"],
+      "properties": {
+        "recommendation": {"$ref": "#/$defs/shortText"},
+        "status": {"enum": ["SUPPORTED", "UNTESTED"]},
+        "evidence_state": {"$ref": "#/$defs/evidenceState"},
+        "evidence": {"$ref": "#/$defs/shortText"},
+        "why_here": {"$ref": "#/$defs/longText"},
+        "would_disprove": {"$ref": "#/$defs/shortText"}
+      }
+    }
+  }
+}

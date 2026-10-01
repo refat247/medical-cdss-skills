@@ -1,0 +1,40 @@
+{
+  "chapter": 16,
+  "book": "Davidson's Principles and Practice of Medicine (25th Edition)",
+  "title": "Cardiovascular Disease",
+  "description": "Declarative topic manifest defining discrete clinical bridge note topics for Davidson Chapter 16.",
+  "topics": [
+    {
+      "topic_id": "16.1",
+      "title": "Cardiac Auscultation & Pathological Murmurs",
+      "scope_declaration": "Biophysical origins of murmurs, 7-attribute auscultation framework, Levine grading, systolic/diastolic murmurs, peripheral signs of AR, and dynamic maneuvers.",
+      "primary_chunks": ["L2-064", "L2-065", "L2-328", "L2-380", "L2-520", "L2-530"],
+      "core_boxes": ["Box 16.9", "Box 16.10", "Box 16.11", "Box 16.89"],
+      "core_figures": ["DAV-FIG-16.20", "DAV-FIG-16.21", "DAV-FIG-16.78", "DAV-FIG-16.80", "DAV-FIG-16.84"]
+    },
+    {
+      "topic_id": "16.2",
+      "title": "Heart Failure Pathophysiology & Management",
+      "scope_declaration": "HFrEF vs HFpEF mechanisms, neurohormonal activation (RAAS, SNS, natriuretic peptides), Framingham diagnostic criteria, NYHA classification, GDMT quadriple therapy, and acute pulmonary edema resuscitation.",
+      "primary_chunks": ["L2-100", "L2-115", "L2-140", "L2-165"],
+      "core_boxes": ["Box 16.15", "Box 16.18", "Box 16.22"],
+      "core_figures": ["DAV-FIG-16.32", "DAV-FIG-16.35"]
+    },
+    {
+      "topic_id": "16.3",
+      "title": "Valvular Heart Disease (Aortic & Mitral Syndromes)",
+      "scope_declaration": "Rheumatic and calcific etiologies of AS, AR, MS, and MR; hemodynamic pressure gradients, natural history, echocardiographic severity criteria, and surgical/TAVI intervention triggers.",
+      "primary_chunks": ["L2-320", "L2-335", "L2-350", "L2-375"],
+      "core_boxes": ["Box 16.80", "Box 16.85", "Box 16.88"],
+      "core_figures": ["DAV-FIG-16.78", "DAV-FIG-16.80", "DAV-FIG-16.84"]
+    },
+    {
+      "topic_id": "16.4",
+      "title": "Ischaemic Heart Disease & Acute Coronary Syndromes",
+      "scope_declaration": "Atherosclerotic plaque rupture, STEMI vs NSTEMI vs Unstable Angina differentiation, high-sensitivity troponin kinetics, emergent reperfusion (primary PCI vs fibrinolysis), and secondary prevention.",
+      "primary_chunks": ["L2-210", "L2-225", "L2-245", "L2-280"],
+      "core_boxes": ["Box 16.42", "Box 16.48", "Box 16.55"],
+      "core_figures": ["DAV-FIG-16.45", "DAV-FIG-16.50"]
+    }
+  ]
+}

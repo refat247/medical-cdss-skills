@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "edition": "REPLACE_WITH_CLAUDE_OR_CODEX",
+  "review_mode": "QUICK_CHECK",
+  "baseline": {
+    "scope_sha256": "REPLACE_WITH_SHA256_OF_00_SCOPE_JSON",
+    "map_sha256": "REPLACE_WITH_SHA256_OF_01_INVENTORY_JSON"
+  },
+  "runtime": {
+    "surface": "COPY_EXACTLY_FROM_SCANNER_SCOPE",
+    "surface_evidence_state": "USER_REPORTED",
+    "model": "COPY_EXACTLY_FROM_SCANNER_SCOPE",
+    "model_evidence_state": "USER_REPORTED"
+  },
+  "profile_date": "2026-07-14",
+  "semantic_files_reviewed": 1,
+  "decisions": [
+    {
+      "control_id": "COPY_EXACT_SCANNER_CONTROL_ID",
+      "reader_name": "Plain-English name",
+      "decision": "KEEP",
+      "evidence_state": "INFERRED",
+      "current_effect": "What the user may notice now.",
+      "proposed_change": "No change.",
+      "reason": "Why the bounded evidence supports this decision.",
+      "must_survive": "The source, permission, privacy, or quality protection that must remain.",
+      "risk_if_wrong": "What could go wrong if this decision is wrong.",
+      "rollback": "How to reverse the proposed change. For KEEP, say not applicable."
+    }
+  ],
+  "unreviewed_control_ids": [],
+  "coverage_gaps": [],
+  "shared_core": {
+    "outcome": "What must be true when the work is finished.",
+    "context": "Facts the model cannot safely infer.",
+    "authority": "What the model may do and what requires approval.",
+    "acceptance": "What must pass before delivery."
+  },
+  "model_recommendations": [
+    {
+      "recommendation": "One surface-specific recommendation.",
+      "status": "SUPPORTED",
+      "evidence_state": "INFERRED",
+      "evidence": "The visible surface mechanic, observed failure, or dated test.",
+      "why_here": "Why this applies to the exact reported runtime.",
+      "would_disprove": "Evidence that would make this recommendation wrong."
+    }
+  ]
+}

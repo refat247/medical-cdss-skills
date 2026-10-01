@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/clean-my-ai-harness/approval-review.schema.json",
+  "title": "Clean My AI Harness approval manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "review_id", "scan_id", "baseline", "permission_mode", "changes"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "review_id": {"type": "string", "pattern": "^HARNESS-[A-F0-9]{10}-[A-F0-9]{10}$"},
+    "scan_id": {"type": "string", "pattern": "^scan-[a-f0-9]{32}$"},
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_sha256", "map_sha256"],
+      "properties": {
+        "scope_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "map_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "permission_mode": {"const": "READ_ONLY_UNTIL_INDIVIDUAL_APPROVAL"},
+    "changes": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "change_id",
+          "control_id",
+          "source_path",
+          "source_sha256",
+          "proposal_sha256",
+          "proposed_change",
+          "must_survive",
+          "risk_if_wrong",
+          "rollback",
+          "decision"
+        ],
+        "properties": {
+          "change_id": {"type": "string", "pattern": "^CHANGE-[A-F0-9]{32}$"},
+          "control_id": {"type": "string", "minLength": 1, "maxLength": 160},
+          "source_path": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "proposal_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "proposed_change": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "must_survive": {"type": "string", "minLength": 1, "maxLength": 500},
+          "risk_if_wrong": {"type": "string", "minLength": 1, "maxLength": 500},
+          "rollback": {"type": "string", "minLength": 1, "maxLength": 500},
+          "decision": {"enum": ["PROPOSED", "APPROVED", "REJECTED"]}
+        }
+      }
+    }
+  }
+}

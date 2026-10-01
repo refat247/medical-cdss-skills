@@ -1,0 +1,2 @@
+"""version-manager scripts package."""
+__version__ = "1.1.1"

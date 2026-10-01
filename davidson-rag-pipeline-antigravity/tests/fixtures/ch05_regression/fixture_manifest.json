@@ -1,0 +1,20 @@
+{
+  "fixture_version": "1.0",
+  "source_chapter": "05",
+  "approved_under_pipeline_version": "2.6.2",
+  "generated_from": "D:\\davidson_25_full_pipeline\\05\\ (real Chapter 05 output directory, post v2.6.1 source_lines corrections)",
+  "files": {
+    "repaired_s2_fixture.md": {
+      "sha256": "d1e21120db06042b3aa2b05599da3d4a217c657752c9a607dab8451e7a32aaa0",
+      "purpose": "Frozen REPAIRED_S2.md snapshot -- Stage 2 output, post-repair, pre-chunking source of truth."
+    },
+    "chunks_fixture.md": {
+      "sha256": "628c5b63fae72085767e2b72ef57b4b506600613ec14aed5a4db6f340edfbf2b",
+      "purpose": "Frozen chunks.md snapshot -- post-Stage-4B output, WITH the v2.6.1 source_lines corrections already applied (L2-080, L2-086, L1-056, L2-097, L2-118, L2-126)."
+    },
+    "rag_optimised_fixture.md": {
+      "sha256": "3c9a10b4cd2561b44688ab37a84ccf907127e9ed138c5dd883494d1c8b4fe579",
+      "purpose": "Frozen RAG_Optimised.md snapshot -- Stage 5 output, consistent with chunks_fixture.md."
+    }
+  }
+}

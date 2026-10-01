@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Clean My AI Harness run trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trace_status", "trace_note", "funnel"],
+  "properties": {
+    "trace_status": {"enum": ["COMPLETE", "PARTIAL", "NOT_EXPOSED"]},
+    "trace_note": {"type": "string", "minLength": 1},
+    "funnel": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "status", "detail"],
+        "properties": {
+          "stage": {"enum": ["Available", "Eligible", "Shown", "Consulted", "Acted through", "Checked", "Accepted"]},
+          "status": {"enum": ["VERIFIED", "INFERRED", "INACCESSIBLE", "NOT_EXPOSED", "UNKNOWN"]},
+          "count": {"type": ["integer", "null"], "minimum": 0},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
