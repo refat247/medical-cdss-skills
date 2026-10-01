@@ -1,4 +1,4 @@
-# Medical Index RAG Compiler (v1.3.0)
+# Medical Index RAG Compiler (v1.3.1)
 
 Production-grade Autonomous Index Intelligence Compiler for medical textbooks (such as *Davidson's Principles and Practice of Medicine*, *Fuster & Hurst's The Heart*, *Braunwald's Heart Disease*, and *Harrison's Principles of Internal Medicine*).
 

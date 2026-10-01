@@ -224,8 +224,10 @@ def test_force_overwrite_moves_the_old_ocr_aside_instead_of_deleting_it(tmp_path
     old = book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf"; old.mkdir(); (old / "old.md").write_text("precious")
     dl = _ocr_download(tmp_path, "Sec A.pdf")
     cmd_ingest(str(book), source_dir=str(dl), force=True)
-    kept = [p for p in (book / "Sec A.pdf" / "ocr markdown").iterdir() if ".replaced-" in p.name]
+    kept = [p for p in (book / "Sec A.pdf" / "_replaced_backups").iterdir() if ".replaced-" in p.name]
     assert kept and (kept[0] / "old.md").read_text() == "precious"
+    # backups must not sit among the live OCR slots
+    assert not [p for p in (book / "Sec A.pdf" / "ocr markdown").iterdir() if ".replaced-" in p.name]
 
 
 def test_ingest_dry_run_moves_nothing(tmp_path):

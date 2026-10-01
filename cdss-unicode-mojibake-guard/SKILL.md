@@ -1,13 +1,13 @@
 ---
 name: cdss-unicode-mojibake-guard
-version: 1.6.0
+version: 1.6.1
 description: |
   Autonomous Unicode, Anti-Mojibake, ISMP Clinical Safety, and LaTeX De-Delimiter Guard for medical textbook CDSS corpora.
   Provides pre-flight audits, in-place UTF-8 repair, Unicode NFKC canonicalization, zero-width token-breaker stripping,
   FDA/ISMP clinical symbol safety enforcement, and automatic LaTeX de-mathifying across all medical books.
 ---
 
-# CDSS Unicode & Anti-Mojibake Guard (v1.6.0)
+# CDSS Unicode & Anti-Mojibake Guard (v1.6.1)
 
 Production-grade encoding integrity guard and pre-flight sanitizer for medical textbook Clinical Decision Support Systems (CDSS). Prevents and repairs character corruption (**mojibake** like `â‰¥`, `Âµg`, `â€™`) and enforces clinical symbol safety before text is ingested into RAG pipelines or emitted into LLM prompt contexts.
 

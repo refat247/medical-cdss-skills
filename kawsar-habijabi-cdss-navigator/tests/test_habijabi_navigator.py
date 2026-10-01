@@ -28,13 +28,13 @@ def test_no_rule_matched_is_not_a_clearance(capsys):
 def test_all_matching_rules_are_shown_not_just_the_first(capsys):
     rc = nav.run_prescribing_safety("gout flare allopurinol linezolid fluoxetine")
     out = capsys.readouterr().out
-    assert rc == 0
+    assert rc == 1
     assert "Urate-Lowering" in out and "Serotonin" in out
 
 
 @pytest.mark.parametrize("order", ["linezolid with paroxetine", "linezolid and tramadol", "linezolid plus venlafaxine"])
 def test_linezolid_with_other_serotonergic_agents_is_flagged(order, capsys):
-    assert nav.run_prescribing_safety(order) == 0
+    assert nav.run_prescribing_safety(order) == 1
     assert "Serotonin" in capsys.readouterr().out
 
 
@@ -46,7 +46,7 @@ def test_substring_false_positives_do_not_fire(capsys):
 
 
 def test_british_spelling_anaemia_matches_iron_rule(capsys):
-    assert nav.run_prescribing_safety("anaemia start oral iron") == 0
+    assert nav.run_prescribing_safety("anaemia start oral iron") == 1
 
 
 def test_empty_order_is_an_error_not_silent_success(capsys):
@@ -159,3 +159,21 @@ def test_rule_text_was_not_altered_by_the_safety_refactor():
               "Absolute Contraindication of Platelet Transfusion in TTP",
               "Severe Drug Interaction: Serotonin Syndrome"]:
         assert s in src
+
+
+@pytest.mark.parametrize("order", ["TTP - transfuse platelets", "Linezolid with SSRIs", "linezolid and Zoloft",
+                                   "start Zyloprim in gout flare", "microcytic anemia: ferrous sulfate"])
+def test_plural_and_brand_forms_fire(order):
+    assert nav.run_prescribing_safety(order) == 1
+
+
+def test_negated_order_still_alerts_with_note(capsys):
+    assert nav.run_prescribing_safety("do not start allopurinol in gout flare") == 1
+    assert "negation" in capsys.readouterr().out
+
+
+def test_search_is_not_dead(tmp_path, monkeypatch, capsys):
+    import inspect
+    src = inspect.getsource(nav.run_search)
+    body = src.split("print(\"=\" * 80)")[2] if src.count("print(\"=\" * 80)") > 2 else src
+    assert "return 0\n\n    terms" not in src

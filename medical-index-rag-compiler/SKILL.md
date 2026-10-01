@@ -1,6 +1,6 @@
 ---
 name: medical-index-rag-compiler
-version: 1.3.0
+version: 1.3.1
 description: |
   Autonomous Index Intelligence Compiler for medical textbooks (Davidson, Hurst, Braunwald, Harrison).
   Compiles back-of-the-book index markdown and completed chapter RAG files (*_RAG_Optimised.md) into
@@ -8,7 +8,7 @@ description: |
   a chunk-derived drug-mention matrix, a computed synthetic self-topic retrieval benchmark, and a small lexical CDSS router (query/vignette only).
 ---
 
-# Medical Index RAG Compiler (v1.3.0)
+# Medical Index RAG Compiler (v1.3.1)
 
 Production-grade Autonomous Index Intelligence Compiler for medical textbooks and clinical guidelines. Converts completed chapter RAG outputs (`*_RAG_Optimised.md`) and back-of-the-book index markdown files into a comprehensive, zero-hallucination, sub-millisecond Clinical Decision Support System (CDSS) suite.
 

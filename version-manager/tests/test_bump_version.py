@@ -88,7 +88,7 @@ def mock_project():
 
 def test_version_manager_self_version():
     from scripts import __version__
-    assert __version__ == "1.2.0"
+    assert __version__ == "1.2.1"
 
 
 def test_discover_and_verify_consistent(mock_project):
@@ -255,3 +255,15 @@ def test_test_assertions_with_any_version_like_name_are_discovered_and_bumped(tm
     ok, v = bump_all(str(d), "minor", message="m")
     src = (d / "tests" / "test_version_consistency.py").read_text()
     assert ok and src.count('"1.1.0"') == 4
+
+
+def test_test_assertion_scan_ignores_unrelated_version_fields():
+    import re
+    import importlib.util, os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "bump_version.py"), encoding="utf-8").read()
+    m = re.search(r"assert\\s\+\(\?:(.+?)\)\\s\*==", src)
+    assert m, "TEST_ASSERTION regex not found"
+    pat = re.compile(r"assert\s+(?:" + m.group(1) + r")\s*==\s*[\"']([0-9][^\"']*)[\"']")
+    assert pat.search('assert EXT_VERSION == "' + '1.2' + '.3"')
+    assert not pat.search('assert schema_version == "1.0"')
+    assert not pat.search('assert api_version == "2"')

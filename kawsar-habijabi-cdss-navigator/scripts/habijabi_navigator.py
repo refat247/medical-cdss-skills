@@ -52,7 +52,9 @@ def query_terms(text: str) -> List[str]:
 
 def _has(text: str, term: str) -> bool:
     """Whole-word / whole-phrase presence test (case-insensitive)."""
-    pat = r"(?<![\w])" + r"\s+".join(re.escape(w) for w in term.split()) + r"(?![\w])"
+    words = [re.escape(w) for w in term.split()]
+    words[-1] += r"(?:e?s)?"          # plural: platelets, SSRIs, tricyclics
+    pat = r"(?<![\w])" + r"\s+".join(words) + r"(?![\w])"
     return re.search(pat, text, re.I) is not None
 
 
@@ -250,7 +252,7 @@ def run_exam_sba(target: Optional[str] = None):
 # ==============================================================================
 def run_prescribing_safety(order: str):
     """Keyword screen against SIX fixed rules. It is NOT a drug-interaction checker and NEVER clears an order:
-    when no rule matches the result is NOT_EVALUATED (exit 3), because 'no rule' is not 'safe'."""
+    an alert exits 1; when no rule matches the result is NOT_EVALUATED (exit 3), because 'no rule' is not 'safe'."""
     print("=" * 80)
     print("🛡️  BEDSIDE PRESCRIBING SAFETY & STEWARDSHIP INTERCEPTOR")
     print("=" * 80)
@@ -261,10 +263,12 @@ def run_prescribing_safety(order: str):
 
     has = lambda *terms: any(_has(order, t) for t in terms)   # noqa: E731
     serotonergic = ["ssri", "snri", "fluoxetine", "sertraline", "escitalopram", "duloxetine", "paroxetine", "citalopram",
-                    "fluvoxamine", "venlafaxine", "desvenlafaxine", "amitriptyline", "nortriptyline", "tramadol", "tricyclic"]
+                    "fluvoxamine", "venlafaxine", "desvenlafaxine", "amitriptyline", "nortriptyline", "tramadol", "tricyclic",
+                    "zoloft", "prozac", "lexapro", "cymbalta", "paxil", "celexa", "effexor", "ultram", "elavil", "imipramine",
+                    "clomipramine", "doxepin", "trazodone", "mirtazapine", "vortioxetine", "meperidine", "pethidine", "fentanyl"]
     rules = [
         {
-            "trigger": has("gout", "flare") and has("allopurinol", "febuxostat"),
+            "trigger": has("gout", "flare") and has("allopurinol", "febuxostat", "zyloprim", "uloric"),
             "status": "HARD_STOP_CONTRAINDICATION",
             "title": "Contraindicated Urate-Lowering Therapy During Acute Gout Flare",
             "harm": "Initiating xanthine oxidase inhibitors during an active flare causes rapid fluctuations in synovial fluid urate levels, destabilizing intra-articular microtophi and severely prolonging acute synovitis.",
@@ -280,7 +284,7 @@ def run_prescribing_safety(order: str):
             "citation": "CLM-HABIJABI-012-001 | Bangladesh National Dengue Guidelines / Davidson Ch 14"
         },
         {
-            "trigger": has("microcytic", "anemia", "anaemia") and has("iron") and not has("ferritin"),
+            "trigger": has("microcytic", "anemia", "anaemia") and has("iron", "ferrous sulfate", "ferrous sulphate", "ferrous fumarate", "ferrous gluconate", "fefol") and not has("ferritin"),
             "status": "WARNING_SAFETY_CHECK",
             "title": "Unscreened Empirical Iron in Microcytic Anemia",
             "harm": "Prescribing empirical oral iron in patients with Thalassemia trait causes progressive iatrogenic hemosiderosis and organ iron overload without correcting the genetic globin synthesis defect.",
@@ -321,9 +325,12 @@ def run_prescribing_safety(order: str):
         print(f"✅ CORRECT CLINICAL ACTION:\n{r['action']}\n")
         print(f"📚 EVIDENCE CITATION: {r['citation']}\n")
     if fired:
+        if re.search(r"\b(?:do\s+not|don't|avoid|withhold|hold|stop|no|not|without|contraindicated)\b", order, re.I):
+            print("NOTE: the order contains negation/avoidance wording; the keyword screen does not parse it, so the alert is "
+                  "shown conservatively. Confirm whether the order actually starts the flagged therapy.")
         print("NOTE: keyword screen against 6 fixed rules only; absence of other alerts is NOT a safety clearance.")
         print("=" * 80)
-        return 0
+        return 1                          # alert fired (distinct from 3 = NOT_EVALUATED)
 
     print("⚠️  STATUS: [NOT_EVALUATED]")
     print("No rule matched this order. This is NOT a safety clearance: the screen covers only 6 fixed rules and")
@@ -498,7 +505,6 @@ def run_search(query: str, lang: str = "any", top_k: int = 3):
     print(f"🔍 HYBRID BILINGUAL CDSS RETRIEVAL ENGINE")
     print(f"   Query: \"{query}\" | Language Filter: {lang.upper()} | Top K: {top_k}")
     print("=" * 80)
-    return 0
 
     terms = query_terms(query)
     if not terms:

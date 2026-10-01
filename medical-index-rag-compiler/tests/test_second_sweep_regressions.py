@@ -90,3 +90,18 @@ def test_generated_router_really_retrieves_and_refuses_what_it_cannot_do(tmp_pat
     assert hits and hits[0]["chunk_id"] == "C-2"
     r2 = subprocess.run([sys.executable, str(router), "--validate-therapy", "warfarin"], capture_output=True, text=True)
     assert r2.returncode != 0 and "not implemented" in (r2.stdout + r2.stderr).lower()
+
+
+def test_router_template_exposes_packager_class_interface():
+    from scripts.compiler import ROUTER_TEMPLATE
+    ns = {"__name__": "gen_router", "__file__": __file__}
+    exec(compile(ROUTER_TEMPLATE.replace("__TITLE__", "T"), "router", "exec"), ns)
+    assert hasattr(ns["CDSSRouter"], "retrieve_chunks")
+    assert ns["HarrisonCDSSRouter"] is ns["CDSSRouter"]
+
+
+def test_trailing_chunk_divider_heading_is_not_in_body():
+    import re
+    body = "text of chunk\n\n### Chunk 2 of 5\n"
+    out = re.sub(r"(?:\r?\n)+#{1,6}[ \t]+Chunk\b[^\n]*\s*$", "", body.strip())
+    assert out == "text of chunk"

@@ -2,6 +2,11 @@
 
 All notable changes to this skill are documented here (Keep a Changelog).
 
+## [1.1.1] - 2026-10-01
+
+### Changed
+- Review fixes: revive --search, alerts exit 1, plural/brand matching, negation note
+
 ## [1.1.0] - 2026-10-01
 ### Changed
 - `--prescribing-safety`: no matching rule now reports `NOT_EVALUATED` (exit 3) instead of `PERMITTED_WITH_ROUTINE_MONITORING`; all matching rules are shown (previously only the first); matching is whole-word (no more "iron" in "environment" or "ttp" in "http").

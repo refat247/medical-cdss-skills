@@ -11,7 +11,7 @@ Supports:
   - Generic medical textbook RAG packages
 """
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 import os
 import sys
@@ -532,6 +532,11 @@ def main():
         # A per-book {"error": ...} entry is a FAILURE of that book, not a retrieved chunk.
         errors = {b: [c["error"] for c in chunks if isinstance(c, dict) and "error" in c] for b, chunks in results.items()}
         errors = {b: e for b, e in errors.items() if e}
+        if not results:
+            print("[ERROR] no book index was found for --book " + str(args.book) + "; nothing was searched.", file=sys.stderr)
+            if args.json:
+                print("{}")
+            return 1
         failed = bool(errors)
 
         if args.json:

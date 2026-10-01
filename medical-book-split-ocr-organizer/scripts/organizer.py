@@ -50,11 +50,16 @@ def _move_aside(path: Path) -> Path:
     """Rename an existing path to <name>.replaced-<timestamp> instead of deleting it (OCR output is paid-for and
     hard to recreate; --force used to rmtree it with no way back)."""
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    dest = path.with_name(f"{path.name}.replaced-{stamp}")
+    # Backups must NOT sit inside "ocr markdown/": every child there is treated as a live OCR slot.
+    home = path.parent
+    if path.parent.name == "ocr markdown":
+        home = path.parent.parent / "_replaced_backups"
+        home.mkdir(parents=True, exist_ok=True)
+    dest = home / f"{path.name}.replaced-{stamp}"
     n = 1
     while dest.exists():
         n += 1
-        dest = path.with_name(f"{path.name}.replaced-{stamp}-{n}")
+        dest = home / f"{path.name}.replaced-{stamp}-{n}"
     path.rename(dest)
     return dest
 

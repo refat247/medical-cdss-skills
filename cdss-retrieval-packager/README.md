@@ -1,6 +1,6 @@
-# CDSS Retrieval Packager (v1.5.0)
+# CDSS Retrieval Packager (v1.5.1)
 
-Installed (v1.5.0)
+Installed (v1.5.1)
 
 Production-grade utility for compiling, pruning, and validating lean, high-performance **CDSS Retrieval Packages** from compiled medical textbook libraries (*Davidson*, *Harrison*, *Hurst*, *Braunwald*, *Kumar & Clark*).
 

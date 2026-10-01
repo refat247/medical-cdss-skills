@@ -1,6 +1,6 @@
 ---
 name: kawsar-habijabi-cdss-navigator
-version: 1.1.0
+version: 1.1.1
 description: |
   Clinical Decision Support System (CDSS) and Socratic Preceptor Navigator for Dr. Kawsar Uddin's
   Habijabi medical series and bedside clinical heuristics across 137 verified internal medicine records.
@@ -10,7 +10,7 @@ description: |
   sub-millisecond retrieval.
 ---
 
-# Kawsar Habijabi CDSS & Socratic Preceptor Navigator (v1.1.0)
+# Kawsar Habijabi CDSS & Socratic Preceptor Navigator (v1.1.1)
 
 A specialized Clinical Decision Support System (CDSS) skill designed for junior doctors, interns, postgraduate trainees (FCPS, MRCP, MD), and medical officers practicing in hospital wards and outpatient clinics.
 
@@ -55,7 +55,7 @@ python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scrip
 ```
 
 ### 3. Bedside Prescribing Safety Interceptor
-Screens a proposed drug order against **6 fixed keyword-triggered rules** (whole-word matching; all matching rules are shown). If no rule matches the result is `NOT_EVALUATED` (exit 3) - this is **not** a safety clearance, and the screen does not check doses, renal/hepatic function, allergies or general interactions:
+Screens a proposed drug order against **6 fixed keyword-triggered rules** (whole-word matching; all matching rules are shown). An alert exits 1; if no rule matches the result is `NOT_EVALUATED` (exit 3) - this is **not** a safety clearance, and the screen does not check doses, renal/hepatic function, allergies or general interactions:
 ```powershell
 python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scripts\habijabi_navigator.py" `
   --prescribing-safety "Acute gout flare: start allopurinol 100mg"

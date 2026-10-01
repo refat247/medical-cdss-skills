@@ -96,6 +96,20 @@ def search(query, top_k=5):
              "score": round(s, 4), "excerpt": catalog[d]["body"][:300]} for d, s in ranked]
 
 
+class CDSSRouter:
+    """Class interface expected by cdss-retrieval-packager (`retrieve_chunks`)."""
+
+    def retrieve_chunks(self, query, top_k=5, compress=False):
+        res = search(query, max(int(top_k), 1))
+        if compress:
+            for r in res:
+                r["excerpt"] = r["excerpt"][:160]
+        return res
+
+
+HarrisonCDSSRouter = CDSSRouter
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--query"); ap.add_argument("--vignette"); ap.add_argument("--top_k", type=int, default=5)
@@ -387,6 +401,8 @@ class MedicalBookIndexCompiler:
                 # Body extraction
                 body_parts = raw.split("---", 1)
                 body = body_parts[1].strip() if len(body_parts) > 1 else raw.strip()
+                # a "### Chunk N" divider precedes the NEXT chunk's "---" opener; it is not this chunk's content
+                body = re.sub(r"(?:\r?\n)+#{1,6}[ \t]+Chunk\b[^\n]*\s*$", "", body)
 
                 chunk_entry = {
                     "chunk_id": c_id,
@@ -653,11 +669,14 @@ class MedicalBookIndexCompiler:
             sc = score_all(qtoks)
             lat.append(time.perf_counter_ns() - t0)
             g_score = sc.get(gi, 0.0)
-            ahead = sum(1 for d, s in sc.items() if d != gi and s >= g_score)      # pessimistic ties
+            # Chunks of the SAME topic are equally correct answers to a topic query, so they never count as
+            # competitors (a long section split into N chunks must not score as N-1 misses).
+            same_topic = {d for d, c in enumerate(self.chunks_catalog) if c["topic"] == gold["topic"]}
+            ahead = sum(1 for d, s in sc.items() if d not in same_topic and s >= g_score)      # pessimistic ties
             rank = 1 + ahead if g_score > 0 else n
             neg_idx, neg_score = None, -1.0
             for d, s in sc.items():
-                if d != gi and (s > neg_score or (s == neg_score and d < (neg_idx if neg_idx is not None else n))):
+                if d not in same_topic and (s > neg_score or (s == neg_score and d < (neg_idx if neg_idx is not None else n))):
                     neg_idx, neg_score = d, s
             hit1 += rank == 1
             hit3 += rank <= 3

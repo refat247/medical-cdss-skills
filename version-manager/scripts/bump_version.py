@@ -117,7 +117,7 @@ def discover_versions(root_dir: str) -> List[VersionDeclaration]:
             elif fname.startswith("test_") and ("version" in fname or "consistency" in fname):
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for idx, line in enumerate(f, start=1):
-                        m = re.search(r'assert\s+(?:\w*(?:[Vv]ersion|VERSION)\w*|\w+_v)\s*==\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line)
+                        m = re.search(r'assert\s+(?:(?:__)?(?:skill|pipeline|ext|extension|package|tool|script|router|compiler|packager|guard|orchestrator|current|expected|new|old|SKILL|PIPELINE|EXT|EXTENSION|PACKAGE|TOOL|SCRIPT)?_?(?:[Vv]ersion|VERSION)(?:__)?|init_v|\w*_v)\s*==\s*["\']([0-9][0-9A-Za-z.+\-]*)["\']', line)
                         if m:
                             declarations.append(VersionDeclaration(fpath, "TEST_ASSERTION", m.group(1), idx, line.strip()))
 
@@ -293,7 +293,7 @@ def _apply_version_bump(root_dir: str, target_version: str, release_notes: Optio
             with open(d.file_path, "r", encoding="utf-8", newline="") as f:
                 content = f.read()
             new_content = re.sub(
-                r'(assert\s+(?:\w*(?:[Vv]ersion|VERSION)\w*|\w+_v)\s*==\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])',
+                r'(assert\s+(?:(?:__)?(?:skill|pipeline|ext|extension|package|tool|script|router|compiler|packager|guard|orchestrator|current|expected|new|old|SKILL|PIPELINE|EXT|EXTENSION|PACKAGE|TOOL|SCRIPT)?_?(?:[Vv]ersion|VERSION)(?:__)?|init_v|\w*_v)\s*==\s*["\'])([0-9][0-9A-Za-z.+\-]*)(["\'])',
                 rf"\g<1>{target_version}\g<3>",
                 content
             )

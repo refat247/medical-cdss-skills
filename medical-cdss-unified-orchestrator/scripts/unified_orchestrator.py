@@ -1,5 +1,5 @@
 """
-Unified Medical CDSS Orchestrator (v1.5.0)
+Unified Medical CDSS Orchestrator (v1.5.1)
 Cross-Book Clinical Decision Support Navigator across:
   1. Davidson's Principles and Practice of Medicine (25th Edition)
   2. Harrison's Principles of Internal Medicine (22nd Edition)
@@ -15,7 +15,7 @@ Usage:
   python unified_orchestrator.py --outline "Diabetic ketoacidosis"
 """
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 import os
 
@@ -354,11 +354,14 @@ def run_build_context_packet(topic: str, output_path: Optional[str] = None) -> O
         return fail(f"federated search script not found at {FEDERATED_SEARCH_SCRIPT}")
     cmd = [sys.executable, str(FEDERATED_SEARCH_SCRIPT), "--query", topic, "--book", "all", "--top_k", "4", "--json"]
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    if proc.returncode != 0:
+    # rc 1 = at least one book errored but the JSON still carries the other books' results: keep them, warn.
+    if proc.returncode not in (0, 1):
         return fail(f"federated search exited {proc.returncode}: {proc.stderr.strip()[-300:]}")
     try:
         results = json.loads(proc.stdout)
     except json.JSONDecodeError as e:
+        if proc.returncode != 0:
+            return fail(f"federated search exited {proc.returncode}: {proc.stderr.strip()[-300:]}")
         return fail(f"federated search returned invalid JSON ({e})")
 
     raw_chunks: List[Dict[str, Any]] = []
@@ -373,6 +376,8 @@ def run_build_context_packet(topic: str, output_path: Optional[str] = None) -> O
         raw_chunks = [r for r in results if isinstance(r, dict)]
 
     packet["warnings"] = []
+    if proc.returncode == 1:
+        packet["warnings"].append("federated search reported errors for one or more books; packet is partial")
     for res in raw_chunks:
         if "error" in res:
             packet["warnings"].append(f"{res.get('book')}: retrieval error: {res['error']}")

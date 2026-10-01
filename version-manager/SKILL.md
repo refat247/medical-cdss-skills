@@ -1,6 +1,6 @@
 ---
 name: version-manager
-version: 1.2.0
+version: 1.2.1
 description: |
   Universal Semantic Version Bumper, Release Synchronizer, and Keep a Changelog Manager.
   ACTIVATE this skill whenever the user asks to bump version, update skill or software version,
@@ -8,7 +8,7 @@ description: |
   and documentation, or verify zero-drift version consistency across files.
 ---
 
-# Version Manager Skill (v1.2.0)
+# Version Manager Skill (v1.2.1)
 
 Production-grade automated Semantic Versioning ([SemVer 2.0.0](https://semver.org/)) bumper, multi-file release synchronizer, and [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) management skill for Antigravity agent skills, Python packages, and modular codebases.
 

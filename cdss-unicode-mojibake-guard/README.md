@@ -1,6 +1,6 @@
-# CDSS Unicode & Anti-Mojibake Guard (v1.6.0)
+# CDSS Unicode & Anti-Mojibake Guard (v1.6.1)
 
-Installed (v1.6.0)
+Installed (v1.6.1)
 
 Production-grade encoding integrity guard and pre-flight sanitizer for medical textbook Clinical Decision Support Systems (CDSS). Prevents and repairs character corruption (mojibake) and enforces ISMP/FDA clinical symbol safety across all corpora.
 

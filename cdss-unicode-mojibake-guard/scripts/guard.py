@@ -3,7 +3,7 @@ CDSS Unicode, Anti-Mojibake, ISMP Clinical Safety & LaTeX De-Delimiter Engine
 Autonomous pre-flight auditor, in-place sanitizer, and runtime encoding guard.
 """
 
-__version__ = "1.6.0"
+__version__ = "1.6.1"
 
 import os
 import re
@@ -75,7 +75,7 @@ OUTPUT_NORMALISATION_PATTERNS = [
 # textbook/source markdown stays verbatim (lab values such as "Hb 13.0 g/dL" are not doses).
 # Rewrites are applied only to generated output (cleanroom_docx_filter / sanitize_for_llm(rewrite_doses=True)).
 DOSE_UNITS = r"(?:mg|mcg|g|mL|units)"
-NOT_LAB_DENOM = r"(?!\s*/\s*(?:d?L|mL|mmol|h|hr|min|d|day|\d+\s*h)\b)"
+NOT_LAB_DENOM = r"(?!\s*/\s*(?:d?L|mL|mmol|\d+\s*h)\b)"
 ISMP_ADVISORY_PATTERNS = [
     r"\b\d+\.0+\s*" + DOSE_UNITS + r"\b" + NOT_LAB_DENOM,
     r"(?:^|[\s(])\.\d+\s*(?:mg|mcg|g|mL|units|mmol)\b",
@@ -142,6 +142,12 @@ def clean_clinical_latex(text: str) -> str:
     if not text:
         return ""
 
+    # 0. Powers of ten in math mode: 10$^{9}$ -> 10⁹ (must run before citation rule)
+    _sup0 = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+    text = re.sub(r"(?<![\d.])(10)\s*\$\^\{?\s*(-?\d{1,3})\s*\}?\$",
+                  lambda m: m.group(1) + m.group(2).translate(_sup0), text)
+    text = re.sub(r"\$\^\{\\circ\}\$|\\\(\s*\^\{\\circ\}\s*\\\)|\^\{\\circ\}", "°", text)
+    text = re.sub(r"\$\^\\circ\$", "°", text)
     # 1. Superscript references: \( ^{18} \) or $^{18}$ -> [18]
     text = re.sub(r"\\\(\s*\^\{([0-9,\-\s]+)\}\s*\\\)", r"[\1]", text)
     text = re.sub(r"\$\^\{([0-9,\-\s]+)\}\$", r"[\1]", text)
@@ -180,6 +186,9 @@ def clean_clinical_latex(text: str) -> str:
     text = re.sub(r"\\Delta\s*P\b", "Delta P", text)
     text = re.sub(r"\\Delta(?=[^a-zA-Z]|$)", "Delta", text)
     text = re.sub(r"\\rho(?=[^a-zA-Z]|$)", "rho", text)
+    text = re.sub(r"\\circ(?=[^a-zA-Z]|$)", "°", text)
+    text = re.sub(r"\\beta(?=[^a-zA-Z]|$)", "beta", text)
+    text = re.sub(r"\\alpha(?=[^a-zA-Z]|$)", "alpha", text)
     text = re.sub(r"\\rightarrow(?=[^a-zA-Z]|$)", "->", text)
 
     # Convert LaTeX microgram: \mu g, \mu\text{g}, \mu\mathrm{g}, \(\mu\)g, $\mu$g -> mcg
