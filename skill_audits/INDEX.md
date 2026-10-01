@@ -10,7 +10,7 @@ One report per skill, each scored on the same five dimensions and listing findin
 | 01 | [cdss-unicode-mojibake-guard](01_cdss-unicode-mojibake-guard.md) | Critical path | **B+** | 0 | 0 | 2 | 3 | 22/0 |
 | 02 | [medical-book-split-ocr-organizer](02_medical-book-split-ocr-organizer.md) | Critical path | **C+** | 0 | 1 | 2 | 2 | 7/0 |
 | 03 | [davidson-ocr-preready](03_davidson-ocr-preready.md) | Critical path | **B** | 0 | 1 | 2 | 2 | 19/0 |
-| 04 | [davidson-rag-pipeline-antigravity](04_davidson-rag-pipeline-antigravity.md) | Critical path | **B+** | 0 | 2 | 3 | 2 | 463/3 (30 skip) |
+| 04 | [davidson-rag-pipeline-antigravity](04_davidson-rag-pipeline-antigravity.md) | Critical path | **B+** | 0 | 3 | 3 | 2 | 463/3 (30 skip) |
 | 05 | [medical-index-rag-compiler](05_medical-index-rag-compiler.md) | Critical path | **D** | 2 | 1 | 2 | 1 | 11/0 |
 | 06 | [cdss-retrieval-packager](06_cdss-retrieval-packager.md) | Critical path | **B-** | 0 | 1 | 3 | 2 | 9/0* |
 | 07 | [cdss-bridge-note-publisher](07_cdss-bridge-note-publisher.md) | Goal-adjacent | **B+** | 0 | 1 | 3 | 1 | 17/0 (1 skip)* |
@@ -50,3 +50,6 @@ One report per skill, each scored on the same five dimensions and listing findin
 - Anything that needs the real corpora (`D:\01_Medical_Study\…`, `D:\HABIJABI_FULL`): retrieval accuracy, latency, hallucination rate, whether packaged routers behave as the navigators assume.
 - Clinical correctness of Kawsar's rules, the Habijabi bridge CSV, the never-events matrix and the Bengali leaflets (needs clinician review). Where I comment on dengue fluids, it is from reading the arithmetic and my general understanding of stepwise guidance, not a guideline check.
 - The 18 internal stages of the Davidson pipeline beyond its tests, orchestration use and the Stage 4.6 module layout; the reasons for its 30 skipped tests.
+
+## Update after a static-analysis pass
+A `pyflakes` run found 20 undefined-name errors, all `os` used without import in 5 Davidson maintenance/repair scripts (see 04-D8); it also reported 74 f-strings without placeholders and 48 unused imports (low severity, not itemised). This pass was not part of the first audit; there are likely other classes of defect no one has looked for yet.

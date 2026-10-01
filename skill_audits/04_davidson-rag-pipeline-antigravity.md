@@ -21,6 +21,7 @@
 | D5 | Medium | C | **Stale provenance names:** Stage 4.7 and `run_source_lines_precision.py` write `skill_name: "davidson-rag-pipeline-hyperagent"`; docstrings say `davidson-rag-pipeline-cc`. | Use `checkpoint_utils.SKILL_NAME` everywhere. |
 | D6 | Low | C | Description is tied to "Google Gemini 3.7 Flash High" and "local Windows sessions". | Describe capabilities, not the host model. |
 | D7 | Low | I | 30 tests are skipped; I did not review why. | List skip reasons in CI output; fail if skips exceed a budget. |
+| D8 | **High** | M | **Five scripts crash on start with `NameError: name 'os' is not defined`** (found with pyflakes, reproduced by running one): `scripts/maintenance/checkpoint_migrate_v2_6_0.py`, `checkpoint_migrate_v2_6_4.py`, `scripts/chapter_repairs/apply_ch05_adjudication.py`, `regenerate_rag_optimised_ch05.py`, `migrate_ch05_schema_v2.py`. They call `os.path…` in `sys.path.insert` but never `import os`. The first two are the checkpoint-migration CLIs that `checkpoint_utils.py` tells users to run ("`checkpoint_migrate_v2_6_0.py --apply`"), so a checkpoint upgrade path is broken as shipped. No test imports them. | Add `import os`; add a smoke test that runs `--help` on every script under `scripts/`; run pyflakes in CI. |
 
 ## Verdict
 This is the model the other skills should be held to. Its remaining problems are portability (D1, D2) and the non-deterministic verifier (D3).
