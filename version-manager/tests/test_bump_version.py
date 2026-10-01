@@ -242,3 +242,16 @@ def test_notes_are_used_verbatim_not_wrapped_in_one_bullet(tmp_path):
     bump_all(str(d), "minor", notes="### Added\n- A\n\n### Fixed\n- B\n")
     text = (d / "CHANGELOG.md").read_text()
     assert "- ### Added" not in text and "### Added\n- A" in text
+
+
+def test_test_assertions_with_any_version_like_name_are_discovered_and_bumped(tmp_path):
+    from scripts.bump_version import bump_all, check_consistency
+    d = _skill(tmp_path, "1.0.0")
+    (d / "tests").mkdir()
+    # built from pieces so THIS file's own lines are not mistaken for pinned-version assertions by the scanner
+    body = "def test_a():\n" + "".join(f"    assert {name}" + ' == "1.0.0"\n' for name in ("EXT_VERSION", "init_v", "skill_v", "PIPELINE_VERSION"))
+    (d / "tests" / "test_version_consistency.py").write_text(body)
+    assert check_consistency(str(d))[0] is True
+    ok, v = bump_all(str(d), "minor", message="m")
+    src = (d / "tests" / "test_version_consistency.py").read_text()
+    assert ok and src.count('"1.1.0"') == 4

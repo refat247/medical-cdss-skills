@@ -17,7 +17,7 @@ def test_version_declarations_match():
 
     # 3. Check generate_extended_modalities.py
     from scripts.generate_extended_modalities import VERSION as EXT_VERSION
-    assert EXT_VERSION == "1.1.0"
+    assert EXT_VERSION == "1.2.0"
 
     # 4. Check SKILL.md frontmatter
     skill_md = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
