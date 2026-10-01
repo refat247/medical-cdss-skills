@@ -1,6 +1,6 @@
-# Clean My AI Harness (v1.0.1)
+# Clean My AI Harness (v1.0.2)
 
-Installed (v1.0.1)
+Installed (v1.0.2)
 
 Autonomous AI environment audit and harness optimizer for Antigravity and Codex sessions. Scans visible rules, skills, MCP tools, permissions, and hooks to generate a safe, reviewable cleanup plan.
 

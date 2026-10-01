@@ -96,3 +96,37 @@ def test_init_workspace_records_clinician_and_series(tmp_path):
     orch.init_workspace(w, "Dr X", "Series Y")
     meta = json.loads((w / "00_CONTROL" / "workspace.json").read_text(encoding="utf-8"))
     assert meta["clinician_name"] == "Dr X" and meta["series_name"] == "Series Y"
+
+
+# ---------------- generator: tiering, counts, links ----------------
+import importlib.util
+
+
+def _gen():
+    spec = importlib.util.spec_from_file_location("gen_ext", str(Path(__file__).resolve().parent.parent / "scripts" / "generate_extended_modalities.py"))
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    return m
+
+
+def _recs():
+    return [{"record_id": "R1", "title": "Graves disease", "domain": "Endocrinology", "primary_condition": "Graves disease"},
+            {"record_id": "R2", "title": "Hypertensive crisis", "domain": "Cardiology", "primary_condition": "Hypertensive emergency"},
+            {"record_id": "R3", "title": "Dengue fever", "domain": "Infectious", "primary_condition": "Dengue"}]
+
+
+def test_curriculum_tiering_uses_whole_words_and_real_counts(tmp_path, capsys):
+    g = _gen(); g.configure_workspace(tmp_path)
+    g.build_modality_2_curriculum(_recs(), {})
+    out = capsys.readouterr().out
+    assert "Classified 3 cases" in out                      # was always "137"
+    rows = {r["record_id"]: r for r in csv.DictReader((tmp_path / "03_NORMALIZED_CORPUS" / "TABLES" / "residency_curriculum_tiers.csv").open(encoding="utf-8"))}
+    assert rows["R1"]["curriculum_tier"] != "Tier 3"        # 'gra' is not a substring of 'Graves'
+    assert rows["R2"]["curriculum_tier"] != "Tier 1"        # 'iv' is not a substring of 'Hypertensive'
+    assert rows["R3"]["curriculum_tier"] == "Tier 1"
+
+
+def test_generated_links_point_at_the_workspace_not_a_literal_drive(tmp_path):
+    g = _gen(); g.configure_workspace(tmp_path)
+    g.build_modality_2_curriculum(_recs(), {})
+    md = next((tmp_path / "08_EXPORTS" / "CURRICULUM").glob("*.md"))
+    assert "file:///D:/HABIJABI_FULL" not in md.read_text(encoding="utf-8")

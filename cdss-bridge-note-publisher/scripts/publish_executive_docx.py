@@ -371,6 +371,8 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
             code_text = "\n".join(code_lines)
 
             if "7-ATTRIBUTE AUSCULTATION FRAMEWORK" in code_text or ("1. TIMING" in code_text and "7. DYNAMIC" in code_text):
+                print("[PUBLISH-DOCX] WARNING: this block matches the built-in 7-attribute auscultation framework; the document uses "
+                      "the BUILT-IN (unverified, not note-derived) card grid instead of the note's own text.", file=sys.stderr)
                 r1 = [
                     ("1. TIMING", ["Systolic (Early, Mid, Late, Pan)", "Diastolic (Early, Mid-diastolic)", "Continuous (extends past S2)"]),
                     ("2. ACOUSTIC SHAPE", ["Crescendo-Decrescendo (Ejection)", "Plateau (Holosystolic)", "Decrescendo (Early diastolic)"]),
@@ -454,6 +456,8 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
         # 7-Attribute Card Grid Table Interceptor (Markdown dual tables)
         if stripped.startswith("|") and "1. TIMING" in stripped:
+            print("[PUBLISH-DOCX] WARNING: table recognised as the 7-attribute auscultation framework; the BUILT-IN card grid "
+                  "(not the note's own cells) is rendered.", file=sys.stderr)
             t1_lines = []
             while i < total_lines and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
                 t1_lines.append(lines[i].strip())

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CLINICAL PRECEPTOR CDSS ORCHESTRATOR (v1.2.0)
+CLINICAL PRECEPTOR CDSS ORCHESTRATOR (v1.2.1)
 Universal Multi-Folder Autonomous Manufacturing Pipeline & 13-Modality Clinical Runtime Engine
 
 Supports any physician-authored case series, clinical teaching archive, or medical preceptor corpus.
@@ -27,8 +27,8 @@ try:
 except Exception:
     pass
 
-__version__ = "1.2.0"
-VERSION = "1.2.0"
+__version__ = "1.2.1"
+VERSION = "1.2.1"
 
 def _default_workspace() -> Path:
     """CDSS_HABIJABI_ROOT, else D:\\HABIJABI_FULL on Windows, else ~/HABIJABI_FULL (on POSIX the old literal
@@ -46,7 +46,7 @@ DEFAULT_WORKSPACE = _default_workspace()
 # ==============================================================================
 def init_workspace(workspace_dir: Path, clinician_name: str = "Clinician", series_name: str = "Clinical Cases"):
     print("=" * 80)
-    print("🏗️  CLINICAL PRECEPTOR CDSS — WORKSPACE PRE-SCAFFOLDING (v1.2.0)")
+    print("🏗️  CLINICAL PRECEPTOR CDSS — WORKSPACE PRE-SCAFFOLDING (v1.2.1)")
     print(f"    Target Directory : {workspace_dir}")
     print(f"    Clinician / Series: {clinician_name} | {series_name}")
     print("=" * 80)
@@ -530,7 +530,7 @@ def dispatch_runtime(workspace: Path, args: argparse.Namespace):
 # ==============================================================================
 def main():
     parser = argparse.ArgumentParser(
-        description="Clinical Preceptor CDSS Orchestrator (v1.2.0) — Universal Pipeline & 13-Modality Runtime Engine"
+        description="Clinical Preceptor CDSS Orchestrator (v1.2.1) — Universal Pipeline & 13-Modality Runtime Engine"
     )
     parser.add_argument("--workspace", type=str, default=None, help="Target clinical corpus workspace (default: D:\\HABIJABI_FULL)")
     parser.add_argument("--init-workspace", action="store_true", help="Pre-scaffold standardized CDSS architecture")

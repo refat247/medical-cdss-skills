@@ -1,6 +1,6 @@
 ---
 name: clinical-preceptor-cdss-orchestrator
-version: 1.2.0
+version: 1.2.1
 description: |
   Universal Clinical Preceptor & Bedside Case CDSS Orchestrator for physician-authored clinical series,
   medical vignettes, and preceptor corpora. Automates full-lifecycle corpus manufacturing (workspace pre-scaffolding,
@@ -11,7 +11,7 @@ description: |
   GraphRAG Causal Graphs, Acute SBAR Handovers, Bengali Patient Leaflets, Anki Cloze Decks, and Never-Events Toxic Matrix).
 ---
 
-# Clinical Preceptor CDSS Orchestrator (v1.2.0)
+# Clinical Preceptor CDSS Orchestrator (v1.2.1)
 
 A universal, modular Clinical Decision Support System (CDSS) orchestrator and manufacturing pipeline designed for **physician-authored medical education series, bedside clinical case collections, and ward preceptorship archives**.
 

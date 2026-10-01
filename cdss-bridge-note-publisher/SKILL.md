@@ -1,6 +1,6 @@
 ---
 name: cdss-bridge-note-publisher
-version: 1.3.0
+version: 1.3.1
 description: |
   Autonomous Generator, Claim-Level Grounding Verifier, and Multi-Modal Publisher for Davidson Cognitive Bridge Notes (V2.2 Standard).
   Orchestrates cross-book retrieval across Davidson 25, Harrison 22, Hurst 15, and Kumar & Clark 11, enforces the 6-layer source hierarchy,
@@ -8,7 +8,7 @@ description: |
   featuring Native Word Card Grid Tables (zero ASCII staircase art) and 4x Lanczos-enhanced figures.
 ---
 
-# CDSS Bridge Note Publisher (v1.3.0)
+# CDSS Bridge Note Publisher (v1.3.1)
 
 Production-grade clinical document synthesis and publishing engine for medical Clinical Decision Support Systems (CDSS). Closes the operational gap between raw textbook retrieval chunks and verified, publication-grade clinical bridge notes.
 
