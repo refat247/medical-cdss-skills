@@ -6,6 +6,7 @@ Encapsulates:
 """
 import io
 import os
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 import re
 import sys
 from collections import Counter
@@ -27,7 +28,7 @@ def run_stage_5_4_autolink(chunk_path: str, out_dir: str, prefix: str) -> dict:
         return {"status": "skipped", "reason": "already complete"}
 
     text = open(chunk_path, encoding="utf-8").read()
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", text, re.DOTALL)
+    blocks = split_chunk_blocks(text)
 
     id_to_disease = {}
     for b in blocks:
@@ -116,7 +117,7 @@ def run_stage_5(
         scattered_notes = {}
 
     text = open(chunk_path, encoding="utf-8").read()
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", text, re.DOTALL)
+    blocks = split_chunk_blocks(text)
     l2 = [b.strip() for b in blocks if re.search(r"chunk_level:\s*2", b)]
 
     def add_coverage_fields(block):

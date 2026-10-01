@@ -13,6 +13,7 @@ written never produced it. This module is what closes that gap.
 """
 import json
 import os
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 from datetime import datetime, timezone
 
 SCHEMA_VERSION = "1.0"
@@ -71,7 +72,7 @@ def evaluate_clinical_completeness(chunk_text: str):
     import re
     from collections import defaultdict
 
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", chunk_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunk_text)
     disease_chunks = defaultdict(list)
 
     categories = {

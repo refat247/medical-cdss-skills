@@ -216,6 +216,9 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
     elif stage == "4b":
         from pipeline.stages.stage_4_parse import run_stage_4b
         res = run_stage_4b(rep_path, out_dir, prefix)
+        if res.get("blocked"):
+            print(f"Stage 4B -> BLOCKED: {res.get('reason')}")
+            return {"status": "BLOCKED", "stage": "4b", "reason": res.get("reason")}
         print(f"Stage 4B -> {res.get('l1_count')} L1 chunks, {res.get('l2_count')} L2 chunks")
         return {"status": "COMPLETED", "stage": "4b", "l1_count": res.get("l1_count"), "l2_count": res.get("l2_count")}
 

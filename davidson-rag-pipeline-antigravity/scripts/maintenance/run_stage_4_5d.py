@@ -34,6 +34,7 @@ described above applies to the __main__ CLI entry point only, which is the
 actual "direct runner against a real chapter" risk this release addresses.
 """
 import sys
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 import io
 import os
 import re
@@ -46,7 +47,7 @@ from pipeline.checkpoint_utils import PIPELINE_VERSION
 
 
 def _parse_chunks(chunks_text):
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
     parsed = []
     for i, b in enumerate(blocks):
         cid = re.search(r'chunk_id:\s*(\S+)', b)

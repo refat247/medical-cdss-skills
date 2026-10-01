@@ -384,3 +384,65 @@ def test_1_11_zero_l2_chunks_is_not_cleared(tmp_path, monkeypatch):
 def test_1_11_short_chunk_with_a_number_is_still_checked(tmp_path, monkeypatch):
     r = _run_45(tmp_path, monkeypatch, "Give 5 mg stat.\n", _c("Give 50 mg stat."))
     assert r["verdict"] == "FAIL"
+
+
+# ---------- 1.21 one splitter for every stage ----------
+import re as _re
+from pipeline.stages.chunk_blocks import split_chunk_blocks, block_body
+
+_OLD = r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)"
+_WELL = ("---\nchunk_id: L2-1\nchunk_level: 2\n---\n\nBody one.\n\n---\nchunk_id: L2-2\nchunk_level: 2\n---\n\nBody two.\n")
+
+
+def test_1_21_equals_the_old_regex_on_well_formed_input():
+    assert split_chunk_blocks(_WELL) == _re.findall(_OLD, _WELL, _re.DOTALL)
+
+
+def test_1_21_keeps_a_final_empty_body_chunk_without_trailing_newline():
+    text = _WELL + "\n---\nchunk_id: L2-3\nchunk_level: 2\ncoverage_status: gap\n---"
+    assert len(_re.findall(_OLD, text, _re.DOTALL)) == 2          # the old regex loses it
+    assert [b.split("\n")[1] for b in split_chunk_blocks(text)] == ["chunk_id: L2-1", "chunk_id: L2-2", "chunk_id: L2-3"]
+
+
+def test_1_21_body_keeps_horizontal_rules_inside_the_body():
+    text = "---\nchunk_id: L2-1\n---\n\nabove\n\n---\n\nbelow\n"
+    assert "below" in block_body(split_chunk_blocks(text)[0])
+
+
+def test_1_21_no_stage_still_uses_the_old_regex():
+    import glob
+    offenders = []
+    for f in glob.glob("pipeline/**/*.py", recursive=True) + glob.glob("scripts/**/*.py", recursive=True):
+        src = open(f, encoding="utf-8").read()
+        if "(?=\\n---\\nchunk_id:|\\Z)" in src and "chapter_repairs" not in f and not f.endswith(("stage_6_validation.py", "chunk_blocks.py")):
+            offenders.append(f)
+    assert not offenders, offenders
+
+
+# ---------- 1.18 / 1.30(26) zero chunks must not clear or complete a stage ----------
+from pipeline.stages.stage_4_5c_coverage import compute_coverage_gaps, decide_checkpoint_action as d45c
+
+
+def test_1_18_stage_4_5c_blocks_when_there_are_no_l1_chunks():
+    r = compute_coverage_gaps("no chunks here")
+    assert r["verdict"] == "BLOCKING FAIL" and d45c(r)[0] == "blocked"
+
+
+def test_1_26_stage_4_5c_reads_whole_body_even_with_a_horizontal_rule():
+    l1 = ("---\nchunk_id: L1-1\nchunk_level: 1\ntopic: T\n---\n\nFirst sentence here is long enough to count.\n\n---\n\n"
+          "Second sentence after a rule is also long enough.\n")
+    l2 = ("---\nchunk_id: L2-1\nchunk_level: 2\n---\n\nFirst sentence here is long enough to count.\n")
+    r = compute_coverage_gaps(l1 + "\n" + l2)
+    assert r["gaps"], "the sentence after the '---' in the L1 body must be checked (and is missing from L2)"
+
+
+def test_1_18_stage_4b_blocks_when_no_chunks_are_produced(tmp_path, monkeypatch):
+    from pipeline.stages import stage_4_parse as s4
+    calls = {}
+    monkeypatch.setattr(s4, "load_checkpoint", lambda o, p: ({"stage_completions": {}, "pipeline_state": {}, "chapter_info": {}}, "x.json"))
+    monkeypatch.setattr(s4, "mark_stage_complete", lambda *a, **k: calls.setdefault("complete", True))
+    import pipeline.checkpoint_utils as cu
+    monkeypatch.setattr(cu, "mark_stage_blocked", lambda *a, **k: calls.setdefault("blocked", True))
+    rep = tmp_path / "REPAIRED_S2.md"; rep.write_text("# Title only\n\nNo second-level headings here at all.\n", encoding="utf-8")
+    res = s4.run_stage_4b(str(rep), str(tmp_path), "P")
+    assert res.get("blocked") and "blocked" in calls and "complete" not in calls

@@ -594,6 +594,15 @@ def run_stage_4b(rep_path: str, out_dir: str, prefix: str) -> dict:
     with open(chunk_path, "w", encoding="utf-8") as f:
         f.write(all_chunks)
 
+    if not l1_chunks and not l2_chunks:
+        # A document with no "## " section headings yields no chunks; that is a failed parse, not a completed stage
+        # (it used to be COMPLETED and Stages 4.5 / 4.5c then cleared an empty chunk file).
+        from pipeline.checkpoint_utils import mark_stage_blocked
+        mark_stage_blocked(checkpoint, checkpoint_path, "4b", output_file=os.path.basename(chunk_path),
+                           reason="0 L1 and 0 L2 chunks produced: the repaired source has no '## ' section headings")
+        return {"l1_count": 0, "l2_count": 0, "sections_run": len(sections), "chunk_path": chunk_path,
+                "blocked": True, "reason": "no chunks produced"}
+
     mark_stage_complete(
         checkpoint,
         checkpoint_path,

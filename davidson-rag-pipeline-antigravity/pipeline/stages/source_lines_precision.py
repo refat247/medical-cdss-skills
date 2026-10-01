@@ -28,6 +28,7 @@ metadata-precision check rather than a clinical-content one (lower stakes,
 but still not something to silently rewrite without review).
 """
 import re
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 
 MATCH_RATE_FLOOR = 0.5
 GAP_TOLERANCE = 2  # lines allowed between two matched anchors to still cluster as one segment
@@ -563,7 +564,7 @@ def apply_corrections(chunks_text, corrections):
     chunk_id in `corrections` not found in chunks_text fails loudly via the
     returned unmatched list (same discipline as Stage 4.6's
     apply_manual_corrections / Stage 4.5d's apply_adjudication_decisions)."""
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
     by_id = {}
     for b in blocks:
         m = re.search(r'chunk_id:\s*(\S+)', b)

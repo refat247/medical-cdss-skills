@@ -5,6 +5,7 @@ and ensures no figure references are dropped or hallucinated.
 """
 import io
 import os
+from pipeline.stages.chunk_blocks import block_body, split_chunk_blocks
 import re
 import sys
 
@@ -26,14 +27,13 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
     repaired = open(rep_path, encoding="utf-8").read()
     chunks = open(chunk_path, encoding="utf-8").read()
 
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", chunks, re.DOTALL)
+    blocks = split_chunk_blocks(chunks)
     l2 = []
     for block in blocks:
         if not re.search(r"chunk_level:\s*2", block):
             continue
         cid = re.search(r"chunk_id:\s*(.+)", block)
-        parts = block.split("---\n")
-        body = parts[2].strip() if len(parts) >= 3 else block
+        body = block_body(block)
         l2.append({"id": cid.group(1).strip() if cid else "?", "body": body})
 
     def norm(s):
