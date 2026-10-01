@@ -1,5 +1,5 @@
 """
-Unified Medical CDSS Orchestrator (v1.4.0)
+Unified Medical CDSS Orchestrator (v1.5.0)
 Cross-Book Clinical Decision Support Navigator across:
   1. Davidson's Principles and Practice of Medicine (25th Edition)
   2. Harrison's Principles of Internal Medicine (22nd Edition)
@@ -15,7 +15,7 @@ Usage:
   python unified_orchestrator.py --outline "Diabetic ketoacidosis"
 """
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 import os
 
@@ -53,48 +53,82 @@ HARRISON_ROUTER_SRC = Path(os.environ.get("CDSS_HARRISON_BUILD_ROUTER", r"D:\01_
 HURST_ROUTER_SRC = Path(os.environ.get("CDSS_HURST_BUILD_ROUTER", r"D:\01_Medical_Study\SPLIT Pdfs\Fuster & Hurst's The Heart_split\Index\rag_pipeline_output\cdss_qa_router.py"))
 
 
+ACTIVE_BOOK = "all"          # set from --book; every mode honours it
+ALLOW_PARTIAL = False        # --allow-partial: accept results from fewer books than were requested
+SKIPPED: List[str] = []      # selected books that could not be queried in this run
+
+
+def _selected(name: str) -> bool:
+    return ACTIVE_BOOK in ("all", name)
+
+
+def _note_skipped(name: str) -> None:
+    if name not in SKIPPED:
+        SKIPPED.append(name)
+
+
 def _warn_build_fallback(book: str, path: Path) -> None:
     print(f"[WARN] {book}: packaged router missing; using UNPACKAGED build output (not trust-verified): {path}",
           file=sys.stderr)
 
 
 def _finish(exit_codes: List[int], what: str) -> int:
-    """No source reachable is a failure, not success."""
+    """No source reachable is a failure; so is a PARTIAL result (some selected book missing) unless --allow-partial.
+    (Previously one answering book out of four exited 0 with only a printed note.)"""
     if not exit_codes:
         print(f"[ERROR] {what}: no textbook source was available (package: {PACKAGE_DIR})", file=sys.stderr)
         return 1
-    return max(exit_codes)
+    code = max(exit_codes)
+    if SKIPPED and code == 0 and not ALLOW_PARTIAL:
+        print(f"[PARTIAL RESULT] {what}: these selected books were NOT queried: {', '.join(SKIPPED)}. "
+              f"Exit 3 (use --allow-partial to accept).", file=sys.stderr)
+        return 3
+    if SKIPPED:
+        print(f"[PARTIAL RESULT] not queried: {', '.join(SKIPPED)}", file=sys.stderr)
+    return code
 
 
 def _davidson(query: str, exit_codes: List[int], label: str, as_json: bool = False) -> None:
+    if not _selected("davidson"):
+        return
     if FEDERATED_SEARCH_SCRIPT.exists():
         print(f"\n[DAVIDSON 25TH ED - {label}]")
         exit_codes.append(run_federated_query(query, book="davidson", top_k=3, as_json=as_json, compress=True))
     else:
         print("\n[DAVIDSON 25TH ED] Federated search script not available.")
+        _note_skipped("davidson")
 
 
 def get_harrison_router() -> Optional[Path]:
+    if not _selected("harrison"):
+        return None
     if HARRISON_ROUTER_PKG.exists():
         return HARRISON_ROUTER_PKG
     if HARRISON_ROUTER_SRC.exists():
         _warn_build_fallback("Harrison", HARRISON_ROUTER_SRC)
         return HARRISON_ROUTER_SRC
+    _note_skipped("harrison")
     return None
 
 
 def get_hurst_router() -> Optional[Path]:
+    if not _selected("hurst"):
+        return None
     if HURST_ROUTER_PKG.exists():
         return HURST_ROUTER_PKG
     if HURST_ROUTER_SRC.exists():
         _warn_build_fallback("Hurst", HURST_ROUTER_SRC)
         return HURST_ROUTER_SRC
+    _note_skipped("hurst")
     return None
 
 
 def get_kumar_router() -> Optional[Path]:
+    if not _selected("kumar"):
+        return None
     if KUMAR_ROUTER_PKG.exists():
         return KUMAR_ROUTER_PKG
+    _note_skipped("kumar")      # no unpackaged fallback exists for Kumar & Clark
     return None
 
 
@@ -136,6 +170,7 @@ def run_federated_query(query: str, book: str = "all", top_k: int = 3, as_json: 
 
 def run_case_vignette(vignette: str, as_json: bool = False) -> int:
     """Decomposes and analyzes a clinical case vignette across Davidson, Harrison, Hurst, and Kumar & Clark."""
+    del SKIPPED[:]          # per-run state
     print("=" * 80)
     print(" UNIFIED CLINICAL CASE VIGNETTE ANALYSIS")
     print(f" Case: {vignette}")
@@ -144,12 +179,15 @@ def run_case_vignette(vignette: str, as_json: bool = False) -> int:
     exit_codes = []
 
     # 1. Route to Davidson (Core Spine)
-    if FEDERATED_SEARCH_SCRIPT.exists():
+    if not _selected("davidson"):
+        pass
+    elif FEDERATED_SEARCH_SCRIPT.exists():
         print("\n[DAVIDSON 25TH ED - CORE MEDICINE EVALUATION]")
         code = run_federated_query(vignette, book="davidson", top_k=3, as_json=as_json, compress=True)
         exit_codes.append(code)
     else:
         print("\n[DAVIDSON 25TH ED] Federated search script not available.")
+        _note_skipped("davidson")
 
     # 2. Route to Harrison (General Medicine)
     h_router = get_harrison_router()
@@ -192,6 +230,7 @@ def run_case_vignette(vignette: str, as_json: bool = False) -> int:
 
 def run_therapy_validation(drug: str, condition: str) -> int:
     """Validates drug safety and indications across Davidson, Hurst, Harrison, and Kumar & Clark."""
+    del SKIPPED[:]          # per-run state
     print("=" * 80)
     print(f" UNIFIED DRUG THERAPY SAFETY VERIFICATION: {drug} for '{condition}'")
     print("=" * 80)
@@ -199,7 +238,11 @@ def run_therapy_validation(drug: str, condition: str) -> int:
     exit_codes = []
 
     # 1. Davidson 25th Edition
-    if FEDERATED_SEARCH_SCRIPT.exists():
+    if not _selected("davidson"):
+        pass
+    elif not FEDERATED_SEARCH_SCRIPT.exists():
+        _note_skipped("davidson")
+    else:
         print("\n[DAVIDSON 25TH ED - DRUG DOSING & SAFETY EVIDENCE]")
         code = run_federated_query(f"{drug} {condition}", book="davidson", top_k=2, compress=True)
         exit_codes.append(code)
@@ -230,6 +273,7 @@ def run_therapy_validation(drug: str, condition: str) -> int:
 
 def run_diff(comparator: str) -> int:
     """Checks differential diagnosis look-alikes across Harrison, Hurst, and Kumar & Clark."""
+    del SKIPPED[:]          # per-run state
     print(f"=== DIFFERENTIAL COMPARATORS FOR: {comparator} ===")
     exit_codes = []
     _davidson(f"{comparator} differential diagnosis", exit_codes, "DIFFERENTIAL EVIDENCE")
@@ -257,6 +301,7 @@ def run_diff(comparator: str) -> int:
 
 def run_outline(concept: str) -> int:
     """Retrieves structured prompt-ready clinical checklists across Harrison, Hurst, and Kumar & Clark."""
+    del SKIPPED[:]          # per-run state
     print(f"=== PROMPT-READY CLINICAL OUTLINE: {concept} ===")
     exit_codes = []
     _davidson(concept, exit_codes, "CORE SPINE")
@@ -293,12 +338,13 @@ def run_build_context_packet(topic: str, output_path: Optional[str] = None) -> O
         "source_hierarchy": {
             "core_spine": "Davidson 25th Edition",
             "beyond_davidson": ["Harrison 22nd Edition", "Fuster & Hurst The Heart 15th Edition", "Kumar and Clark 11th Edition 2026"],
-            "evidence": "Clinical Practice Guidelines (ESC/AHA)"
+            "evidence": "not retrieved by this tool (guideline recommendations are not queried)"
         },
         "core_spine_chunks": [],
         "beyond_davidson_chunks": [],
         "exam_traps": [],
-        "guideline_recommendations": []
+        "guideline_recommendations": [],
+        "not_populated": ["exam_traps", "guideline_recommendations"],   # always empty: nothing here retrieves them
     }
     def fail(msg: str):
         print(f"[CONTEXT-PACKET] ERROR: {msg}. No packet written.", file=sys.stderr)
@@ -337,6 +383,7 @@ def run_build_context_packet(topic: str, output_path: Optional[str] = None) -> O
             packet["beyond_davidson_chunks"].append(res)
     for w in packet["warnings"]:
         print(f"[CONTEXT-PACKET] WARNING: {w}", file=sys.stderr)
+    packet["complete"] = not packet["warnings"]
     if not packet["core_spine_chunks"] and not packet["beyond_davidson_chunks"]:
         return fail(f"no chunks retrieved for topic '{topic}'")
     if not packet["core_spine_chunks"]:
@@ -368,12 +415,33 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument("--build-context-packet", metavar="TOPIC", help="Build grounded 4-book context packet for bridge note synthesis")
     parser.add_argument("--output", "-o", help="Output file path for context packet")
+    parser.add_argument("--allow-partial", action="store_true",
+                        help="Exit 0 even if some selected books could not be queried")
 
     args = parser.parse_args()
+    global ACTIVE_BOOK, ALLOW_PARTIAL
+    ACTIVE_BOOK, ALLOW_PARTIAL = args.book, args.allow_partial
+    del SKIPPED[:]
+
+    modes = [m for m, v in (("--build-context-packet", args.build_context_packet), ("--query", args.query),
+                            ("--vignette", args.vignette), ("--validate-therapy", args.validate_therapy),
+                            ("--diff", args.diff), ("--outline", args.outline)) if v]
+    if len(modes) > 1:
+        print(f"[ERROR] choose exactly one mode, got {modes}", file=sys.stderr)
+        sys.exit(2)
+    if args.output and not args.build_context_packet:
+        print("[ERROR] --output is only used with --build-context-packet", file=sys.stderr)
+        sys.exit(2)
+    if args.json and modes and modes[0] != "--query":
+        print(f"[ERROR] --json is only supported with --query (the {modes[0]} output is multi-section text/JSON "
+              f"from separate books and would not be one parseable document)", file=sys.stderr)
+        sys.exit(2)
 
     if args.build_context_packet:
         pkt = run_build_context_packet(args.build_context_packet, output_path=args.output)
-        sys.exit(0 if pkt else 1)
+        if not pkt:
+            sys.exit(1)
+        sys.exit(0 if (pkt.get("complete") or ALLOW_PARTIAL) else 3)
     elif args.query:
         code = run_federated_query(args.query, book=args.book, top_k=args.top_k, as_json=args.json, compress=args.compress)
         sys.exit(code)
