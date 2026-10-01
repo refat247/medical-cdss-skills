@@ -317,8 +317,6 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
 
         if use_llm:
             print("      [STAGE 4.6] Opt-in LLM verification enabled (--use-llm). Calling model API...")
-            from pipeline.stage_4_6_gemini_verification import stage_4_with_verification
-            from pipeline.stages.stage_4_6_decision import decide_checkpoint_action
             final, meta = stage_4_with_verification(chunks_data, rep_text, levels=(2,))
         else:
             print("      [STAGE 4.6] Running zero-token deterministic offline clinical adjudication...")
