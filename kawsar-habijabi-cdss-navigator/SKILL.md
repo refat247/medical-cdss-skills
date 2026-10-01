@@ -1,16 +1,16 @@
 ---
 name: kawsar-habijabi-cdss-navigator
-version: 1.0.0
+version: 1.1.0
 description: |
   Clinical Decision Support System (CDSS) and Socratic Preceptor Navigator for Dr. Kawsar Uddin's
   Habijabi medical series and bedside clinical heuristics across 137 verified internal medicine records.
   Provides interactive ward-round preceptorship, FCPS/MRCP Single Best Answer (SBA) exam generation,
-  bedside prescribing safety interception, federated 4-textbook cross-grounding (Davidson 25,
+  bedside prescribing keyword screen (6 fixed rules; never a safety clearance), Habijabi-to-Davidson bridge lookup (other books via the unified orchestrator) (Davidson 25,
   Harrison 22, Hurst 15, Kumar & Clark 11), tropical fluid calculation heuristics, and bilingual
   sub-millisecond retrieval.
 ---
 
-# Kawsar Habijabi CDSS & Socratic Preceptor Navigator (v1.0.0)
+# Kawsar Habijabi CDSS & Socratic Preceptor Navigator (v1.1.0)
 
 A specialized Clinical Decision Support System (CDSS) skill designed for junior doctors, interns, postgraduate trainees (FCPS, MRCP, MD), and medical officers practicing in hospital wards and outpatient clinics.
 
@@ -55,7 +55,7 @@ python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scrip
 ```
 
 ### 3. Bedside Prescribing Safety Interceptor
-Evaluates a proposed drug order or regimen against 43 clinical safety rules and error corrections, issuing immediate hard-stop alerts with mechanisms of harm and safer alternatives:
+Screens a proposed drug order against **6 fixed keyword-triggered rules** (whole-word matching; all matching rules are shown). If no rule matches the result is `NOT_EVALUATED` (exit 3) - this is **not** a safety clearance, and the screen does not check doses, renal/hepatic function, allergies or general interactions:
 ```powershell
 python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scripts\habijabi_navigator.py" `
   --prescribing-safety "Acute gout flare: start allopurinol 100mg"
@@ -92,7 +92,7 @@ Provides bedside gravity IV giving set calculators and specialized diagnostic fa
   ```
 
 ### 6. Hybrid Bilingual Semantic Retrieval Engine
-Searches across 137 verbatim Bengali posts, 137 English clinical syntheses, 560 filtered clinical comments, and 43 clinical claims:
+Searches the verbatim Bengali posts and the English clinical syntheses (the filtered-comments and claims tables are loaded by helper functions but are not searched by this command):
 ```powershell
 python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scripts\habijabi_navigator.py" `
   --search "Thalassemia trait iron hemosiderosis" --lang en --top_k 2
@@ -102,5 +102,5 @@ python "C:\Users\User\.gemini\config\skills\kawsar-habijabi-cdss-navigator\scrip
 
 ## 🔒 Clinical Safety & Governance Guardrails
 1. **Zero Overriding Precept**: Kawsar-derived clinical teaching provides historical, pedagogical, and bedside heuristic models; it never overrides current authoritative clinical evidence or institutional guidelines.
-2. **Temporal Quarantine**: Early 2020 pandemic therapies (hydroxychloroquine, convalescent plasma, ivermectin) are preserved with strict `HISTORICAL_ONLY` tags and are never recommended for active patient care.
+2. **Temporal Quarantine (policy statement - not enforced by this script's code)**: Early 2020 pandemic therapies (hydroxychloroquine, convalescent plasma, ivermectin) are preserved with strict `HISTORICAL_ONLY` tags and are never recommended for active patient care.
 3. **Evidence Class Segregation**: The engine maintains absolute separation between authoritative textbooks (Class A), Kawsar clinical instruction (Class B), Kawsar persona/heuristics (Class C), peer learner discussions (Class D), and model translations (Class E).
