@@ -5,6 +5,11 @@ All notable changes to the `cdss-retrieval-packager` skill will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-01
+
+### Changed
+- Generated federated search loads each book's router under a unique module name (no cross-book contamination), surfaces per-book failures and exits non-zero, validates top_k; compress_excerpt no longer cuts after i.v./approx./vs. (dose was dropped); prune gains --dry-run and --keep-trust-evidence; verify exits non-zero on empty/missing package; patch-paths reports residual hard-coded paths.
+
 ## [1.4.0] - 2026-09-25
 
 ### Changed
