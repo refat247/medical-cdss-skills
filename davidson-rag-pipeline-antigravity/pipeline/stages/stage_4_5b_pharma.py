@@ -66,7 +66,8 @@ def run_stage_4_5b(rep_path: str, chunk_path: str, out_dir: str, prefix: str, is
         )
         return {"status": "skipped", "reason": "STAGE_45B_ACTIVE was False"}
 
-    repaired = open(rep_path, encoding="utf-8").read()
+    from pipeline.stages.stage_4_parse import sanitize_chunk_text
+    repaired = sanitize_chunk_text(open(rep_path, encoding="utf-8").read())   # chunks are sanitized by 4B
     chunks = open(chunk_path, encoding="utf-8").read()
 
     l2 = _l2_bodies(chunks) or chunks   # fall back to the whole file only if no level markers exist

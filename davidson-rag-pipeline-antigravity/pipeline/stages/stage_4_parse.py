@@ -297,7 +297,7 @@ def make_chunk(
 
 # An explanation ends only at the next ANSWER entry ("5.1 B", "Answer 5.2: C"), not at any line that merely begins
 # with a decimal ("2.5 mg is the usual starting dose" used to cut the explanation and drop it from the L2 chunk).
-MCQ_EXPLANATION_END_RE = re.compile(r"(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b", re.IGNORECASE)
+MCQ_EXPLANATION_END_RE = re.compile(r"(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])(?=[ \t]*(?:[:.)]|\r?\n|$))", re.IGNORECASE)
 
 
 def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:

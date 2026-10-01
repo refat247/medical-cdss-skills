@@ -144,7 +144,8 @@ def run_stage_4_5d(out_dir, prefix, write_dir=None):
     write_dir = write_dir or out_dir
     rep_path = os.path.join(out_dir, f"{prefix}_REPAIRED_S2.md")
     chunk_path = os.path.join(out_dir, f"{prefix}_chunks.md")
-    repaired = open(rep_path, encoding='utf-8').read()
+    from pipeline.stages.stage_4_parse import sanitize_chunk_text
+    repaired = sanitize_chunk_text(open(rep_path, encoding='utf-8').read())   # chunks are sanitized by 4B
     chunks_text = open(chunk_path, encoding='utf-8').read()
 
     parsed = _parse_chunks(chunks_text)

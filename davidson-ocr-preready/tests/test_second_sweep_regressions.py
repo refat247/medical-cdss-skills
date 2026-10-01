@@ -72,3 +72,17 @@ def test_m16_real_headings_still_normalised(line):
 def test_m16_hash_comment_inside_code_fence_is_not_demoted():
     md = "# Title\n\n```\n# comment\n```\n"
     assert "# comment" in normalize_heading_hierarchy(md) and "## comment" not in normalize_heading_hierarchy(md)
+
+
+def test_review_m6_real_captions_are_promoted_but_prose_is_not():
+    from preready.header_normalizer import normalize_heading_hierarchy
+    for cap in ["Table 14.3 Causes of hypokalaemia (K+ <3.5 mmol/L)", "Box 4.2 When is surgery indicated",
+                "Table 5.2 Drugs that require dose adjustment when eGFR is below 30 mL/min"]:
+        assert normalize_heading_hierarchy(cap).startswith("### "), cap
+    assert not normalize_heading_hierarchy("Table 1.2 shows that insulin is required").startswith("###")
+
+
+def test_review_m7_bare_publisher_pdf_url_watermark_is_stripped():
+    from preready.header_normalizer import clean_ocr_running_headers as clean_ocr_noise
+    out = clean_ocr_noise("Text.\n\nhttps://diabetesjournals.org/care/article-pdf/48/1/S1.pdf\n\nMore text.")
+    assert "article-pdf" not in out

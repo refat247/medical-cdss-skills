@@ -23,6 +23,7 @@ CRITICAL_SEPARATION / SAFE_LINKED_SPLIT / INTENTIONAL_SECTION_SPLIT /
 AMBIGUOUS. Only a VERIFIED CRITICAL_SEPARATION is a hard failure.
 """
 import hashlib
+import functools
 import re
 from collections import Counter
 from datetime import datetime, timezone
@@ -399,18 +400,31 @@ def _sentences(text):
     return [s.strip() for s in parts if s and s.strip()]
 
 
-def _content_words(sentence, drop_regexes):
+@functools.lru_cache(maxsize=20000)
+def _content_words_cached(sentence, drop_key):
     s = sentence.lower()
-    for rx in drop_regexes:
+    for rx in drop_key:
         s = re.sub(rx, " ", s, flags=re.I)
-    return {w for w in re.findall(r"[a-z0-9][a-z0-9.\-/]*", s) if w not in _STOP and len(w) > 1}
+    # trailing punctuation is not part of the word ("cephalosporins." == "cephalosporins")
+    return frozenset(w for w in (x.rstrip(".-/") for x in re.findall(r"[a-z0-9][a-z0-9.\-/]*", s))
+                     if w not in _STOP and len(w) > 1)
 
 
-def _align(src_words, chunk_sents, drop_regexes, min_overlap=0.5):
-    """Best chunk sentence for a source sentence by content-word overlap (fraction of the source's words)."""
+def _content_words(sentence, drop_regexes):
+    return _content_words_cached(sentence, tuple(drop_regexes))
+
+
+def _align(src_words, chunk_sents, drop_regexes, min_overlap=0.5, src_sentence=None):
+    """Best chunk sentence for a source sentence by content-word overlap (fraction of the source's words).
+    An identical sentence always wins, so repeated/near-duplicate sentences never mis-align on ties."""
     best, best_score = None, 0.0
     if not src_words:
         return None
+    if src_sentence is not None:
+        want = " ".join(src_sentence.split())
+        for cs in chunk_sents:
+            if " ".join(cs.split()) == want:
+                return cs
     for cs in chunk_sents:
         cw = _content_words(cs, drop_regexes)
         score = len(src_words & cw) / len(src_words)
@@ -428,11 +442,15 @@ def _sentence_negation_flips(source_span, chunk_body, chunk_id):
         src_words = _content_words(ss, drop)
         if len(src_words) < 2 and not (src_words and len(ss.split()) <= 8):
             continue
-        match = _align(src_words, chunk_sents, drop)
+        match = _align(src_words, chunk_sents, drop, src_sentence=ss)
         if match is None:
             continue
         scanned += 1
         if bool(_NEG_RE.search(match)) != src_neg:
+            # re-bulleted text: "X: avoid Y." -> "X:" + "- Avoid Y." keeps the negation in a neighbouring sentence
+            if src_neg and any(_NEG_RE.search(cs) and _content_words(cs, drop) and _content_words(cs, drop) <= src_words
+                               for cs in chunk_sents):
+                continue
             cands.append(_candidate("negation", chunk_id, source_value=ss[:120], chunk_value=match[:120],
                                     kind="flipped", extra={"clinically_consequential": True}))
     return cands, scanned
@@ -451,7 +469,7 @@ def _sentence_polarity_flips(source_span, chunk_body, chunk_id):
             src_words = _content_words(ss, [a_re.pattern, b_re.pattern])
             if len(src_words) < 2:
                 continue
-            match = _align(src_words, chunk_sents, [a_re.pattern, b_re.pattern])
+            match = _align(src_words, chunk_sents, [a_re.pattern, b_re.pattern], src_sentence=ss)
             if match is None:
                 continue
             scanned += 1

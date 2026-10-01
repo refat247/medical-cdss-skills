@@ -39,6 +39,18 @@ def sync_chapter_assets(source_path: str, out_dir: str) -> None:
         shutil.copytree(src_assets, out_assets, dirs_exist_ok=True)
 
 
+def resolve_legacy_prefix(out_dir: str, prefix: str) -> str:
+    """derive_chapter_info now keeps the full chapter slug. If this out_dir already holds exactly one checkpoint whose
+    prefix is a leading part of the new prefix (the old, truncated slug), keep using it so resume does not restart."""
+    import glob
+    if os.path.exists(os.path.join(out_dir, f"{prefix}_CHECKPOINT.json")):
+        return prefix
+    legacy = [os.path.basename(p)[:-len("_CHECKPOINT.json")]
+              for p in glob.glob(os.path.join(out_dir, "*_CHECKPOINT.json"))]
+    legacy = [l for l in legacy if l and prefix.startswith(l)]
+    return legacy[0] if len(legacy) == 1 else prefix
+
+
 def derive_chapter_info(source_path: str) -> dict:
     # Split on both separators so Windows-style paths work on POSIX too.
     basename = re.split(r"[\\/]", source_path.rstrip("\\/"))[-1]
@@ -146,7 +158,7 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         return {"status": "ERROR", "stage": stage, "message": f"Asset sync from chapter assets/ failed: {e}"}
 
     info = derive_chapter_info(source_path)
-    prefix = prefix or info["prefix"]
+    prefix = prefix or resolve_legacy_prefix(out_dir, info["prefix"])
     stage = stage.lower()
 
     if not force:
@@ -595,7 +607,7 @@ def execute_pipeline_auto(source_path: str, out_dir: str = None, prefix: str = N
         return False
 
     info = derive_chapter_info(source_path)
-    prefix = prefix or info["prefix"]
+    prefix = prefix or resolve_legacy_prefix(out_dir, info["prefix"])
 
     # Stage 0 initialization
     execute_stage("0", source_path, out_dir, prefix, force=force)

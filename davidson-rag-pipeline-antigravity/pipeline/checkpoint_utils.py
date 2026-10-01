@@ -205,7 +205,7 @@ STAGE_ORDER = [
 # Adds universal document archetype detection (TEXTBOOK vs GUIDELINE) in derive_chapter_info(),
 # publication year protection from chapter number regex, O(1) set-filtered paragraph duplicate comparison in Stage 1,
 # deterministic offline clinical rule adjudication in Stage 4.6, and localized anchor window search in Stage 8 precision.
-PIPELINE_VERSION = "2.26.0"
+PIPELINE_VERSION = "2.26.1"
 SKILL_NAME = "davidson-rag-pipeline-antigravity"
 
 # Checkpoint dict SHAPE version — distinct from PIPELINE_VERSION (which
@@ -295,6 +295,7 @@ def save_checkpoint(checkpoint, checkpoint_path):
             json.dump(checkpoint, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
+        os.chmod(tmp_path, 0o644)          # mkstemp creates 0600; keep the file's normal permissions
         os.replace(tmp_path, checkpoint_path)
     except BaseException:
         try:

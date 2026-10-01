@@ -15,6 +15,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 > version number each first shipped under was not recorded anywhere and
 > cannot be verified retroactively.
 
+## [2.26.1] - 2026-10-01
+
+### Changed
+- Review fixes: MCQ/ligature spot-check, watermark sweep, 4.5d alignment, legacy checkpoint prefix
+
 ## [2.26.0] - 2026-10-01
 
 ### Changed

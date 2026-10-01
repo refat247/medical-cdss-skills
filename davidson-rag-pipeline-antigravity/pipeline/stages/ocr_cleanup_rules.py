@@ -69,10 +69,16 @@ def strip_toc_preamble(text):
 # Stage 3 called it PASSED), a -10/+15 line window deleted ordinary clinical sentences with no keyword, and Stage 3
 # only knew two of the trigger patterns.
 # ---------------------------------------------------------------------------------------------------------
-PIRACY_TRIGGERS = [
-    r"Medical Higher Study", r"HIGHER STUDY", r"apps?\.apple\.com", r"play\.google\.com", r"App Store", r"Google Play",
-    r"Join.*[Tt]elegram", r"t\.me/", r"bit\.ly/", r"(?:Free|free)\s+(?:Download|download)", r"[\u0980-\u09ff]{5,}",
+# STRONG triggers are unambiguous watermark text; they delete the line even when it looks like a bullet/heading.
+_STRONG_TRIGGERS = [
+    r"Medical Higher Study", r"apps?\.apple\.com", r"play\.google\.com",
+    r"Join.*[Tt]elegram", r"t\.me/", r"bit\.ly/", r"[\u0980-\u09ff]{5,}",
 ]
+# WEAK triggers can occur in legitimate digital-health prose ("... from the App Store ..."), so they only count on
+# a SHORT line (a watermark is a banner, not a sentence).
+_WEAK_TRIGGERS = [r"HIGHER STUDY", r"App Store", r"Google Play", r"(?:Free|free)\s+(?:Download|download)"]
+_WEAK_MAX_WORDS = 8
+PIRACY_TRIGGERS = _STRONG_TRIGGERS + _WEAK_TRIGGERS
 _PROMO_WORDS = re.compile(r"\b(?:join|follow|subscribe|download|telegram|whatsapp|facebook|youtube|instagram|channel|group|"
                           r"link|pdf|notes|free|visit|click|www|http|medical|higher study)\b", re.I)
 _STRUCTURAL = [
@@ -87,15 +93,21 @@ def is_structural(line):
     return bool(l) and any(rx.match(l) for rx in _STRUCTURAL)
 
 
+def has_strong_trigger(line):
+    return any(re.search(p, line) for p in _STRONG_TRIGGERS)
+
+
 def has_piracy_trigger(line):
-    return any(re.search(p, line) for p in PIRACY_TRIGGERS)
+    if has_strong_trigger(line):
+        return True
+    return len(line.split()) <= _WEAK_MAX_WORDS and any(re.search(p, line) for p in _WEAK_TRIGGERS)
 
 
 def _junk_like(line):
     s = line.strip()
     if not s:
         return True
-    if is_structural(s):
+    if is_structural(s) or re.search(r"\d", s):          # a dose / threshold fragment is never "junk"
         return False
     return len(s.split()) <= 2 or bool(_PROMO_WORDS.search(s)) or has_piracy_trigger(s)
 
@@ -118,7 +130,7 @@ def sweep_piracy(lines, window=3):
     for k in trig_paras:
         a, b = paras[k]
         for i in range(a, b):
-            if has_piracy_trigger(lines[i]) and not is_structural(lines[i]):
+            if has_strong_trigger(lines[i]) or (has_piracy_trigger(lines[i]) and not is_structural(lines[i])):
                 drop.add(i)
         for step in (-1, 1):
             j, seen = k + step, 0

@@ -1,7 +1,7 @@
 # davidson-rag-pipeline-antigravity
 
 Canonical private repository for the Davidson 25th Edition & Clinical Practice Guidelines RAG pipeline,
-currently released as `v2.26.0` (Universal Document Archetype & Scalable Performance Engine Release). This repository contains the active pipeline
+currently released as `v2.26.1` (Universal Document Archetype & Scalable Performance Engine Release). This repository contains the active pipeline
 code, maintenance utilities, regression tests, release reports, and preserved
 archival evidence used to validate the current baseline.
 
@@ -35,7 +35,7 @@ It runs via a slim Progressive Disclosure hub architecture (`SKILL.md`) backed b
 
 ## Status
 
-Installed (v2.26.0). **Architecture status: UNIVERSAL DOCUMENT ARCHETYPE, SCALABLE PERFORMANCE ENGINE & OFFLINE ADJUDICATION HARDENED**
+Installed (v2.26.1). **Architecture status: UNIVERSAL DOCUMENT ARCHETYPE, SCALABLE PERFORMANCE ENGINE & OFFLINE ADJUDICATION HARDENED**
 
 `docs/reports/V2_6_10_POSTCONDITION_TRANSACTION_REPAIR_REPORT.md`,
 `docs/reports/V2_6_9_ATOMIC_FINALIZER_REPORT.md`,

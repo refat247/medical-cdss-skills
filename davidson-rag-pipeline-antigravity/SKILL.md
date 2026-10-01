@@ -1,6 +1,6 @@
 ---
 name: davidson-rag-pipeline-antigravity
-version: 2.26.0
+version: 2.26.1
 description: |
   Full 18-stage RAG pipeline for Davidson 25th Edition chapters and clinical practice guidelines (ADA, KDIGO, ESC, NICE),
   optimised for Google Antigravity local Windows sessions and Google Gemini 3.7 Flash High model.
@@ -12,7 +12,7 @@ description: |
   hard-fail validation gate (Stage 6), fail-closed finalization, and Rule T-V proof disciplines.
 ---
 
-# Davidson RAG Pipeline — Antigravity & Gemini Edition (v2.26.0)
+# Davidson RAG Pipeline — Antigravity & Gemini Edition (v2.26.1)
 
 Production RAG extraction pipeline optimized for direct Windows filesystem execution.
 Features a modular Hub-and-Spoke progressive disclosure architecture with automated CLI stage chaining.
@@ -46,7 +46,7 @@ Features a modular Hub-and-Spoke progressive disclosure architecture with automa
 >    <!--
 >    PROVENANCE METADATA:
 >      skill_name: "davidson-rag-pipeline-antigravity"
->      skill_version: "2.26.0"
+>      skill_version: "2.26.1"
 >      generated_at: "YYYY-MM-DDTHH:MM:SSZ"
 >      source_path: "<PATH>"
 >    -->

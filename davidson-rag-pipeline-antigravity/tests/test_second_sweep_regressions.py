@@ -554,9 +554,9 @@ def test_1_17_a_pure_promo_block_around_a_trigger_is_removed():
     assert "Real text here about aspirin." in out and "More real text about statins." in out
 
 
-def test_1_17_structural_lines_are_never_swept():
-    out = _s2full("## S\n| drug | note |\n|---|---|\n| aspirin | see t.me/x |\n")
-    assert "| aspirin | see t.me/x |" in out
+def test_1_17_structural_lines_are_kept_unless_they_carry_a_strong_watermark():
+    out = _s2full("## S\n| drug | note |\n|---|---|\n| aspirin | 75 mg daily |\n- Join our Telegram t.me/x\n")
+    assert "| aspirin | 75 mg daily |" in out and "t.me" not in out
 
 
 def test_1_17_stage3_flags_every_trigger_stage2_removes():
@@ -667,3 +667,77 @@ def test_1_30_two_backups_in_the_same_second_do_not_overwrite_each_other(tmp_pat
         open(p, "w").write("x")
         seen.append(p)
     assert len(set(seen)) == 5
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Verification-review (agent E) regressions
+# ---------------------------------------------------------------------------------------------------------
+def _l2c(body):
+    return f"---\nchunk_id: C1\nchunk_level: 2\n---\n\n{body}\n"
+
+
+def test_h1_mcq_synthetic_answer_lines_do_not_fail_spotcheck(tmp_path, monkeypatch):
+    src = "1.1 What is X?\nA. Alpha is the first option here\nB. Beta is the second option here\n"
+    body = src + "\n### Answer & Explanation\n**Answer: B**"
+    assert _run_45(tmp_path, monkeypatch, src, _l2c(body))["verdict"] == "CLEARED"
+
+
+def test_h2_ligatures_and_soft_hyphens_in_source_do_not_fail_spotcheck(tmp_path, monkeypatch):
+    src = "Treat with 20 g oral glucose and \ufb02uid 5\u00ad00 mL.\n"
+    assert _run_45(tmp_path, monkeypatch, src, _l2c("Treat with 20 g oral glucose and fluid 500 mL."))["verdict"] == "CLEARED"
+
+
+def test_m2_numeric_line_cannot_match_inside_a_longer_number(tmp_path, monkeypatch):
+    assert _run_45(tmp_path, monkeypatch, "Give 1300 mg daily.\n", _l2c("Give 300 mg daily."))["verdict"] == "FAIL"
+
+
+def test_h3_structural_watermark_lines_are_swept_and_flagged():
+    from pipeline.stages.ocr_cleanup_rules import sweep_piracy, has_strong_trigger
+    kept, n = sweep_piracy(["Intro paragraph of real clinical text here.", "", "- Join our Telegram channel t.me/medstudy", "", "Body paragraph of real clinical text."])
+    assert n == 1 and not any("t.me" in k for k in kept)
+    assert has_strong_trigger("### Medical Higher Study")
+
+
+def test_m1_weak_triggers_do_not_delete_clinical_sentences_or_dose_fragments():
+    from pipeline.stages.ocr_cleanup_rules import sweep_piracy
+    s = "Smartphone apps (e.g. from the App Store) may help; titrate insulin by 2 units every 3 days."
+    kept, n = sweep_piracy([s])
+    assert n == 0 and kept == [s]
+    kept, n = sweep_piracy(["75 mg", "", "Medical Higher Study", "", "eGFR <30"])
+    assert "75 mg" in kept and "eGFR <30" in kept
+
+
+def test_m3_identical_repeated_sentences_raise_no_negation_candidate():
+    from pipeline.stages.stage_4_5d_clinical_fidelity import _sentence_negation_flips
+    t = "Avoid aspirin in children with fever and rash\n\nAspirin in children with fever and rash"
+    assert _sentence_negation_flips(t, t, "C1")[0] == []
+
+
+def test_l5_trailing_punctuation_does_not_break_alignment():
+    from pipeline.stages.stage_4_5d_clinical_fidelity import _sentence_negation_flips
+    cands, _ = _sentence_negation_flips("Penicillin allergy: avoid cephalosporins.",
+                                        "Penicillin allergy:\n- Avoid cephalosporins.", "C1")
+    assert cands == []
+
+
+def test_m5_legacy_checkpoint_prefix_is_reused(tmp_path):
+    from pipeline.run_stage import resolve_legacy_prefix
+    (tmp_path / "Davidson_25_Ch25_Rheumatology_CHECKPOINT.json").write_text("{}")
+    assert resolve_legacy_prefix(str(tmp_path), "Davidson_25_Ch25_Rheumatology_and_bone_disease") == \
+        "Davidson_25_Ch25_Rheumatology"
+    assert resolve_legacy_prefix(str(tmp_path / "empty"), "X_new") == "X_new"
+
+
+def test_l4_explanation_numbers_are_not_answer_entries():
+    from pipeline.stages.stage_4_parse import MCQ_EXPLANATION_END_RE as rx
+    assert not rx.search("37.5 C is the threshold")
+    assert rx.search("1.2 B\nnext")
+
+
+def test_l3_checkpoint_keeps_readable_permissions(tmp_path):
+    import os, stat
+    from pipeline.checkpoint_utils import save_checkpoint
+    p = tmp_path / "X_CHECKPOINT.json"
+    save_checkpoint({"pipeline_state": {}}, str(p))
+    if os.name == "posix":
+        assert stat.S_IMODE(os.stat(p).st_mode) == 0o644

@@ -41,6 +41,9 @@ def clean_ocr_running_headers(md_text: str) -> str:
         # (guideline links under "Useful websites") and is kept.
         if re.match(r'^(?:https?://(?:dx\.)?doi\.org/|doi(?:\.org)?/|downloaded from ).*$', s_lower):
             continue
+        # journal download watermark: a bare URL to the publisher's article PDF
+        if re.match(r'^https?://\S*(?:article-pdf|/downloadpdf|/pdf/)\S*$', s_lower):
+            continue
         
         # Convert isolated running page numbers to page marker:
         # Bare digits (1-4 digits alone), supplement pages (S1-S9999, Suppl. 12, P-12, A1-A99)
@@ -93,6 +96,19 @@ def _looks_like_heading(rest: str) -> bool:
     return True
 
 
+_CAPTION_PROSE_START = re.compile(r"^(?:shows?|is|are|was|were|lists?|summari[sz]es?|provides?|gives?|presents?|"
+                                  r"illustrates?|demonstrates?|indicates?|describes?|means?|requires?)\b", re.I)
+
+
+def _looks_like_caption(rest: str) -> bool:
+    """Box/Table captions legitimately contain units, 'is/are' and many words ("Table 5.2 Drugs that require dose
+    adjustment when eGFR is below 30 mL/min"); reject only sentence-shaped text ("Table 1.2 shows that ...")."""
+    rest = rest.strip()
+    if not rest or len(rest.split()) > 40 or rest.endswith((".", "!", "?", ";", ",")):
+        return False
+    return not _CAPTION_PROSE_START.match(rest)
+
+
 def normalize_heading_hierarchy(md_text: str) -> str:
     """Ensures consistent # (Title), ## (Section), ### (Subsection/Box) hierarchy.
     Only line-shaped headings are promoted (prose such as "Table 1.2 shows that..." and dose lines such as
@@ -117,7 +133,7 @@ def normalize_heading_hierarchy(md_text: str) -> str:
             else:
                 # Down-level subsequent # headers to ##
                 normalized.append(f"## {l[2:].strip()}")
-        elif (m := re.match(r'^((?:Box|Table)\s*\d+\.\d+)(.*)$', l.strip(), re.IGNORECASE)) and _looks_like_heading(m.group(2).lstrip(" :.-–—")):
+        elif (m := re.match(r'^((?:Box|Table)\s*\d+\.\d+)(.*)$', l.strip(), re.IGNORECASE)) and _looks_like_caption(m.group(2).lstrip(" :.-–—")):
             normalized.append(f"### {l.strip()}")
         elif (m := re.match(r'^(\d+\.\d+)\s+([A-Z].*)$', l.strip())) and _looks_like_heading(m.group(2)):
             # e.g. "1.1 Root causes of diagnostic error" -> "### 1.1 Root causes..."

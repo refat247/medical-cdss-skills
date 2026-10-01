@@ -36,7 +36,11 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
         body = block_body(block)
         l2.append({"id": cid.group(1).strip() if cid else "?", "body": body})
 
+    from pipeline.stages.stage_4_parse import sanitize_chunk_text
+
     def norm(s):
+        # Chunks are written through sanitize_chunk_text (ligatures, soft hyphens...); compare like with like.
+        s = sanitize_chunk_text(s)
         s = re.sub(r"^\s*#+\s*", "", s)
         s = re.sub(r"[*_`]+", "", s)
         return re.sub(r"\s+", " ", s).strip()
@@ -45,13 +49,20 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
     rep_lines = {norm(l) for l in repaired.splitlines() if norm(l)}
 
     def line_in_source(line):
-        return line in rep_lines or line in rep_norm
+        if line in rep_lines:
+            return True
+        # wrapped lines: substring match, but never inside a longer token ("300 mg" must not match "1300 mg")
+        return re.search(r"(?<![\w.,/\-])" + re.escape(line) + r"(?![\w])", rep_norm) is not None
+
+    # Stage 4B synthesises these two lines when it pairs an MCQ with its answer; they are not in the source.
+    synthetic = re.compile(r"^(?:Answer & Explanation|Answers?: .*)$")
 
     passed, failed, skipped = 0, [], 0
     for chunk in l2:
         # Whole-body check (the old version tested ONE 100-char window and passed on a single hit, so a
         # changed dose elsewhere in the chunk -- "4 g" -> "40 g" -- was never seen).
         lines = [norm(l) for l in chunk["body"].splitlines() if norm(l)]
+        lines = [l for l in lines if not synthetic.match(l)]
         if not lines:
             skipped += 1
             continue

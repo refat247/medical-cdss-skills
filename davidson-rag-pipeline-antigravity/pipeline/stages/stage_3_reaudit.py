@@ -11,7 +11,7 @@ not a rewrite.
 import re
 import difflib
 
-from pipeline.stages.ocr_cleanup_rules import (RUNNING_HEADER_RE, has_piracy_trigger, is_structural,
+from pipeline.stages.ocr_cleanup_rules import (RUNNING_HEADER_RE, has_piracy_trigger, has_strong_trigger, is_structural,
                                                normalize_bare_page_lines, strip_toc_preamble)
 
 
@@ -45,7 +45,7 @@ def compute_reaudit(orig_text, rep_text):
         l for i, l in enumerate(rep_lines)
         if i not in protected and (re.search(r'[ঀ-৿]{5,}', l) or not is_clinical(l) and re.search(r'[ঀ-৿]{2,}', l))
     ]
-    shared_trigger_left = any(has_piracy_trigger(l) and not is_structural(l) for l in rep_lines)
+    shared_trigger_left = any(has_strong_trigger(l) or (has_piracy_trigger(l) and not is_structural(l)) for l in rep_lines)
     if shared_trigger_left or bool(unprotected_piracy):
         issues.append("Piracy content still present [CRITICAL]")
     h1s = [l for l in rep_text.splitlines() if re.match(r'^# [^#]', l)]
