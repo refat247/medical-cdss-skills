@@ -446,3 +446,83 @@ def test_1_18_stage_4b_blocks_when_no_chunks_are_produced(tmp_path, monkeypatch)
     rep = tmp_path / "REPAIRED_S2.md"; rep.write_text("# Title only\n\nNo second-level headings here at all.\n", encoding="utf-8")
     res = s4.run_stage_4b(str(rep), str(tmp_path), "P")
     assert res.get("blocked") and "blocked" in calls and "complete" not in calls
+
+
+# ---------- 1.23 Stage 5 gap_note must not crash or corrupt frontmatter ----------
+from pipeline.stages.stage_5_chunks import add_coverage_fields
+
+
+@pytest.mark.parametrize("note", ["path C:\\x here", "a \\1 back-reference", 'He said "management" is missing', "plain note"])
+def test_1_23_gap_note_is_escaped_not_interpreted(note):
+    block = "---\nchunk_id: L2-1\nchunk_level: 2\n---\n\nbody\n"
+    out = add_coverage_fields(block, {"L2-1": note})
+    m = _re.search(r'gap_note: "(.*)"\n', out)
+    assert m and "coverage_status: partial" in out
+    unescaped = m.group(1).replace('\\"', '"').replace("\\\\", "\\")
+    assert unescaped == note
+    assert "body" in out and out.count("gap_note:") == 1
+
+
+# ---------- 1.19 re-running an earlier stage must invalidate later ones; stages respect blocked predecessors ----------
+import json as _json
+from pipeline import checkpoint_utils as cu
+
+
+def _cp(tmp_path, stages):
+    cp = {"chapter_info": {}, "pipeline_state": {"corpus_pipeline_completed": True, "advisory_scorecard_completed": True,
+                                                  "corpus_gate_closure_completed": True},
+          "stage_completions": {k: {"status": v} for k, v in stages.items()}}
+    path = tmp_path / "P_CHECKPOINT.json"
+    path.write_text(_json.dumps(cp), encoding="utf-8")
+    return cp, str(path)
+
+
+def test_1_19_completing_an_earlier_stage_marks_later_completed_stages_stale(tmp_path):
+    cp, path = _cp(tmp_path, {"2": "COMPLETED", "3": "COMPLETED", "4a": "COMPLETED", "6": "COMPLETED", "8": "COMPLETED"})
+    cu.mark_stage_complete(cp, path, "2", output_file="x")
+    for k in ("3", "4a", "6", "8"):
+        assert cp["stage_completions"][k]["status"] == "STALE", k
+    assert cp["pipeline_state"]["corpus_pipeline_completed"] is False
+    assert cp["pipeline_state"]["corpus_gate_closure_completed"] is False
+    assert cu.should_run_stage(cp, "3") is True            # stale stages run again
+
+
+def test_1_19_normal_forward_progress_is_unchanged(tmp_path):
+    cp, path = _cp(tmp_path, {"2": "COMPLETED"})
+    cp["pipeline_state"]["corpus_pipeline_completed"] = False
+    cu.mark_stage_complete(cp, path, "3", output_file="x")
+    assert cp["stage_completions"]["2"]["status"] == "COMPLETED" and cp["stage_completions"]["3"]["status"] == "COMPLETED"
+
+
+def test_1_19_a_stage_does_not_run_after_a_blocked_predecessor(tmp_path):
+    import pipeline.run_stage as rs
+    src = tmp_path / "Davidson_25_Ch07_X.md"; src.write_text("# t\n## s\ntext\n")
+    out = tmp_path / "out"; out.mkdir()
+    cp = {"chapter_info": {}, "pipeline_state": {}, "stage_completions": {"4.5c": {"status": "BLOCKED"}}}
+    (out / "P_CHECKPOINT.json").write_text(_json.dumps(cp), encoding="utf-8")
+    res = rs.execute_stage("5", str(src), str(out), prefix="P")
+    assert res["status"] == "BLOCKED" and "4.5c" in res.get("reason", "")
+
+
+def test_1_19_force_overrides_the_predecessor_check(tmp_path, monkeypatch):
+    import pipeline.run_stage as rs
+    src = tmp_path / "Davidson_25_Ch07_X.md"; src.write_text("# t\n## s\ntext\n")
+    out = tmp_path / "out"; out.mkdir()
+    cp = {"chapter_info": {}, "pipeline_state": {}, "stage_completions": {"4.5c": {"status": "BLOCKED"}}}
+    (out / "P_CHECKPOINT.json").write_text(_json.dumps(cp), encoding="utf-8")
+    assert rs._blocked_predecessors("5", str(out), "P") == ["4.5c"]
+    # force=True skips the refusal (the stage itself may still fail for other reasons)
+    try:
+        res = rs.execute_stage("5", str(src), str(out), prefix="P", force=True)
+        assert "predecessor" not in res.get("reason", "")
+    except FileNotFoundError:
+        pass            # force skipped the refusal and the stage then (correctly) needed its missing chunks file
+
+
+def test_1_30_single_stage_pending_manual_has_its_own_nonzero_exit_code(monkeypatch, tmp_path):
+    import pipeline.run_stage as rs
+    monkeypatch.setattr(rs, "execute_stage", lambda *a, **k: {"status": "PENDING_MANUAL"})
+    monkeypatch.setattr(sys, "argv", ["run_stage", "--stage", "4.5d", "--source", str(tmp_path / "s.md")])
+    with pytest.raises(SystemExit) as e:
+        rs.main()
+    assert e.value.code == 4

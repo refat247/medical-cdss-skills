@@ -109,6 +109,26 @@ def derive_chapter_info(source_path: str) -> dict:
     }
 
 
+_STAGE_ALIASES = {"45": "4.5", "45b": "4.5b", "45c": "4.5c", "45d": "4.5d", "46": "4.6", "47": "4.7",
+                  "52": "5.2", "53": "5.3", "54": "5.4"}
+
+
+def _blocked_predecessors(stage: str, out_dir: str, prefix: str):
+    """Earlier stages whose checkpoint entry exists but is not COMPLETED (BLOCKED / FAILED / IN_PROGRESS / STALE).
+    Stages that never ran are not listed (individual stage runners may be used out of a fresh checkpoint)."""
+    from pipeline.checkpoint_utils import STAGE_ORDER, read_checkpoint
+    key = _STAGE_ALIASES.get(stage.lower(), stage.lower())
+    if key not in STAGE_ORDER:
+        return []
+    try:
+        cp, _ = read_checkpoint(out_dir, prefix)
+    except Exception:
+        return []
+    sc = cp.get("stage_completions", {})
+    return [s for s in STAGE_ORDER[:STAGE_ORDER.index(key)]
+            if isinstance(sc.get(s), dict) and sc[s].get("status") != "COMPLETED"]
+
+
 def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str = None, force: bool = False, auto_adjudicate: bool = False, use_llm: bool = False) -> dict:
     """Executes a single pipeline stage and returns an execution result dictionary."""
 
@@ -128,6 +148,13 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
     info = derive_chapter_info(source_path)
     prefix = prefix or info["prefix"]
     stage = stage.lower()
+
+    if not force:
+        blockers = _blocked_predecessors(stage, out_dir, prefix)
+        if blockers:
+            msg = f"predecessor stage(s) not COMPLETED: {blockers}; fix/re-run them first (or --force)"
+            print(f"Stage {stage} refused: {msg}")
+            return {"status": "BLOCKED", "stage": stage, "reason": msg}
 
     rep_path = os.path.join(out_dir, f"{prefix}_REPAIRED_S2.md")
     chunk_path = os.path.join(out_dir, f"{prefix}_chunks.md")
@@ -646,6 +673,8 @@ def main():
         res = execute_stage(stage_arg, source_path, out_dir, prefix=args.prefix, force=args.force, auto_adjudicate=args.auto_adjudicate, use_llm=args.use_llm)
         if res.get("status") in ("BLOCKED", "FAILED", "ERROR"):
             sys.exit(1)
+        if res.get("status") == "PENDING_MANUAL":
+            sys.exit(4)        # needs human adjudication: not success (documented exit code)
 
 
 if __name__ == "__main__":

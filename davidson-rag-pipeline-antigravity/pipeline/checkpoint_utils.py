@@ -620,6 +620,29 @@ def _record_execution_provenance(checkpoint, stage_entry):
     checkpoint.setdefault("chapter_info", {})["last_processed_with_pipeline_version"] = PIPELINE_VERSION
 
 
+def _mark_downstream_stale(checkpoint, stage_key):
+    """Completing stage k again (a --force re-run, a repair) makes every LATER stage's COMPLETED entry stale: its
+    outputs were produced from the previous version of this stage. They become STALE (so should_run_stage re-runs
+    them and classify_trust withdraws trust) and the milestone flags are cleared. Normal forward progress never
+    triggers this, because later stages are not COMPLETED yet."""
+    sc = checkpoint.get("stage_completions", {})
+    idx = STAGE_ORDER.index(stage_key)
+    staled = []
+    for later in STAGE_ORDER[idx + 1:]:
+        entry = sc.get(later)
+        if isinstance(entry, dict) and entry.get("status") == "COMPLETED":
+            entry["status"] = "STALE"
+            entry["stale_because"] = f"stage {stage_key} was completed again at {_now()}"
+            staled.append(later)
+    if staled:
+        ps = checkpoint.setdefault("pipeline_state", {})
+        for flag in ("corpus_pipeline_completed", "advisory_scorecard_completed", "corpus_gate_closure_completed"):
+            if flag in ps:
+                ps[flag] = False
+        print(f"      [STALE] re-completing stage {stage_key} invalidated: {staled}")
+    return staled
+
+
 def mark_stage_complete(checkpoint, checkpoint_path, stage_key, output_file=None, **stage_metadata):
     """Only ever call this on an ACTUAL PASSING verdict (CP-02 / constraint
     11). A stage whose own logic produced a failing/blocking verdict must
@@ -633,6 +656,7 @@ def mark_stage_complete(checkpoint, checkpoint_path, stage_key, output_file=None
         **stage_metadata,
     }
     _record_execution_provenance(checkpoint, entry)
+    _mark_downstream_stale(checkpoint, stage_key)
     checkpoint["stage_completions"][stage_key] = entry
     checkpoint["pipeline_state"]["last_completed_stage"] = stage_key
     next_stage = _next_stage_after(stage_key)
