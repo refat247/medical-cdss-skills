@@ -100,3 +100,69 @@ def test_1_5_stage3_agrees_with_stage2_on_clean_text():
     src = "# Title\n\n## Sec\n5 • HYPERTENSION\n\nACE inhibitors 3 • NaCl 0.9%\n"
     r = compute_reaudit(src, _s2(src))
     assert r["verdict"].startswith("PASS") or r["verdict"] in ("PASSED", "PASS"), r
+
+
+# ---------- 1.2 / 1.4 / 1.29 Stage 4.5d detectors ----------
+from pipeline.stages import stage_4_5d_clinical_fidelity as s45
+
+
+def _cands(src, chunk):
+    c, _ = s45.run_all_detectors_for_chunk(src, chunk, "L2-1")
+    return c
+
+
+@pytest.mark.parametrize("src,chunk", [
+    ("Gentamicin 5 mg/kg once daily.", "Gentamicin 5 mg once daily."),
+    ("Glucose 7 mg/dL", "Glucose 7 mg/L"),
+    ("Give 10 mg/kg", "Give 10 mg/m2"),
+    ("Target 50% reduction", "Target 50 reduction"),
+    ("Give 50 µg", "Give 50 µg/kg"),
+    ("5 mcg/kg/min", "5 mcg/min"),
+    ("Na 135 mmol/L", "Na 135 mmol"),
+    ("eGFR 30 mL/min/1.73m2", "eGFR 30 mL/min"),
+])
+def test_1_2_unit_changes_are_detected(src, chunk):
+    assert _cands(src, chunk), f"unit change not detected: {src!r} -> {chunk!r}"
+
+
+@pytest.mark.parametrize("src,chunk", [
+    ("Give 5 mg/kg daily", "Give 5 mg/kg daily"),
+    ("Give 5mg daily", "Give 5 mg daily"),
+    ("Give 50 µg", "Give 50 mcg"),
+    ("Target 50% reduction", "Target 50 % reduction"),
+    ("BSA 1.73 m2", "BSA 1.73 m²"),
+])
+def test_1_2_equivalent_unit_spellings_do_not_raise_candidates(src, chunk):
+    assert not [c for c in _cands(src, chunk) if c["check"] in ("unit", "dose")], (src, chunk)
+
+
+@pytest.mark.parametrize("src,chunk", [
+    ("Drug A is contraindicated in pregnancy. Drug B is permitted.", "Drug A is permitted in pregnancy. Drug B is permitted."),
+    ("Antibiotics are not indicated for viral URTI. Steroids are indicated for croup.",
+     "Antibiotics are indicated for viral URTI. Steroids are indicated for croup."),
+    ("Do not give aspirin to children.", "Give aspirin to children."),
+    ("Avoid NSAIDs in renal failure.", "NSAIDs in renal failure."),
+    ("There is no role for steroids.", "There is a role for steroids."),
+    ("Lactate increases in sepsis. Bicarbonate decreases.", "Lactate decreases in sepsis. Bicarbonate decreases."),
+])
+def test_1_4_sentence_level_negation_and_polarity_flips_are_detected(src, chunk):
+    assert [c for c in _cands(src, chunk) if c["check"] in ("negation", "polarity")], (src, chunk)
+
+
+@pytest.mark.parametrize("src,chunk", [
+    ("Do not give aspirin to children.", "Aspirin should not be given to children."),
+    ("Antibiotics are not indicated for viral URTI.", "Antibiotics are not indicated for viral URTI."),
+])
+def test_1_4_preserved_negation_is_not_flagged(src, chunk):
+    assert not [c for c in _cands(src, chunk) if c["check"] in ("negation", "polarity")], (src, chunk)
+
+
+@pytest.mark.parametrize("src,chunk,check", [
+    ("eGFR below 30", "eGFR above 30", "inequality"),
+    ("Dose 5−10 mg", "Dose 5 mg", "range"),
+    ("Take four times daily", "Take twice daily", "frequency"),
+    ("Take qds", "Take bd", "frequency"),
+    ("for 7 d", "for 14 d", "duration"),
+])
+def test_1_29_detector_vocabulary_gaps(src, chunk, check):
+    assert [c for c in _cands(src, chunk) if c["check"] == check], (src, chunk)

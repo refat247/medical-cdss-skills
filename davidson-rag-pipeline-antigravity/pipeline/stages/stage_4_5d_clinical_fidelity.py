@@ -102,26 +102,44 @@ def _get_chunk_id(chunk_block):
 # multiset survive from source span into chunk body" checks.
 # --------------------------------------------------------------------------
 
+def _norm_token(tok):
+    """Canonical form of a matched token so equivalent spellings compare equal:
+    case, internal whitespace, micro sign / ug, m2 vs m-squared, thousands separators."""
+    s = tok.strip().lower()
+    s = s.replace("\u00b5", "mc").replace("\u03bc", "mc")           # micro sign / Greek mu -> 'mc'
+    s = re.sub(r"(?<![a-z])ug\b", "mcg", s)                             # 50 ug -> 50 mcg
+    s = s.replace("m\u00b2", "m2")
+    s = re.sub(r"(?<=\d),(?=\d{3}\b)", "", s)                         # 1,000 -> 1000
+    s = re.sub(r"\s+", "", s)
+    return s
+
+
 def _multiset_diff(source_span, chunk_body, patterns, check_name, chunk_id):
-    src_hits = Counter()
-    for p in patterns:
-        src_hits.update(m.group(0).strip() for m in re.finditer(p, source_span, re.I))
-    chunk_hits = Counter()
-    for p in patterns:
-        chunk_hits.update(m.group(0).strip() for m in re.finditer(p, chunk_body, re.I))
+    """Compare token multisets on a NORMALISED key (so '5mg' == '5 mg', 'ug' == 'mcg'), but report the
+    original matched text in the candidate so adjudicators see what the document actually says."""
+    def collect(text):
+        hits, shown = Counter(), {}
+        for p in patterns:
+            for m in re.finditer(p, text, re.I):
+                raw = m.group(0).strip()
+                k = _norm_token(raw)
+                hits[k] += 1
+                shown.setdefault(k, raw)
+        return hits, shown
+
+    src_hits, src_shown = collect(source_span)
+    chunk_hits, chunk_shown = collect(chunk_body)
 
     candidates = []
     for token, src_count in src_hits.items():
-        chunk_count = chunk_hits.get(token, 0)
-        if chunk_count < src_count:
+        if chunk_hits.get(token, 0) < src_count:
             candidates.append(_candidate(
-                check_name, chunk_id, source_value=token, chunk_value=None, kind="missing",
+                check_name, chunk_id, source_value=src_shown[token], chunk_value=None, kind="missing",
             ))
-    for token, chunk_count in chunk_hits.items():
-        src_count = src_hits.get(token, 0)
-        if src_count == 0:
+    for token in chunk_hits:
+        if src_hits.get(token, 0) == 0:
             candidates.append(_candidate(
-                check_name, chunk_id, source_value=None, chunk_value=token, kind="added",
+                check_name, chunk_id, source_value=None, chunk_value=chunk_shown[token], kind="added",
             ))
     scanned = sum(src_hits.values())
     return candidates, scanned
@@ -204,16 +222,26 @@ def migrate_legacy_candidate_ids(candidates):
 
 NUMERIC_PATTERNS = [r'\b\d+(?:\.\d+)?\b']
 
+# Compound-unit grammar: a mass/volume/amount atom optionally followed by any number of "/denominator"
+# parts ("mg/kg", "mcg/kg/min", "mL/min/1.73m2", "mg per kg"). The negative lookahead stops the match
+# from ending in the middle of a longer unit (the old alternation matched "5 mg" inside "5 mg/kg").
+_UNIT_ATOM = (r"(?:mg|mcg|\u00b5g|\u03bcg|ug|ng|pg|kg|g|ml|dl|l|mmol|\u00b5mol|micromol|nmol|pmol|mol|"
+              r"meq|units?|iu|u|mmhg|kpa|cmh2o)")
+_UNIT_DEN = (r"(?:kg|m2|m\u00b2|dl|ml|l|min|h|hr|hrs|hour|day|d|24\s*h|1\.73\s*m2|1\.73\s*m\u00b2)")
+_COMPOUND_UNIT = rf"(?:{_UNIT_ATOM}(?:\s*(?:/|per)\s*{_UNIT_DEN})*|%)"
+
 UNIT_PATTERNS = [
-    r'\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|units?|IU|mmol/L|mg/dL|%|mg/kg|mcg/kg/min|mcg/min|mL/min(?:/1\.73m2)?|mg/m2|g/m2|kPa|mmHg|cmH2O|ng/mL|pg/mL|pmol/L|micromol/L|IU/kg|units/hr)\b',
+    rf"(?<![\w.])\d+(?:[.,]\d+)*\s*{_COMPOUND_UNIT}(?![\w/])",
 ]
 
 INEQUALITY_PATTERNS = [
     r'[<>≤≥]', r'\bless than\b', r'\bgreater than\b', r'\bat least\b',
     r'\bat most\b', r'\bor more\b', r'\bor fewer\b',
+    r'\bbelow\b', r'\babove\b', r'\bno more than\b', r'\bno less than\b',
+    r'\bup to\b', r'\bmaximum of\b', r'\bminimum of\b', r'>=|<=|=<|=>',
 ]
 
-RANGE_PATTERNS = [r'\b\d+\s*[-–]\s*\d+\b', r'\b\d+\s+to\s+\d+\b']
+RANGE_PATTERNS = [r'\b\d+(?:\.\d+)?\s*[-\u2013\u2014\u2212]\s*\d+(?:\.\d+)?\b', r'\b\d+(?:\.\d+)?\s+to\s+\d+(?:\.\d+)?\b']
 
 
 def detect_numeric(source_span, chunk_body, chunk_id):
@@ -239,7 +267,7 @@ def detect_range(source_span, chunk_body, chunk_id):
 # --------------------------------------------------------------------------
 
 DOSE_PATTERNS = [
-    r'\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|units?|IU|mg/kg|mcg/kg/min|mcg/min|mg/m2|IU/kg|units/hr)\b',
+    rf"(?<![\w.])\d+(?:[.,]\d+)*\s*{_UNIT_ATOM}(?:\s*(?:/|per)\s*{_UNIT_DEN})*(?![\w/])",
     r'\b(?:once|twice|three times)\s+(?:daily|weekly)',
     r'\b(?:loading|maintenance)\s+dose\b',
 ]
@@ -253,12 +281,15 @@ def detect_dose(source_span, chunk_body, chunk_id):
 # Checks 6-7: duration, frequency
 # --------------------------------------------------------------------------
 
-DURATION_PATTERNS = [r'\b\d+\s*(?:day|week|month|year|hour|min)s?\b']
+DURATION_PATTERNS = [r'\b\d+\s*(?:day|week|month|year|hour|min)s?\b', r'\b\d+\s*(?:d|wks?|hrs?)\b']
 
 FREQUENCY_PATTERNS = [
     r'\b(?:once|twice|three times)\s+(?:daily|weekly)\b',
-    r'\bevery\s+\d+\s*(?:hours?|hrs?)\b',
-    r'\bq\d+h\b', r'\bbd\b', r'\btds\b', r'\bod\b', r'\bprn\b',
+    r'\bevery\s+\d+\s*(?:hours?|hrs?|h)\b',
+    r'\b(?:once|twice|two times|three times|four times|[1-4] times)\s+(?:a\s+day|a\s+week|per\s+day)\b',
+    r'\bfour times\s+daily\b', r'\bq\.?\d+h\b', r'\bq\.?[dw]\.?\b',
+    r'\bbd\b', r'\bbid\b', r'\btds\b', r'\btid\b', r'\bqds\b', r'\bqid\b', r'\bod\b',
+    r'\bnocte\b', r'\bmane\b', r'\bprn\b',
 ]
 
 
@@ -332,12 +363,124 @@ def _paired_term_diff(source_span, chunk_body, pairs, check_name, chunk_id):
     return candidates, scanned
 
 
+
+# --------------------------------------------------------------------------
+# Sentence-aligned flip detection (second-sweep 1.4). The whole-chunk pair test above misses a flip
+# whenever the opposite term still appears elsewhere in the chunk ("A is contraindicated. B is
+# permitted." -> "A is permitted. B is permitted." has 'permitted' in both). Here each SOURCE sentence
+# is aligned to its best-overlapping CHUNK sentence and polarity is compared sentence-to-sentence.
+# Still only ever produces a CANDIDATE for human adjudication.
+# --------------------------------------------------------------------------
+
+NEGATION_MARKERS = [
+    r"do not", r"does not", r"did not", r"must not", r"should not", r"shall not", r"cannot", r"can not",
+    r"not recommended", r"not indicated", r"not advised", r"not required", r"not associated with",
+    r"contraindicated", r"avoid(?:ed|ing)?", r"never", r"no role for", r"no evidence", r"no benefit",
+    r"unsafe", r"inadvisable", r"discourage[d]?", r"no\s+indication",
+]
+_NEG_RE = re.compile(r"(?<!\w)(?:" + "|".join(NEGATION_MARKERS) + r")(?!\w)", re.I)
+
+POLARITY_REGEX_PAIRS = [
+    (r"increas(?:e|es|ed|ing)|rise[sn]?|rising|elevat(?:e|es|ed|ion)|higher|raise[sd]?", r"decreas(?:e|es|ed|ing)|fall[s]?|falling|fell|reduc(?:e|es|ed|tion)|lower(?:s|ed)?|drop(?:s|ped)?"),
+    (r"positive", r"negative"),
+    (r"before", r"after"),
+    (r"above", r"below"),
+    (r"improv(?:e|es|ed|ement)", r"worsen(?:s|ed|ing)?|deteriorat(?:e|es|ed|ion)"),
+    (r"sensitive", r"resistant"),
+    (r"present", r"absent"),
+]
+
+_STOP = set("a an the is are was were be been being of in on at to for with by from as and or it its this that these those "
+            "there their them they he she his her we you i not no".split())
+
+
+def _sentences(text):
+    parts = re.split(r"(?<=[.!?;])\s+(?=[A-Z0-9\[(])|\n{2,}|\n(?=[-*\u2022]\s)", text)
+    return [s.strip() for s in parts if s and s.strip()]
+
+
+def _content_words(sentence, drop_regexes):
+    s = sentence.lower()
+    for rx in drop_regexes:
+        s = re.sub(rx, " ", s, flags=re.I)
+    return {w for w in re.findall(r"[a-z0-9][a-z0-9.\-/]*", s) if w not in _STOP and len(w) > 1}
+
+
+def _align(src_words, chunk_sents, drop_regexes, min_overlap=0.5):
+    """Best chunk sentence for a source sentence by content-word overlap (fraction of the source's words)."""
+    best, best_score = None, 0.0
+    if not src_words:
+        return None
+    for cs in chunk_sents:
+        cw = _content_words(cs, drop_regexes)
+        score = len(src_words & cw) / len(src_words)
+        if score > best_score:
+            best, best_score = cs, score
+    return best if best_score >= min_overlap else None
+
+
+def _sentence_negation_flips(source_span, chunk_body, chunk_id):
+    cands, scanned = [], 0
+    chunk_sents = _sentences(chunk_body)
+    drop = [_NEG_RE.pattern, r"\b(?:permitted|indicated|recommended|safe|appropriate)\b"]
+    for ss in _sentences(source_span):
+        src_neg = bool(_NEG_RE.search(ss))
+        src_words = _content_words(ss, drop)
+        if len(src_words) < 2 and not (src_words and len(ss.split()) <= 8):
+            continue
+        match = _align(src_words, chunk_sents, drop)
+        if match is None:
+            continue
+        scanned += 1
+        if bool(_NEG_RE.search(match)) != src_neg:
+            cands.append(_candidate("negation", chunk_id, source_value=ss[:120], chunk_value=match[:120],
+                                    kind="flipped", extra={"clinically_consequential": True}))
+    return cands, scanned
+
+
+def _sentence_polarity_flips(source_span, chunk_body, chunk_id):
+    cands, scanned = [], 0
+    chunk_sents = _sentences(chunk_body)
+    for a, b in POLARITY_REGEX_PAIRS:
+        a_re = re.compile(r"(?<!\w)(?:" + a + r")(?!\w)", re.I)
+        b_re = re.compile(r"(?<!\w)(?:" + b + r")(?!\w)", re.I)
+        for ss in _sentences(source_span):
+            sa, sb = bool(a_re.search(ss)), bool(b_re.search(ss))
+            if sa == sb:                       # neither, or both (ambiguous): not a clean polarity statement
+                continue
+            src_words = _content_words(ss, [a_re.pattern, b_re.pattern])
+            if len(src_words) < 2:
+                continue
+            match = _align(src_words, chunk_sents, [a_re.pattern, b_re.pattern])
+            if match is None:
+                continue
+            scanned += 1
+            ca, cb = bool(a_re.search(match)), bool(b_re.search(match))
+            if (sa and cb and not ca) or (sb and ca and not cb):
+                cands.append(_candidate("polarity", chunk_id, source_value=ss[:120], chunk_value=match[:120],
+                                        kind="flipped", extra={"clinically_consequential": True}))
+    return cands, scanned
+
+
+def _merge(base, extra):
+    c1, s1 = base
+    c2, s2 = extra
+    seen = {(c["source_value"], c["chunk_value"], c["kind"]) for c in c1}
+    out = list(c1)
+    for c in c2:
+        if (c["source_value"], c["chunk_value"], c["kind"]) not in seen:
+            out.append(c)
+    return out, max(s1, s1 + s2)
+
+
 def detect_negation(source_span, chunk_body, chunk_id):
-    return _paired_term_diff(source_span, chunk_body, NEGATION_PAIRS, "negation", chunk_id)
+    return _merge(_paired_term_diff(source_span, chunk_body, NEGATION_PAIRS, "negation", chunk_id),
+                  _sentence_negation_flips(source_span, chunk_body, chunk_id))
 
 
 def detect_polarity(source_span, chunk_body, chunk_id):
-    return _paired_term_diff(source_span, chunk_body, POLARITY_PAIRS, "polarity", chunk_id)
+    return _merge(_paired_term_diff(source_span, chunk_body, POLARITY_PAIRS, "polarity", chunk_id),
+                  _sentence_polarity_flips(source_span, chunk_body, chunk_id))
 
 
 # --------------------------------------------------------------------------
