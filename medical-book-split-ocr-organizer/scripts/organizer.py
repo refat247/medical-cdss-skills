@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import time
 import sys
 from pathlib import Path
 
@@ -43,6 +44,32 @@ def get_default_downloads_dir() -> str:
     home = Path.home()
     downloads = home / "Downloads"
     return str(downloads) if downloads.exists() else str(home)
+
+
+def _move_aside(path: Path) -> Path:
+    """Rename an existing path to <name>.replaced-<timestamp> instead of deleting it (OCR output is paid-for and
+    hard to recreate; --force used to rmtree it with no way back)."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dest = path.with_name(f"{path.name}.replaced-{stamp}")
+    n = 1
+    while dest.exists():
+        n += 1
+        dest = path.with_name(f"{path.name}.replaced-{stamp}-{n}")
+    path.rename(dest)
+    return dest
+
+
+def _best_fuzzy_section(norm: str, section_map: dict):
+    """Closest section for a normalised OCR folder name. Exact keys are handled by the caller. Among substring
+    candidates prefer the LONGEST section name contained in the item name ("...chapter 10..." must not fall into
+    "...chapter 1", whichever happened to come first); an equally good tie is ambiguous and returns None."""
+    cands = [(len(sec_norm), sec_path) for sec_norm, sec_path in section_map.items()
+             if len(norm) > 10 and (sec_norm in norm or norm in sec_norm)]
+    if not cands:
+        return None
+    best = max(c[0] for c in cands)
+    top = [p for l, p in cands if l == best]
+    return top[0] if len(top) == 1 else None
 
 
 def cmd_init(target_dir: str) -> int:
@@ -102,7 +129,7 @@ def cmd_init(target_dir: str) -> int:
     return 0
 
 
-def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> int:
+def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False, dry_run: bool = False) -> int:
     """Ingests OCR extraction folders from source_dir into corresponding section folders:
     - Scans source_dir for folders (typically named <Prefix>.pdf containing markdown.md/pages/)
     - Matches them flexibly against section folders in target_dir
@@ -162,10 +189,7 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
 
         if not target_section:
             # Fallback: check if the normalized item name is contained in or contains any section name
-            for sec_norm, sec_path in section_map.items():
-                if sec_norm == norm or (len(norm) > 10 and (norm in sec_norm or sec_norm in norm)):
-                    target_section = sec_path
-                    break
+            target_section = _best_fuzzy_section(norm, section_map)
 
         # Check if target itself matches the item (single section mode)
         if not target_section:
@@ -185,21 +209,29 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
             continue
 
         dest_ocr_parent = target_section / "ocr markdown"
-        dest_ocr_parent.mkdir(parents=True, exist_ok=True)
         dest_item = dest_ocr_parent / item.name
 
-        if dest_item.exists() and any(dest_item.iterdir() if dest_item.is_dir() else [1]):
-            if not force:
-                print(f"  [SKIP] Target already exists (use --force to overwrite): {dest_item}")
-                skipped_count += 1
-                continue
-            else:
-                print(f"  [OVERWRITE] Removing existing folder: {dest_item}")
-                if dest_item.is_dir():
-                    shutil.rmtree(dest_item)
-                else:
-                    dest_item.unlink()
+        if dest_item.exists():
+            non_empty = any(dest_item.iterdir()) if dest_item.is_dir() else True
+            if non_empty:
+                if not force:
+                    print(f"  [SKIP] Target already exists (use --force to overwrite): {dest_item}")
+                    skipped_count += 1
+                    continue
+                if dry_run:
+                    print(f"  [DRY-RUN] would move existing {dest_item.name} aside, then move {item.name}")
+                    moved_count += 1
+                    continue
+                aside = _move_aside(dest_item)
+                print(f"  [OVERWRITE] Existing output kept as: {aside.name}")
+            elif not dry_run:
+                dest_item.rmdir()          # an EMPTY slot: replace it, do not move the item INTO it (nested X/X)
 
+        if dry_run:
+            print(f"  [DRY-RUN] would move {item.name} -> {target_section.name}/ocr markdown/")
+            moved_count += 1
+            continue
+        dest_ocr_parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(item), str(dest_item))
             print(f"  [MOVED] {item.name} -> {target_section.name}/ocr markdown/")
@@ -247,7 +279,7 @@ def cmd_status(target_dir: str) -> int:
         pdf_str = f"[YES] ({target_pdfs[0].name})" if target_pdfs else "[NO]"
         ocr_str = "[NO OCR]"
         if target_ocr.exists():
-            ocr_items = [item for item in target_ocr.iterdir()]
+            ocr_items = [item for item in target_ocr.iterdir() if item.is_file() or any(item.iterdir())]
             if ocr_items:
                 ocr_str = f"[YES] ({len(ocr_items)} item(s): {', '.join(x.name for x in ocr_items)})"
         print(f"{'Source PDF':<12}: {pdf_str}")
@@ -281,7 +313,7 @@ def cmd_status(target_dir: str) -> int:
         ocr_dir = d / "ocr markdown"
         ocr_str = "[NO OCR]"
         if ocr_dir.exists():
-            ocr_items = [item for item in ocr_dir.iterdir()]
+            ocr_items = [item for item in ocr_dir.iterdir() if item.is_file() or any(item.iterdir())]
             if ocr_items:
                 has_ocr_count += 1
                 ocr_str = f"[YES] ({len(ocr_items)} item(s))"
@@ -388,6 +420,14 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         item for item in target.iterdir()
         if item.resolve() != canonical_sec.resolve() and item.resolve() != ocr_dir.resolve()
     ]
+    if target.resolve() == canonical_sec.resolve():
+        # The section already has the canonical layout, so everything in it is NOT necessarily OCR output: only
+        # move items that look like OCR output (notes, packages, other PDFs must stay where they are).
+        looks_ocr = re.compile(r"(markdown|^images?$|^pages?$|^assets$|^img-|^page-|rag_pipeline_output|_CHECKPOINT\.json$)", re.I)
+        kept = [i for i in items_to_move if not looks_ocr.search(i.name) or i.suffix.lower() == ".pdf"]
+        for i in kept:
+            print(f"  [LEAVE] {i.name} (does not look like OCR output)")
+        items_to_move = [i for i in items_to_move if i not in kept]
 
     for item in items_to_move:
         if target == canonical_sec and item.name == (clean_name + ".pdf"):
@@ -398,12 +438,9 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         dest_entry = ocr_item / item.name
         if dest_entry.exists():
             if force:
-                if dest_entry.is_dir():
-                    shutil.rmtree(dest_entry)
-                else:
-                    dest_entry.unlink()
+                aside = _move_aside(dest_entry)
                 shutil.move(str(item), str(dest_entry))
-                print(f"  [OVERWRITE] {item.name} -> ocr markdown/{ocr_item.name}/")
+                print(f"  [OVERWRITE] {item.name} -> ocr markdown/{ocr_item.name}/ (previous kept as {aside.name})")
             else:
                 print(f"  [SKIP] Already exists in OCR workspace: {dest_entry.name}")
         else:
@@ -516,7 +553,8 @@ Examples:
     p_ingest = subparsers.add_parser("ingest", help="Ingest OCR folders into section ocr markdown directories")
     p_ingest.add_argument("--target-dir", "--target", "-t", required=True, help="Target book split or section directory")
     p_ingest.add_argument("--source-dir", "--source", "-s", default=None, help="Source directory with OCR extractions or direct OCR folder (default: Downloads)")
-    p_ingest.add_argument("--force", "-f", action="store_true", help="Force overwrite existing OCR directories")
+    p_ingest.add_argument("--force", "-f", action="store_true", help="Move existing OCR directories aside (kept as *.replaced-<time>) and replace them")
+    p_ingest.add_argument("--dry-run", action="store_true", help="Show what would be moved; move nothing")
 
     # auto
     p_auto = subparsers.add_parser("auto", help="Execute both init and ingest in one pass")
@@ -547,7 +585,7 @@ Examples:
     if args.command == "init":
         sys.exit(cmd_init(args.target_dir))
     elif args.command == "ingest":
-        sys.exit(cmd_ingest(args.target_dir, args.source_dir, args.force))
+        sys.exit(cmd_ingest(args.target_dir, args.source_dir, args.force, dry_run=getattr(args, 'dry_run', False)))
     elif args.command == "auto":
         sys.exit(cmd_auto(args.target_dir, args.source_dir, args.force))
     elif args.command == "status":

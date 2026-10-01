@@ -1,5 +1,5 @@
-# Medical Book Split & OCR Organizer (v1.2.0)
+# Medical Book Split & OCR Organizer (v1.3.0)
 
 Production-grade pipeline utility for structuring split medical textbook PDFs and routing raw OCR extractions into standardized directory layouts.
 
-Installed (v1.2.0)
+Installed (v1.3.0)

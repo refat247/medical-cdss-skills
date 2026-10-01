@@ -16,6 +16,6 @@ def test_version_consistency():
     changelog_text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     changelog_v = re.search(r"^##\s*\[([0-9\.]+)\]", changelog_text, re.M).group(1)
 
-    assert skill_v == "1.2.0"
+    assert skill_v == "1.3.0"
     assert init_v == "1.2.0"
-    assert changelog_v == "1.2.0"
+    assert changelog_v == "1.3.0"
