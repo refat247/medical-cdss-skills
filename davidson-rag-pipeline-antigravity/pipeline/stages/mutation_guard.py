@@ -43,6 +43,18 @@ PROTECTION_MARKER_DISCLAIMER = (
 )
 
 
+def unique_backup_path(bdir, base_name):
+    """Backup file name that can never overwrite an earlier backup (the old one-second timestamp let two mutations
+    within the same second clobber the first backup, losing the original)."""
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    candidate = os.path.join(bdir, f"{base_name}.pre-mutation-{ts}.bak")
+    n = 1
+    while os.path.exists(candidate):
+        n += 1
+        candidate = os.path.join(bdir, f"{base_name}.pre-mutation-{ts}-{n}.bak")
+    return candidate
+
+
 def _now():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -260,8 +272,7 @@ def guarded_write_file(path, content, *, args, is_new_file, out_dir=None, prefix
     if protected or getattr(args, "backup", False):
         bdir = backup_dir or os.path.dirname(path)
         os.makedirs(bdir, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        backup_path = os.path.join(bdir, f"{os.path.basename(path)}.pre-mutation-{ts}.bak")
+        backup_path = unique_backup_path(bdir, os.path.basename(path))
         if os.path.exists(path):
             shutil.copyfile(path, backup_path)
 

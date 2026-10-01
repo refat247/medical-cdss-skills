@@ -1,6 +1,6 @@
 ---
 name: davidson-rag-pipeline-antigravity
-version: 2.25.1
+version: 2.26.0
 description: |
   Full 18-stage RAG pipeline for Davidson 25th Edition chapters and clinical practice guidelines (ADA, KDIGO, ESC, NICE),
   optimised for Google Antigravity local Windows sessions and Google Gemini 3.7 Flash High model.
@@ -12,7 +12,7 @@ description: |
   hard-fail validation gate (Stage 6), fail-closed finalization, and Rule T-V proof disciplines.
 ---
 
-# Davidson RAG Pipeline — Antigravity & Gemini Edition (v2.25.1)
+# Davidson RAG Pipeline — Antigravity & Gemini Edition (v2.26.0)
 
 Production RAG extraction pipeline optimized for direct Windows filesystem execution.
 Features a modular Hub-and-Spoke progressive disclosure architecture with automated CLI stage chaining.
@@ -46,7 +46,7 @@ Features a modular Hub-and-Spoke progressive disclosure architecture with automa
 >    <!--
 >    PROVENANCE METADATA:
 >      skill_name: "davidson-rag-pipeline-antigravity"
->      skill_version: "2.25.1"
+>      skill_version: "2.26.0"
 >      generated_at: "YYYY-MM-DDTHH:MM:SSZ"
 >      source_path: "<PATH>"
 >    -->
@@ -175,7 +175,7 @@ Enforces retrieval routing classification (`drug_info`, `clinical_feature`, `man
 ```bash
 python -m pipeline.run_stage --stage 4.6 --source "<SOURCE_PATH>" --out "<OUTPUT_DIR>"
 ```
-By default, Stage 4.6 executes zero-token offline deterministic clinical adjudication (`offline_adjudicate_all`).
+By default, Stage 4.6 executes a zero-token offline pass (`offline_adjudicate_all`) that applies only **section-title and recommendation-number rules** and never relabels from body regexes (body cues stay in the *flagging* baseline). It is **not an independent review**: the checkpoint records `verification_method` and `independent_verification: false` for it. Use `--use-llm` or the manual protocol for a real review.
 Opt-in external LLM API verification is available via `--use-llm` when `GEMINI_API_KEY` is configured.
 - **Action `pending_manual`**: If `--use-llm` is used without an API key or candidate review is needed, read [`references/stage_4_6_protocol.md`](references/stage_4_6_protocol.md) for batch triage instructions.
 
@@ -318,5 +318,8 @@ Stage 8:    precision-checked | unresolved findings | trust classification
 
 ## Exit Codes & Assets (2026-09-25)
 - `--stage auto` exit codes: `0` = complete and trusted; `1` = blocked, failed or pending review; `3` = finished but Stage 8 did not mark the chapter `trusted_for_downstream_use`.
+- Single-stage runs: `0` = completed/skipped; `1` = blocked/failed/error; `4` = `PENDING_MANUAL` (needs human adjudication; not success).
+- A stage refuses to run while an EARLIER stage's checkpoint entry is BLOCKED/FAILED/IN_PROGRESS/STALE (override with `--force`). Re-completing an earlier stage marks every later COMPLETED stage `STALE` (so it re-runs and trust is withdrawn); to re-run stages use `--force`, not hand-editing `stage_completions`.
+- Stage 6 fails on zero chunks; Stage 4B blocks when no chunks are produced; Stage 4.5c blocks when there are no L1 chunks; Stage 4.5 fails when there are no L2 chunks.
 - Chapter `assets/` are merged into `rag_pipeline_output/assets` on every run. A failed copy aborts the run instead of silently continuing.
 - The Stage 4.6 remap log records the real gate outcome (`Status: complete|pending_manual|blocked|failed`).

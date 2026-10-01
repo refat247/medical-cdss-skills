@@ -465,10 +465,16 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         count = 0
         if os.path.exists(scattered_json):
             try:
-                s_data = json.load(open(scattered_json, encoding="utf-8"))
+                with open(scattered_json, encoding="utf-8") as _f:
+                    s_data = json.load(_f)
                 count = len(s_data.get("data", {}))
-            except Exception:
-                pass
+            except Exception as e:
+                # an unreadable evidence file used to be swallowed and the stage still COMPLETED with count 0
+                print(f"Stage 5.2 FAILED: cannot parse {os.path.basename(scattered_json)}: {e}")
+                return {"status": "FAILED", "stage": "5.2", "message": f"unparseable {os.path.basename(scattered_json)}: {e}"}
+        elif (checkpoint.get("stage_completions", {}).get("4.7") or {}).get("status") == "COMPLETED":
+            print(f"Stage 5.2 FAILED: Stage 4.7 completed but {os.path.basename(scattered_json)} is missing")
+            return {"status": "FAILED", "stage": "5.2", "message": f"{os.path.basename(scattered_json)} missing after Stage 4.7"}
         mark_stage_complete(checkpoint, checkpoint_path, "5.2", scattered_candidates=count)
         print(f"Stage 5.2 -> Tier 2 synthesis evaluated ({count} scattered candidates)")
         return {"status": "COMPLETED", "stage": "5.2", "scattered_candidates": count}
@@ -482,10 +488,16 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         count = 0
         if os.path.exists(gap_json):
             try:
-                g_data = json.load(open(gap_json, encoding="utf-8"))
+                with open(gap_json, encoding="utf-8") as _f:
+                    g_data = json.load(_f)
                 count = len(g_data.get("data", {}))
-            except Exception:
-                pass
+            except Exception as e:
+                # an unreadable evidence file used to be swallowed and the stage still COMPLETED with count 0
+                print(f"Stage 5.3 FAILED: cannot parse {os.path.basename(gap_json)}: {e}")
+                return {"status": "FAILED", "stage": "5.3", "message": f"unparseable {os.path.basename(gap_json)}: {e}"}
+        elif (checkpoint.get("stage_completions", {}).get("4.7") or {}).get("status") == "COMPLETED":
+            print(f"Stage 5.3 FAILED: Stage 4.7 completed but {os.path.basename(gap_json)} is missing")
+            return {"status": "FAILED", "stage": "5.3", "message": f"{os.path.basename(gap_json)} missing after Stage 4.7"}
         mark_stage_complete(checkpoint, checkpoint_path, "5.3", suspected_gaps=count)
         print(f"Stage 5.3 -> Tier 3 gap stubs evaluated ({count} suspected gaps)")
         return {"status": "COMPLETED", "stage": "5.3", "suspected_gaps": count}

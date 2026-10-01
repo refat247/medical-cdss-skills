@@ -205,7 +205,7 @@ STAGE_ORDER = [
 # Adds universal document archetype detection (TEXTBOOK vs GUIDELINE) in derive_chapter_info(),
 # publication year protection from chapter number regex, O(1) set-filtered paragraph duplicate comparison in Stage 1,
 # deterministic offline clinical rule adjudication in Stage 4.6, and localized anchor window search in Stage 8 precision.
-PIPELINE_VERSION = "2.25.1"
+PIPELINE_VERSION = "2.26.0"
 SKILL_NAME = "davidson-rag-pipeline-antigravity"
 
 # Checkpoint dict SHAPE version — distinct from PIPELINE_VERSION (which
@@ -285,10 +285,23 @@ def save_checkpoint(checkpoint, checkpoint_path):
     (load_checkpoint) always see either the fully-old or fully-new file, never
     a partially-written one, even if the process is killed mid-write."""
     checkpoint["pipeline_state"]["last_checkpoint_written"] = _now()
-    tmp_path = checkpoint_path + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(checkpoint, f, indent=2)
-    os.replace(tmp_path, checkpoint_path)
+    # A UNIQUE temp name per write (a shared "<path>.tmp" let two concurrent runs interleave into one temp file),
+    # flushed and fsynced before the atomic replace so a crash cannot leave a truncated checkpoint.
+    import tempfile
+    d = os.path.dirname(os.path.abspath(checkpoint_path))
+    fd, tmp_path = tempfile.mkstemp(prefix=os.path.basename(checkpoint_path) + ".", suffix=".tmp", dir=d)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(checkpoint, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, checkpoint_path)
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def migrate_checkpoint_schema_to_v2(checkpoint):

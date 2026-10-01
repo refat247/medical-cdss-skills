@@ -623,3 +623,47 @@ def test_1_22_candidate_ids_do_not_collide_across_l1_sections():
     a = _bl(l1, c, scope="L1-001")
     b = _bl(l1, c, scope="L1-002")
     assert a and b and {x["candidate_id"] for x in a}.isdisjoint({x["candidate_id"] for x in b})
+
+
+# ---------- 1.30 (F21) Stages 5.2/5.3 must not complete on unreadable / missing evidence ----------
+@pytest.mark.parametrize("stage,fname", [("5.2", "P_SCATTERED.json"), ("5.3", "P_SUSPECTED_GAP.json")])
+def test_1_30_stage_5x_fails_on_corrupt_evidence_json(tmp_path, stage, fname):
+    import pipeline.run_stage as rs
+    src = tmp_path / "Davidson_25_Ch07_X.md"; src.write_text("# t\n")
+    out = tmp_path / "out"; out.mkdir()
+    cp = {"chapter_info": {}, "pipeline_state": {}, "stage_completions": {"4.7": {"status": "COMPLETED"}}}
+    (out / "P_CHECKPOINT.json").write_text(_json.dumps(cp), encoding="utf-8")
+    (out / fname).write_text("{not json", encoding="utf-8")
+    res = rs.execute_stage(stage, str(src), str(out), prefix="P")
+    assert res["status"] == "FAILED"
+
+
+@pytest.mark.parametrize("stage", ["5.2", "5.3"])
+def test_1_30_stage_5x_fails_when_4_7_completed_but_its_json_is_missing(tmp_path, stage):
+    import pipeline.run_stage as rs
+    src = tmp_path / "Davidson_25_Ch07_X.md"; src.write_text("# t\n")
+    out = tmp_path / "out"; out.mkdir()
+    cp = {"chapter_info": {}, "pipeline_state": {}, "stage_completions": {"4.7": {"status": "COMPLETED"}}}
+    (out / "P_CHECKPOINT.json").write_text(_json.dumps(cp), encoding="utf-8")
+    assert rs.execute_stage(stage, str(src), str(out), prefix="P")["status"] == "FAILED"
+
+
+# ---------- 1.30 (F23/F24) checkpoint writes and backup names ----------
+def test_1_30_save_checkpoint_leaves_no_temp_files_and_is_valid_json(tmp_path):
+    cp = {"pipeline_state": {}, "stage_completions": {}, "chapter_info": {}}
+    path = str(tmp_path / "P_CHECKPOINT.json")
+    cu.save_checkpoint(cp, path)
+    cu.save_checkpoint(cp, path)
+    assert _json.loads(open(path, encoding="utf-8").read())["pipeline_state"]["last_checkpoint_written"]
+    assert [p.name for p in tmp_path.iterdir()] == ["P_CHECKPOINT.json"]
+
+
+def test_1_30_two_backups_in_the_same_second_do_not_overwrite_each_other(tmp_path):
+    from pipeline.stages.mutation_guard import unique_backup_path
+    seen = []
+    for _ in range(5):
+        p = unique_backup_path(str(tmp_path), "f.md")
+        assert not os.path.exists(p)
+        open(p, "w").write("x")
+        seen.append(p)
+    assert len(set(seen)) == 5
