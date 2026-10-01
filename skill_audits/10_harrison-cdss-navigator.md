@@ -1,0 +1,25 @@
+# 10 · harrison-cdss-navigator (v1.0.1) — Independent Audit
+
+**Tier:** Critical path (single-book run-time) · **Book:** Harrison's Principles of Internal Medicine 22nd Ed (10,419 chunks claimed) · **Tests:** 1 fail / 6 pass on this machine `[M]`
+
+| Goal fit | Safety | Tests | Docs accuracy | Portability | **Overall** |
+|:-:|:-:|:-:|:-:|:-:|:-:|
+| B | C | C | C | D | **C** |
+
+## What it does
+A thin wrapper (~100–200 LOC) that locates a prebuilt `cdss_qa_router.py` under `$CDSS_PACKAGE_DIR` and runs it with `subprocess.run` for `--query`, `--vignette`, `--outline`, `--diff`, `--validate-therapy`. All retrieval, ranking and drug-matrix logic lives in the router, which is **not in this repo**.
+
+## Findings
+| ID | Sev | Ev | Finding | Fix |
+|---|---|---|---|---|
+| N1 | Medium | C | **"Zero-Hallucination & Provenance Guarantee" in SKILL.md is not something this code can guarantee.** It forwards router output; the guarantee depends wholly on an unseen artefact. | Reword to "returns router output with its chunk IDs"; add a test that every returned chunk carries an ID. |
+| N2 | Medium | M | Tests need the real corpus at `D:\01_Medical_Study\CDSS_Retrieval_Package`; they fail here (1 fail / 6 pass) with "Router not found". | Hurst's pattern (skip when absent) is better than failing; better still, run against a tiny fixture package. |
+| N3 | Medium | C | `subprocess.run(..., errors="ignore")` **silently drops undecodable bytes** from router output. In a pipeline built around mojibake detection, this hides encoding corruption instead of surfacing it. | Use `errors="strict"` (or `replace` plus a visible warning count). |
+| N4 | Medium | C | Latency claim (<0.2 ms) refers to the router's index lookup; each CLI call spawns a new Python process, so end-to-end latency is process-start dominated. No timing is measured by the wrapper. | Report wall-clock in the wrapper; separate "index lookup" from "CLI call" in docs. |
+| N5 | Low | C | Fallback to an unpackaged build router (Harrison/Hurst) vs none (Kumar): inconsistent trust behaviour across the three navigators. | One shared behaviour (warn+strict flag). |
+| N6 | Low | C | **Triplicated code:** the three navigators are near-copies (diff of the Hurst script against Harrison's template is ~50 lines). Any fix must be made three times. | One parametrised `book-navigator` module with per-book config; keep three thin SKILL.md entry points if triggers matter. |
+
+## Verdict
+Fine as a launcher, over-described as a guarantee, and not independently testable without the author's disk.
+
+**Top 3 actions:** (1) fixture-based tests, (2) stop ignoring decode errors, (3) merge the three scripts.
