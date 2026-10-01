@@ -268,6 +268,18 @@ def create_callout_box(doc, text_content: str, box_type: str = "cov"):
     p_post.paragraph_format.space_before = Pt(2)
     p_post.paragraph_format.space_after = Pt(6)
 
+
+def _split_table_row(line: str):
+    """Cells of a markdown table row, honouring escaped pipes (\\|). Returns the cells between the outer pipes."""
+    s = line.strip()
+    cells = re.split(r"(?<!\\)\|", s)
+    if s.startswith("|"):
+        cells = cells[1:]
+    if s.endswith("|") and not s.endswith("\\|"):
+        cells = cells[:-1]
+    return [c.replace("\\|", "|").strip() for c in cells]
+
+
 def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_missing_images=False):
     text = md_path.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -290,7 +302,9 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
     tp = doc.add_paragraph()
     tp.paragraph_format.space_before = Pt(12)
     tp.paragraph_format.space_after = Pt(2)
-    tr = tp.add_run("Cardiac Auscultation & Pathological Murmurs")
+    h1 = next((re.match(r"^#\s+(.*\S)\s*$", l).group(1) for l in lines if re.match(r"^#\s+\S", l)), None)
+    note_title = re.sub(r"[*_`]+", "", h1) if h1 else md_path.stem.replace("_", " ")
+    tr = tp.add_run(note_title)           # was hard-coded "Cardiac Auscultation & Pathological Murmurs" for every note
     tr.font.name = "Arial"
     tr.font.size = Pt(24)
     tr.font.bold = True
@@ -454,8 +468,8 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
             def parse_card_table(t_lines):
                 if len(t_lines) < 3:
                     return []
-                headers = [c.strip() for c in t_lines[0].split("|")[1:-1]]
-                content_row = [c.strip() for c in t_lines[2].split("|")[1:-1]]
+                headers = _split_table_row(t_lines[0])
+                content_row = _split_table_row(t_lines[2])
                 cards = []
                 for h, c in zip(headers, content_row):
                     raw_items = [item.strip() for item in re.split(r'<br\s*/?>', c) if item.strip()]
@@ -500,7 +514,11 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
                     k = j + 1
                     while k < total_lines and not lines[k].strip():
                         k += 1
-                    if k < total_lines and lines[k].strip().startswith("|") and lines[k].strip().endswith("|"):
+                    starts_table = k < total_lines and lines[k].strip().startswith("|") and lines[k].strip().endswith("|")
+                    # a header row followed by a |---| separator opens a NEW table: stop here instead of merging
+                    # (merging made the 2nd table's header a data row and dropped its extra columns)
+                    new_table = starts_table and k + 1 < total_lines and re.match(r'^\|[\s\:\-\|]+\|$', lines[k + 1].strip())
+                    if starts_table and not new_table:
                         j = k
                     else:
                         break
@@ -508,13 +526,13 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
                     break
 
             if len(table_lines) >= 2:
-                raw_header = [c.strip() for c in table_lines[0].split("|")[1:-1]]
+                raw_header = _split_table_row(table_lines[0])
                 num_cols = len(raw_header)
                 data_rows = []
                 for row_line in table_lines[1:]:
                     if re.match(r'^\|[\s\:\-\|]+\|$', row_line):
                         continue
-                    cols = [c.strip() for c in row_line.split("|")[1:-1]]
+                    cols = _split_table_row(row_line)
                     if len(cols) < num_cols:
                         cols += [""] * (num_cols - len(cols))
                     data_rows.append(cols[:num_cols])

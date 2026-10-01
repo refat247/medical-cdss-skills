@@ -166,14 +166,21 @@ class PackageIndex:
             chapters = self.chunks[b].get(chunk_id)
             if not chapters:
                 continue
-            if chapter is None or chapter in chapters or chapters == {None}:
+            if chapters == {None}:
                 return None, None
-            if len(chapters) == 1:
-                return None, None  # unique within the book; chapter label differs from file naming
+            if chapter is None:
+                # A bare [chunk: L2-001] cannot be placed: local ids repeat in every chapter, so it must not
+                # resolve just because SOME chapter of SOME book has that id.
+                if len(chapters) > 1:
+                    return (f"ambiguous: chunk '{chunk_id}' exists in {len(chapters)} chapters of {b}; "
+                            f"cite it as [Anchor: {b.capitalize()}-<chapter>-{chunk_id}]"), None
+                return None, None
+            if chapter in chapters:
+                return None, None
             if b in self.part_books and chapter not in self.book_chapters(b):
                 # book is organised by Parts/Sections, so "Ch. 44" cannot be mapped to a file
                 return None, f"{b} Ch. {chapter} / {chunk_id}: chapter not mappable to package files (chunk id exists in {len(chapters)} parts)"
-            return f"chunk '{chunk_id}' exists in {b} but not in chapter {chapter}", None
+            return f"chunk '{chunk_id}' exists in {b} chapter(s) {sorted(c for c in chapters if c)} but not in chapter {chapter}", None
         return f"chunk '{chunk_id}' not found" + (f" in {book}" if book else " in any book"), None
 
 
@@ -237,14 +244,22 @@ def split_sections(text: str) -> List[Dict]:
     return sections
 
 
+_LAYER_RE = {n: re.compile(rf"\bLAYER\s*{n}\b") for n in "012345"}
+
+
 def section_kind(heading: str) -> str:
+    """Classify a heading. A heading that names an anchored layer is ALWAYS anchored, even if it also contains an
+    exempt phrase ("Layer 3 - Pharmacology: Clinical Evidence" used to be exempt because the exempt test ran first),
+    and "Layer 10" is no longer mistaken for "Layer 1" (substring match)."""
     h = heading.upper()
-    if any(k in h for k in EXEMPT_HEADINGS):
-        return "exempt"
-    if "LAYER 2" in h or "DAVIDSON CORE" in h:
+    if _LAYER_RE["2"].search(h) or "DAVIDSON CORE" in h:
         return "layer2"
-    if any(k in h for k in ANCHORED_HEADINGS):
+    if any(_LAYER_RE[n].search(h) for n in "1345") or any(
+            k in h for k in ("PRE-TRAINING", "QB AWARENESS", "EXAM TRAP", "PHARMACOLOGY", "BEYOND DAVIDSON",
+                             "ACTIVE RECALL", "QUICK REVISION")):
         return "anchored"
+    if _LAYER_RE["0"].search(h) or any(k in h for k in EXEMPT_HEADINGS):
+        return "exempt"
     return "inherit"
 
 
@@ -256,7 +271,9 @@ def is_claim_line(line: str) -> bool:
         return True
     if s.startswith("|"):
         cells = [c.strip() for c in s.strip("|").split("|")]
-        return sum(1 for c in cells if len(c.split()) >= 2) >= 1 and not all(c.isupper() for c in cells if c)
+        # Any row with content is a claim (single-token cells such as `| Warfarin | 10mg |` used to be skipped).
+        # Header rows are excluded later (header_rows) and all-caps label rows here.
+        return any(re.search(r"\w", c) for c in cells) and not all(c.isupper() for c in cells if c)
     return len(re.sub(r"[>*_`]", "", s).split()) >= 6
 
 
@@ -295,7 +312,10 @@ def verify_note_grounding(note_path: Path, package_dir: Path, index: Optional[Pa
             k = stack[-1][1] if stack else "exempt"
             inherited_explicit = bool(stack) and stack[-1][2]
             if k == "exempt" and not inherited_explicit and s["level"] >= 2 and any(is_claim_line(l) for _, l in s["lines"]):
-                report["warnings"].append(f"line {s.get('lineno')}: unclassified section '{s['heading']}' not checked")
+                # Fail closed: a section the gate cannot classify but that contains claims is NOT silently skipped.
+                report.setdefault("unclassified_sections", []).append(f"line {s.get('lineno')}: '{s['heading']}'")
+                fail(f"unclassified section '{s['heading']}' (line {s.get('lineno')}) contains claim lines: name it as a "
+                     f"Layer 1-5 / QB section, or as an exempt section (Coverage Declaration, Visual Assets, Layer 0, Clinical Evidence Notes)")
         stack.append((s["level"], k, explicit or (stack[-1][2] if stack else False)))
         kinds.append(k)
 
@@ -366,6 +386,8 @@ def main():
           f"(weak, chapter not mappable: {len(res.get('weak_citations', []))})")
     for f in res["failures"]:
         print(f"  FAIL: {f}")
+    for w in res.get("warnings", [])[:15]:
+        print(f"  WARN: {w}")
     for key in ("uncited_lines", "unresolved_citations", "red_flag_violations", "weak_citations"):
         for item in res[key][:15]:
             print(f"    - {item}")
