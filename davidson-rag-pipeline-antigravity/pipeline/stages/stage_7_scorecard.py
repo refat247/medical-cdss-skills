@@ -47,11 +47,17 @@ def run_stage_7(rep_path: str, rag_path: str, out_dir: str, prefix: str) -> dict
     repaired = open(rep_path, encoding="utf-8").read()
     final = open(rag_path, encoding="utf-8").read()
 
-    def hit_count(patterns, text):
-        return sum(len(re.findall(p, text, re.I)) for p in patterns)
+    # Value-aware: a token only counts as retained if the SAME normalised value survives (multiset
+    # intersection). The old min(hits_final/hits_source, 1.0) scored a 10x dose error as 1.000.
+    from pipeline.stages.stage_4_5b_pharma import DOSING_PATTERNS as _D, THRESHOLD_PATTERNS as _T, _tokens
 
-    ds, dc = hit_count(DOSING_PATTERNS, repaired), hit_count(DOSING_PATTERNS, final)
-    ts, tc = hit_count(THRESHOLD_PATTERNS, repaired), hit_count(THRESHOLD_PATTERNS, final)
+    def retained(patterns, src, dst):
+        s, _ = _tokens(src, patterns)
+        d, _ = _tokens(dst, patterns)
+        return sum((s & d).values()), sum(s.values())
+
+    dc, ds = retained(_D, repaired, final)
+    tc, ts = retained(_T, repaired, final)
 
     scores = {}
 

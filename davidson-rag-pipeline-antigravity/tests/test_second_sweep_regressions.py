@@ -264,3 +264,82 @@ def test_1_14_nonexistent_corpus_root_is_an_error(tmp_path):
 
 def test_1_14_missing_ledger_is_an_error(tmp_path):
     assert vtci.main([str(tmp_path)]) != 0
+
+
+# ---------- 1.12 a BLOCKED/FAILED/IN_PROGRESS gating stage must withdraw trust ----------
+from pipeline.stages.corpus_trust import classify_trust
+from tests.test_corpus_trust import _ch05_shaped_checkpoint, _ch05_gate_pass
+
+
+def _classify(cp):
+    return classify_trust(
+        cp, clinical_fidelity_gate=_ch05_gate_pass(),
+        source_lines_precision_summary={"tested": True, "unresolved_count": 0},
+        stage_4_6_review_status="COMPLETED", stage_4_6_chunks_reviewed=10, stage_4_6_total_flagged=10,
+        unresolved_completeness_clusters=0)
+
+
+def test_1_12_baseline_is_ready():
+    assert _classify(_ch05_shaped_checkpoint())["trusted_for_downstream_use"] is True
+
+
+@pytest.mark.parametrize("stage,status", [("6", "BLOCKED"), ("4.5c", "BLOCKED"), ("4.5d", "FAILED"), ("4.5", "BLOCKED"),
+                                           ("6", "IN_PROGRESS")])
+def test_1_12_gating_stage_not_completed_withdraws_trust(stage, status):
+    cp = _ch05_shaped_checkpoint()
+    cp["stage_completions"][stage] = {"status": status}
+    r = _classify(cp)
+    assert r["trusted_for_downstream_use"] is False
+    assert any(stage in x for x in r["reasons"])
+
+
+# ---------- 1.10 Stage 4.5b must compare dose VALUES, not count regex hits ----------
+from pipeline.stages import stage_4_5b_pharma as s45b
+
+
+def _run_45b(tmp_path, monkeypatch, source, chunks):
+    monkeypatch.setattr(s45b, "load_checkpoint", lambda o, p: ({}, "x.json"))
+    monkeypatch.setattr(s45b, "should_run_stage", lambda c, s: True)
+    monkeypatch.setattr(s45b, "mark_stage_complete", lambda *a, **k: None)
+    rep, ch = tmp_path / "rep.md", tmp_path / "chunks.md"
+    rep.write_text(source, encoding="utf-8"); ch.write_text(chunks, encoding="utf-8")
+    return s45b.run_stage_4_5b(str(rep), str(ch), str(tmp_path), "P")
+
+
+def _l2(body):
+    return f"---\nchunk_id: L2-1\nchunk_level: 2\nsemantic_type: drug_info\n---\n\n{body}\n"
+
+
+def test_1_10_changed_dose_value_is_flagged(tmp_path, monkeypatch):
+    r = _run_45b(tmp_path, monkeypatch, "Amoxicillin 500 mg tds for 50% reduction", _l2("Amoxicillin 5000 mg tds for 50% reduction"))
+    assert "WARN" in r["verdict"] and "changed" in r["verdict"].lower()
+
+
+def test_1_10_unit_swap_is_flagged(tmp_path, monkeypatch):
+    r = _run_45b(tmp_path, monkeypatch, "Gentamicin 5 mg/kg once daily", _l2("Gentamicin 5 mg once daily"))
+    assert "WARN" in r["verdict"]
+
+
+def test_1_10_l1_copy_does_not_double_count(tmp_path, monkeypatch):
+    chunks = ("---\nchunk_id: L1-1\nchunk_level: 1\n---\n\nGive 500 mg daily and 600 mg nocte.\n\n"
+              + _l2("Give 500 mg daily."))
+    r = _run_45b(tmp_path, monkeypatch, "Give 500 mg daily and 600 mg nocte.", chunks)
+    assert "WARN" in r["verdict"]          # the 600 mg is absent from the only L2 chunk
+
+
+def test_1_10_identical_content_is_cleared(tmp_path, monkeypatch):
+    txt = "Give 500 mg daily; target 50% reduction; eGFR<30."
+    assert _run_45b(tmp_path, monkeypatch, txt, _l2(txt))["verdict"] == "CLEARED"
+
+
+# ---------- 1.10b Stage 7 dosing_preservation must not read a changed dose as 100% ----------
+def test_1_10_stage7_dose_change_does_not_score_perfect(tmp_path, monkeypatch):
+    from pipeline.stages import stage_7_scorecard as s7
+    monkeypatch.setattr(s7, "load_checkpoint", lambda o, p: ({}, "x.json"))
+    monkeypatch.setattr(s7, "should_run_stage", lambda c, s: True)
+    monkeypatch.setattr(s7, "mark_stage_complete", lambda *a, **k: None)
+    rep, rag = tmp_path / "rep.md", tmp_path / "rag.md"
+    rep.write_text("Give 5 mg daily.", encoding="utf-8"); rag.write_text("Give 50 mg daily.", encoding="utf-8")
+    res = s7.run_stage_7(str(rep), str(rag), str(tmp_path), "P")
+    val = res["dimensions"]["dosing_preservation"]["score"]
+    assert val is not None and val < 1.0
