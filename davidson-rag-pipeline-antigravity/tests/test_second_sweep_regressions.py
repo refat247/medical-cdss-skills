@@ -231,3 +231,36 @@ def test_1_9_valid_confirmation_and_correction_still_work(mod):
     text, meta = m.apply_manual_corrections(chunks, {"L2-1": "clinical_feature", "L2-2": "drug_info"})
     assert meta["chunks_unparsed"] == 0 and meta["chunks_corrected"] == 1
     assert "semantic_type: drug_info" in text
+
+
+# ---------- 1.13 manifest entries must match the current scan, not just the header hash ----------
+from pipeline.stages import adjudication_manifest as am
+
+
+def test_1_13_tampered_manifest_entry_values_are_rejected():
+    cur = [{"candidate_id": "4.5d-numeric-L2-1-1-abc", "check": "numeric", "chunk_id": "L2-1",
+            "kind": "missing", "source_value": "5", "chunk_value": None}]
+    manifest = {
+        "schema_version": am.SCHEMA_VERSION, "source_sha256": "s", "chunks_sha256": "c",
+        "candidate_set_sha256": am.build_candidate_set_hash(cur),
+        "candidates": [{"candidate_id": "4.5d-numeric-L2-1-1-abc", "detector": "numeric", "chunk_id": "L2-1",
+                        "mismatch_kind": "missing", "source_value": "ZZZ", "chunk_value": "WHATEVER",
+                        "decision": "false_positive", "rationale": "ok"}],
+    }
+    for f in am.REQUIRED_MANIFEST_FIELDS:
+        manifest.setdefault(f, "x")
+    r = am.validate_manifest(manifest, source_sha256="s", chunks_sha256="c", current_candidates=cur)
+    assert r["valid"] is False
+    assert any("identity" in e or "tamper" in e.lower() for e in r["errors"])
+
+
+# ---------- 1.14 invariants checker must not report success when it checked nothing ----------
+from pipeline import verify_trusted_corpus_invariants as vtci
+
+
+def test_1_14_nonexistent_corpus_root_is_an_error(tmp_path):
+    assert vtci.main([str(tmp_path / "does-not-exist")]) != 0
+
+
+def test_1_14_missing_ledger_is_an_error(tmp_path):
+    assert vtci.main([str(tmp_path)]) != 0

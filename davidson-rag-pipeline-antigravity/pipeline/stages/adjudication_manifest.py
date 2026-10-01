@@ -195,6 +195,16 @@ def validate_manifest(manifest, *, source_sha256, chunks_sha256, current_candida
             _error(errors, f"manifest candidate_id {cid!r} does not match any candidate in "
                             f"the current scan (unknown/extra candidate, or a stale ID with no "
                             f"legacy_id_map entry)")
+        else:
+            # The header hash only covers the CURRENT scan; it says nothing about the manifest's own
+            # entries. Bind each entry to the scan candidate it claims to decide, field by field.
+            cur_c = next(c for c in current_candidates if c.get("candidate_id") == resolved_cid)
+            m_id, c_id = _candidate_identity(mc), _candidate_identity(cur_c)
+            diff = [k for k in ("detector", "chunk_id", "mismatch_kind", "source_value", "chunk_value")
+                    if m_id.get(k) != c_id.get(k)]
+            if diff:
+                _error(errors, f"candidate {cid!r}: manifest entry does not match the scan candidate it "
+                                f"decides (identity mismatch on {diff}) -- entry altered or from another scan")
 
     manifest_ids_resolved = set()
     for mc in manifest_candidates:
