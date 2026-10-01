@@ -53,3 +53,24 @@ One report per skill, each scored on the same five dimensions and listing findin
 
 ## Update after a static-analysis pass
 A `pyflakes` run found 20 undefined-name errors, all `os` used without import in 5 Davidson maintenance/repair scripts (see 04-D8); it also reported 74 f-strings without placeholders and 48 unused imports (low severity, not itemised). This pass was not part of the first audit; there are likely other classes of defect no one has looked for yet.
+
+## Revised grades after the second sweep (see `SECOND_SWEEP.md`)
+Grades changed where the deeper read found fail-open gates, text-corrupting steps, or crashes on documented paths. Still my judgement.
+
+| # | Skill | First grade | Revised | Main reason |
+|--:|---|:-:|:-:|---|
+| 01 | cdss-unicode-mojibake-guard | B+ | **B-** | protected-dir descent, UTF-16 overwrite, ISMP `U` rule hits `U.S.`, narrow mojibake map |
+| 02 | medical-book-split-ocr-organizer | C+ | **C** | nested-move and "move everything" bugs |
+| 03 | davidson-ocr-preready | B | **C+** | page-marker/heading/URL rules rewrite real content |
+| 04 | davidson-rag-pipeline-antigravity | B+ | **C+** | Stage 6 passes on 0 chunks; NFKC and Stage 2 corrupt text; weak 4.5b/4.5d/4.6; trust ignores stage status; 4.5d pending_manual crash |
+| 05 | medical-index-rag-compiler | D | **D** | unchanged; plus acronym-blind index, generic safety matrix, ignored `--dry-run` |
+| 06 | cdss-retrieval-packager | B- | **C** | cross-book router contamination (stub-tested), dose-dropping excerpts, prune deletes trust evidence |
+| 07 | cdss-bridge-note-publisher | B+ | **C+** | gate fails open (exempt headings, ambiguous ids, single-token tables); hard-coded cardiac title; table data loss |
+| 08 | medical-rag-orchestrator | B+ | **B-** | `guard` audit crashes; `auto` exits 0 after untrusted chapters |
+| 09 | medical-cdss-unified-orchestrator | C+ | **C** | flags ignored per mode; JSON unparseable; empty packet sections |
+| 10–12 | harrison / hurst / kumar navigators | C / C+ / C | **C / C+ / C** | plus JSON budget truncation and ignored router exit codes |
+| 13 | kawsar-habijabi | F | **F** | plus stop-word matching, first-match-only safety rules, wrong-looking SBA content |
+| 14 | clinical-preceptor | D+ | **D** | "all" filter hides most of safety matrix; `--workspace` not forwarded; unimplemented stages |
+| 15–16, 18 | protocols, token-audit | B-, C+, B- | **unchanged** | |
+| 17 | clean-my-ai-harness | B- | **B-** | documented command fails (`--model`); scanner itself robust |
+| 19 | version-manager | B- | **C+** | pre-release bump corrupts state; half-bump on nested `version:` |
