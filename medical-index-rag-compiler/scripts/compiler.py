@@ -241,7 +241,7 @@ class MedicalBookIndexCompiler:
         # Regex extractors
         trial_pattern = re.compile(r"\b([A-Z0-9\-]{2,15})\s*\(([^)]+)\)\s*(?:trial|study|investigation|registry)", re.IGNORECASE)
         acronym_pattern = re.compile(r"([A-Za-z0-9\s\-]+)\s*\(([A-Z0-9\-]{2,10})\)")
-        page_pattern = re.compile(r"(\d+)(?:–|-)(\d+)|(\d+)([tfc]?)")
+        page_pattern = re.compile(r"(?<![A-Za-z0-9])(?:(\d+)(?:–|-)(\d+)|(\d+)([tfc]?))(?![A-Za-z0-9])")
 
         for line in raw_lines:
             if line.startswith("#") or line.startswith("Note:"):

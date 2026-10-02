@@ -115,3 +115,13 @@ def test_duplicate_acronym_keeps_every_expansion(tmp_path):
     comp.run_all()
     syn = json.loads((out / "cardiology_synonyms_and_acronyms.json").read_text(encoding="utf-8"))
     assert syn["PE"]["canonical_terms"] == ["Pulmonary embolism", "Pre-eclampsia"]
+
+
+def test_page_anchors_ignore_digits_inside_terms(tmp_path):
+    """M21: 'HbA1c' used to yield page 1 / token '1c'; real locators must still parse."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text("# Index\nHbA1c, 12, 14-16, 20t, 21f\nSGLT2 inhibitors, 30\n", encoding="utf-8")
+    comp.run_all()
+    anchors = json.loads((out / "t_typographical_anchors.json").read_text(encoding="utf-8"))
+    got = {(a.get("page") or a.get("page_start"), a["anchor_type"]) for a in anchors}
+    assert got == {("14", "page_interval"), ("20", "table_anchor"), ("21", "figure_anchor")}
