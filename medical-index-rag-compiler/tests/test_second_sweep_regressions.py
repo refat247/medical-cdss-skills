@@ -125,3 +125,14 @@ def test_page_anchors_ignore_digits_inside_terms(tmp_path):
     anchors = json.loads((out / "t_typographical_anchors.json").read_text(encoding="utf-8"))
     got = {(a.get("page") or a.get("page_start"), a["anchor_type"]) for a in anchors}
     assert got == {("14", "page_interval"), ("20", "table_anchor"), ("21", "figure_anchor")}
+
+
+def test_lowercase_initial_acronym_term_is_a_primary_entry(tmp_path):
+    """M20: 'eGFR' was filed as a sub-entry of the preceding term."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nAtrial fibrillation, 10\nin heart failure, 11\neGFR in, 80\nin CKD, 81\n", encoding="utf-8")
+    comp.run_all()
+    h = json.loads((out / "index_concept_hierarchy.json").read_text(encoding="utf-8"))
+    assert h["Atrial fibrillation"] == ["in heart failure, 11"]
+    assert "eGFR in, 80" in h and h["eGFR in, 80"] == ["in CKD, 81"]

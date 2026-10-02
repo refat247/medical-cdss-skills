@@ -248,7 +248,10 @@ class MedicalBookIndexCompiler:
                 continue
 
             # Check if sub-facet or primary concept
-            is_sub = (line and line[0].islower() and not line.startswith("$")) or any(
+            first_word = line.split(None, 1)[0].rstrip(",;") if line else ""
+            # a lowercase-initial token with inner capitals (eGFR, mRNA, pH) is a primary term, not a sub-entry
+            is_sub = (line and line[0].islower() and not line.startswith("$")
+                      and not any(c.isupper() for c in first_word)) or any(
                 line.startswith(p) for p in ["in ", "of ", "for ", "with ", "as ", "and ", "vs."]
             )
 
