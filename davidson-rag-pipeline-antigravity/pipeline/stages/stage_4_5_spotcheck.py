@@ -45,14 +45,22 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
         s = re.sub(r"[*_`]+", "", s)
         return re.sub(r"\s+", " ", s).strip()
 
-    rep_norm = norm(repaired)
-    rep_lines = {norm(l) for l in repaired.splitlines() if norm(l)}
+    # Keep blank lines in the joined source so paragraph boundaries remain explicit.
+    rep_line_list = [norm(l) for l in repaired.splitlines()]
+    rep_lines = {l for l in rep_line_list if l}
+    rep_joined = "\n".join(rep_line_list)
 
     def line_in_source(line):
         if line in rep_lines:
             return True
-        # wrapped lines: substring match, but never inside a longer token ("300 mg" must not match "1300 mg")
-        return re.search(r"(?<![\w.,/\-])" + re.escape(line) + r"(?![\w])", rep_norm) is not None
+        # Wrapped matching contract:
+        # - may join one or more consecutive non-blank source lines within the same paragraph;
+        # - each joined source-line boundary corresponds to a space in the normalized chunk line;
+        # - the match must begin and end on source-line boundaries;
+        # - blank-line paragraph boundaries are never bridged.
+        # rep_joined preserves blank lines as "\n\n"; the pattern below admits only single "\n" boundaries.
+        pat = r"(?:(?<=\n)|^)" + r"[ \n]".join(re.escape(t) for t in line.split(" ")) + r"(?=\n|$)"
+        return re.search(pat, rep_joined) is not None
 
     # Stage 4B synthesises these two lines when it pairs an MCQ with its answer; they are not in the source.
     synthetic = re.compile(r"^(?:Answer & Explanation|Answers?: .*)$")

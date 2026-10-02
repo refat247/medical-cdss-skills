@@ -741,3 +741,32 @@ def test_l3_checkpoint_keeps_readable_permissions(tmp_path):
     save_checkpoint({"pipeline_state": {}}, str(p))
     if os.name == "posix":
         assert stat.S_IMODE(os.stat(p).st_mode) == 0o644
+
+
+# ---------- M2 (truncated-line suffix): a chunk line must start and end on source-line boundaries ----------
+def test_m2_truncated_line_suffix_does_not_clear(tmp_path, monkeypatch):
+    # the dropped prefix ("Do not give") reverses the meaning of what is left
+    r = _run_45(tmp_path, monkeypatch, "Do not give Aspirin 300 mg daily.\n", _l2c("Aspirin 300 mg daily."))
+    assert r["verdict"] == "FAIL" and "C1" in r["failed_ids"]
+
+
+def test_m2_truncated_line_tail_loss_does_not_clear(tmp_path, monkeypatch):
+    r = _run_45(tmp_path, monkeypatch, "Give Aspirin 300 mg daily for 7 days.\n", _l2c("Give Aspirin 300 mg daily"))
+    assert r["verdict"] == "FAIL" and "C1" in r["failed_ids"]
+
+
+def test_m2_single_source_line_wrap_still_clears(tmp_path, monkeypatch):
+    src = "Give Aspirin 300 mg daily\nfor 7 days in adults.\n"
+    assert _run_45(tmp_path, monkeypatch, src, _l2c("Give Aspirin 300 mg daily for 7 days in adults."))["verdict"] == "CLEARED"
+
+
+def test_m2_single_source_line_wrap_with_markup_still_clears(tmp_path, monkeypatch):
+    src = "Give **Aspirin** 300 mg\ndaily for 7 days.\n"
+    assert _run_45(tmp_path, monkeypatch, src, _l2c("Give Aspirin 300 mg daily for 7 days."))["verdict"] == "CLEARED"
+
+
+def test_m2_wrap_cannot_jump_a_blank_source_line(tmp_path, monkeypatch):
+    # a blank line is a paragraph boundary; the verbatim gate must not silently erase it
+    src = "Give Aspirin 300 mg\n\ndaily for 7 days.\n"
+    r = _run_45(tmp_path, monkeypatch, src, _l2c("Give Aspirin 300 mg daily for 7 days."))
+    assert r["verdict"] == "FAIL" and "C1" in r["failed_ids"]
