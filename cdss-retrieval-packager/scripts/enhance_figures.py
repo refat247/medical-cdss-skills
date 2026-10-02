@@ -26,6 +26,9 @@ def _flatten_to_rgb(img: Image.Image) -> Image.Image:
         bg = Image.new("RGB", rgba.size, (255, 255, 255))
         bg.paste(rgba.convert("RGB"), mask=rgba.split()[3])
         return bg
+    if img.mode in ("I;16", "I;16L", "I;16B", "I"):
+        # 16-bit greyscale: a plain convert("RGB") clips everything above 255 to white
+        return img.point(lambda v: v / 256).convert("L").convert("RGB")
     if img.mode != "RGB":
         return img.convert("RGB")
     return img

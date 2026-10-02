@@ -122,3 +122,14 @@ def test_literal_asterisks_are_not_treated_as_italic(tmp_path):
     assert "".join(r.text for r in para.runs) == "dose a * b * c and real italic and bold"
     italic = [r.text for r in para.runs if r.italic]
     assert italic == ["real italic"]
+
+
+def test_16bit_greyscale_png_is_not_whitened(tmp_path):
+    """M30: I;16 mid-grey converted to pure white."""
+    PIL = pytest.importorskip("PIL.Image")
+    from enhance_figures import enhance_figure
+    src, dst = tmp_path / "g.png", tmp_path / "out.png"
+    PIL.new("I;16", (8, 8), 30000).save(src)
+    assert enhance_figure(src, dst, scale_factor=1)
+    px = PIL.open(dst).convert("RGB").getpixel((4, 4))
+    assert 100 < px[0] < 135                       # ~30000/256 = 117, not 255
