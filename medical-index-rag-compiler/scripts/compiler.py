@@ -626,10 +626,15 @@ class MedicalBookIndexCompiler:
         self._write_json(f"{p}_entity_schema.json", json_schema)
 
         # BM25 Weights
-        bm25_weights: Dict[str, float] = {}
+        # stop words get no weight; the rest scale down with how many index terms share them (flat 3.0 made
+        # "disease"/"management" as salient as "apixaban")
+        stop = {"the", "and", "see", "also", "for", "with", "von", "from", "its", "not"}
+        df: Dict[str, int] = {}
         for item in self.index_terms:
-            for w in re.findall(r"\b[a-z]{3,15}\b", item["term"].lower()):
-                bm25_weights[w] = 3.0
+            for w in set(re.findall(r"\b[a-z]{3,15}\b", item["term"].lower())):
+                if w not in stop:
+                    df[w] = df.get(w, 0) + 1
+        bm25_weights: Dict[str, float] = {w: round(3.0 / (1 + math.log(n)), 3) for w, n in df.items()}
         self._write_json(f"{p}_index_salience_bm25_weights.json", bm25_weights)
 
         self.log("PHASE 4", f"Synthesized semantic cache ({len(cache)}), differentials ({len(differentials)}), and BM25 weights.")

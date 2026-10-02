@@ -158,3 +158,13 @@ def test_path_filter_matches_whole_segments_only(tmp_path):
     ids = {c["chunk_id"] for c in cat}
     assert "C-keep" in ids and "C-drop" not in ids
 
+
+def test_bm25_weights_skip_stopwords_and_discount_common_words(tmp_path):
+    """M25: weights were a flat 3.0 for every word, including 'see'/'the'."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nDisease of the heart, 1\nDisease of the liver, 2\nDisease of the lung, 3\nApixaban, 4\n", encoding="utf-8")
+    comp.run_all()
+    w = json.loads((out / "t_index_salience_bm25_weights.json").read_text(encoding="utf-8"))
+    assert "the" not in w
+    assert w["apixaban"] > w["disease"]
