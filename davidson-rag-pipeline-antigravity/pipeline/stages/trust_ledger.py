@@ -56,6 +56,9 @@ def _derive_prefix(output_dir):
     ]
     for suffix in suffixes_in_priority_order:
         matches = sorted(glob.glob(os.path.join(output_dir, f"*{suffix}")))
+        if len(matches) > 1:
+            # several runs left several files: the most recently written one is the current run, not the alphabetically first
+            matches.sort(key=lambda m: (-os.path.getmtime(m), m))
         if matches:
             basename = os.path.basename(matches[0])
             return basename[: -len(suffix)]
