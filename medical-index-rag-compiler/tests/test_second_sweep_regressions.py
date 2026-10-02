@@ -134,5 +134,5 @@ def test_lowercase_initial_acronym_term_is_a_primary_entry(tmp_path):
         "# Index\nAtrial fibrillation, 10\nin heart failure, 11\neGFR in, 80\nin CKD, 81\n", encoding="utf-8")
     comp.run_all()
     h = json.loads((out / "index_concept_hierarchy.json").read_text(encoding="utf-8"))
-    assert h["Atrial fibrillation"] == ["in heart failure, 11"]
+    assert h["Atrial fibrillation, 10"] == ["in heart failure, 11"]
     assert "eGFR in, 80" in h and h["eGFR in, 80"] == ["in CKD, 81"]
