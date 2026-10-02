@@ -86,3 +86,47 @@ def test_review_m7_bare_publisher_pdf_url_watermark_is_stripped():
     from preready.header_normalizer import clean_ocr_running_headers as clean_ocr_noise
     out = clean_ocr_noise("Text.\n\nhttps://diabetesjournals.org/care/article-pdf/48/1/S1.pdf\n\nMore text.")
     assert "article-pdf" not in out
+
+
+def _chapter(tmp_path, md, tables=None):
+    src = tmp_path / "src"
+    for name, body in (tables or {}).items():
+        d = src / "pages" / "page-1"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / name).write_text(body, encoding="utf-8")
+    src.mkdir(exist_ok=True)
+    (src / "markdown.md").write_text(md, encoding="utf-8")
+    return str(src)
+
+
+def test_m17_empty_header_cell_still_gets_full_delimiter():
+    from preready.table_inliner import ensure_table_delimiters
+    out = ensure_table_delimiters("| A |  | C |\n| 1 | 2 | 3 |").splitlines()
+    assert out[1].count("---") == 3
+
+
+def test_m19_report_is_computed_and_missing_table_is_partial(tmp_path):
+    from preready.runner import run_preready
+    src = _chapter(tmp_path, "# T\n\n[tbl-0.md](tbl-0.md)\n\n[tbl-9.md](tbl-9.md)\n",
+                   {"tbl-0.md": "| A | B |\n|---|---|\n| 1 | 2 |"})
+    res = run_preready(source_dir=src, ch_num=2, prefix="Davidson_25_02_T")
+    assert res["status"] == "PARTIAL"
+    report = open(res["master_report"], encoding="utf-8").read()
+    assert "Completeness**: 100%" not in report and "50% (1/2)" in report
+
+
+def test_m19_complete_chapter_is_success_and_cli_exit_is_3_on_partial(tmp_path):
+    import subprocess
+    from preready.runner import run_preready
+    ok = _chapter(tmp_path, "# T\n\n[tbl-0.md](tbl-0.md)\n", {"tbl-0.md": "| A | B |\n|---|---|\n| 1 | 2 |"})
+    res = run_preready(source_dir=ok, ch_num=2, prefix="Davidson_25_02_T")
+    assert res["status"] == "SUCCESS"
+    assert "Completeness**: 100% (1/1)" in open(res["master_report"], encoding="utf-8").read()
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    (bad / "markdown.md").write_text("# T\n\n[tbl-5.md](tbl-5.md)\n", encoding="utf-8")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    r = subprocess.run([sys.executable, "-m", "preready.runner", "--source-dir", str(bad), "--ch", "2", "--prefix", "Davidson_25_02_T"],
+                       cwd=root, capture_output=True, text=True)
+    assert r.returncode == 3, r.stderr
+

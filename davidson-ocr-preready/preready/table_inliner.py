@@ -20,7 +20,7 @@ def ensure_table_delimiters(table_str: str) -> str:
     lines = table_str.strip().splitlines()
     if len(lines) >= 1 and lines[0].strip().startswith("|"):
         if len(lines) == 1 or not re.match(r'^\s*\|?\s*:?-+:?\s*\|', lines[1]):
-            col_count = len([c for c in lines[0].split("|") if c.strip()])
+            col_count = len(lines[0].strip().strip("|").split("|"))   # empty header cells still count
             if col_count > 0:
                 delim = "| " + " | ".join(["---"] * col_count) + " |"
                 lines.insert(1, delim)

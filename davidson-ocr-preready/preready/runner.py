@@ -194,7 +194,8 @@ def run_preready(
     print(f"      Wrote master audit report to: {master_rep}")
 
     return {
-        "status": "SUCCESS",
+        "status": "SUCCESS" if all(t["status"] == "INLINED" for t in table_audits)
+                  and all(i["copied"] for i in image_audits) else "PARTIAL",
         "output_file": canonical_output_path,
         "tables_inlined": len(table_audits),
         "figures_decoupled": len(image_audits),
@@ -216,6 +217,7 @@ def main():
     source_dirs = expand_source_dirs(raw_source_dirs)
     results = []
     has_error = False
+    has_partial = False
 
     print(f"Discovered {len(source_dirs)} chapter folder(s) to process.")
 
@@ -234,7 +236,12 @@ def main():
                 ch_num=ch_override,
                 prefix=pfx_override
             )
-            print("\n[SUCCESS] Pre-ready pipeline completed cleanly!")
+            if res["status"] == "PARTIAL":
+                print("\n[PARTIAL] Pre-ready finished but some tables/figures were not resolved; see the audit reports.",
+                      file=sys.stderr)
+                has_partial = True
+            else:
+                print("\n[SUCCESS] Pre-ready pipeline completed cleanly!")
             print(f"Ready for RAG pipeline: {res['output_file']}")
             results.append(res)
         except Exception as e:
@@ -243,6 +250,8 @@ def main():
 
     if has_error:
         sys.exit(1)
+    if has_partial:
+        sys.exit(3)
 
 
 if __name__ == "__main__":
