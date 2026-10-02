@@ -105,3 +105,13 @@ def test_trailing_chunk_divider_heading_is_not_in_body():
     body = "text of chunk\n\n### Chunk 2 of 5\n"
     out = re.sub(r"(?:\r?\n)+#{1,6}[ \t]+Chunk\b[^\n]*\s*$", "", body.strip())
     assert out == "text of chunk"
+
+
+def test_duplicate_acronym_keeps_every_expansion(tmp_path):
+    """M22: 'PE' used to keep only the last expansion."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nPulmonary embolism (PE), 10\nPre-eclampsia (PE), 20\nPulmonary embolism (PE), 30\n", encoding="utf-8")
+    comp.run_all()
+    syn = json.loads((out / "cardiology_synonyms_and_acronyms.json").read_text(encoding="utf-8"))
+    assert syn["PE"]["canonical_terms"] == ["Pulmonary embolism", "Pre-eclampsia"]

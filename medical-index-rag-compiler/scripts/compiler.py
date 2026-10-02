@@ -276,10 +276,9 @@ class MedicalBookIndexCompiler:
                 canon = am.group(1).strip()
                 acro = am.group(2).strip()
                 if len(acro) >= 2 and acro.isupper():
-                    synonyms[acro] = {
-                        "canonical_terms": [canon],
-                        "type": "acronym_expansion"
-                    }
+                    entry = synonyms.setdefault(acro, {"canonical_terms": [], "type": "acronym_expansion"})
+                    if canon not in entry["canonical_terms"]:
+                        entry["canonical_terms"].append(canon)   # PE -> Pulmonary embolism AND Pre-eclampsia
 
             # Check for typographical anchors (t, f, c, ranges)
             for pm in page_pattern.finditer(line):
