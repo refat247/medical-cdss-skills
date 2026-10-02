@@ -27,7 +27,7 @@ Still open from those reviews: L1 glued/adjacent page numbers (exact failing pro
 ## Open
 **Needs a decision or input (not mechanical)**
 - Preready M18 is fixed fail-closed: a shared output may reuse an identical canonical figure, but a different pre-existing target is refused before any figure copy occurs.
-- Davidson: edge over-inclusion is not flagged; retrieval "accuracy" is self-retrieval; 1.24 PDF image numbering can mis-name images (unconfirmed).
+- Davidson source-lines edge over-inclusion is now surfaced as an adjudication candidate while structural boundary lines are ignored. Retrieval "accuracy" remains self-retrieval; 1.24 PDF image numbering can mis-name images (unconfirmed; needs real PDF).
 - Bridge basename collision is fixed: mirrored enhanced paths are preferred; legacy flat enhanced files are used only for unique basenames. Canned auscultation fallback remains open.
 - Davidson 30 skipped tests need the author's `D:\` corpus (T5).
 - `claude-sonnet-5` (default verifier model id) is unverified; override with `CDSS_VERIFIER_MODEL`.
