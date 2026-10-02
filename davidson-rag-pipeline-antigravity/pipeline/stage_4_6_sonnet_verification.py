@@ -24,6 +24,7 @@ stage in this skill works (no chunk-object model, no persistent state between
 stages).
 """
 
+import os
 import re
 import json
 import logging
@@ -504,8 +505,17 @@ def _parse_sonnet_verification(response_text, expected_ids):
         except json.JSONDecodeError:
             parsed = []
 
+    if isinstance(parsed, dict):
+        # dict-shaped replies: {"corrections": [...]} / {"results": [...]} / a single {"chunk_id":..} item
+        lists = [v for v in parsed.values() if isinstance(v, list)]
+        parsed = lists[0] if lists else ([parsed] if "chunk_id" in parsed else [])
+    if not isinstance(parsed, list):
+        parsed = []
+
     seen_ids = set()
     for item in parsed:
+        if not isinstance(item, dict):
+            continue
         cid = item.get("chunk_id")
         stype = item.get("semantic_type")
         if cid and stype in SEMANTIC_TYPES:
@@ -514,6 +524,35 @@ def _parse_sonnet_verification(response_text, expected_ids):
 
     unparsed_ids = [cid for cid in expected_ids if cid not in seen_ids]
     return corrections, unparsed_ids
+
+
+VERIFIER_MODEL = os.environ.get("CDSS_VERIFIER_MODEL", "claude-sonnet-5")   # override if this id is not available to your key
+VERIFIER_BATCH_SIZE = 25
+
+
+def _run_verifier_batches(client, reviews, ids, max_output_tokens, batch_size=None):
+    """One request per `batch_size` chunks (a whole chapter in one request overruns output limits). A reply
+    cut off by max_tokens is not trusted: that batch's ids are returned as unparsed so existing tags are kept.
+    Returns (corrections, unparsed_ids, tokens_used, truncated_batches)."""
+    batch_size = batch_size or VERIFIER_BATCH_SIZE
+    corrections, unparsed, tokens, truncated = {}, [], 0, 0
+    for i in range(0, len(reviews), batch_size):
+        b_reviews, b_ids = reviews[i:i + batch_size], ids[i:i + batch_size]
+        response = client.messages.create(
+            model=VERIFIER_MODEL,
+            max_tokens=max_output_tokens,
+            messages=[{"role": "user", "content": _build_verification_prompt("\n".join(b_reviews))}],
+        )
+        tokens += response.usage.input_tokens + response.usage.output_tokens
+        if getattr(response, "stop_reason", None) == "max_tokens":
+            truncated += 1
+            unparsed.extend(b_ids)
+            continue
+        text = response.content[0].text if response.content else "[]"
+        c, u = _parse_sonnet_verification(text, b_ids)
+        corrections.update(c)
+        unparsed.extend(u)
+    return corrections, unparsed, tokens, truncated
 
 
 def _stage_4_6_sonnet_verification_all(chunks_data, repaired_s2_text, levels, max_output_tokens):
@@ -547,17 +586,8 @@ def _stage_4_6_sonnet_verification_all(chunks_data, repaired_s2_text, levels, ma
             f"content: {body}\nlocal_source_context: {context}\n---"
         )
 
-    prompt = _build_verification_prompt('\n'.join(reviews))
-
     client = Anthropic()
-    response = client.messages.create(
-        model="claude-sonnet-5",
-        max_tokens=max_output_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    response_text = response.content[0].text if response.content else "[]"
-
-    corrections, unparsed_ids = _parse_sonnet_verification(response_text, ids)
+    corrections, unparsed_ids, tokens_used, truncated = _run_verifier_batches(client, reviews, ids, max_output_tokens)
 
     changed = 0
     out_parts = [preamble]
@@ -579,13 +609,14 @@ def _stage_4_6_sonnet_verification_all(chunks_data, repaired_s2_text, levels, ma
         log.warning(f"{len(unparsed_ids)} chunks unparsed, kept existing tags: {unparsed_ids}")
 
     new_text = ''.join(out_parts)
-    tokens_used = response.usage.input_tokens + response.usage.output_tokens
     metadata = _build_metadata(
         new_text, sonnet_used=True, sonnet_failed_fallback=False,
         sonnet_failure_reason=None, corrected=changed, unparsed_ids=unparsed_ids,
         tokens_used=tokens_used, chunks_reviewed=len(targets),
     )
-    metadata["needs_manual_verification"] = False
+    metadata["needs_manual_verification"] = truncated > 0    # a truncated reply is never silently accepted
+    if truncated:
+        metadata["truncated_batches"] = truncated
     return new_text, metadata
 
 
@@ -617,17 +648,8 @@ def _stage_4_6_sonnet_verification(chunks_data, repaired_s2_text, max_output_tok
             f"content: {body}\nlocal_source_context: {context}\n---"
         )
 
-    prompt = _build_verification_prompt('\n'.join(reviews))
-
     client = Anthropic()
-    response = client.messages.create(
-        model="claude-sonnet-5",
-        max_tokens=max_output_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    response_text = response.content[0].text if response.content else "[]"
-
-    corrections, unparsed_ids = _parse_sonnet_verification(response_text, ids)
+    corrections, unparsed_ids, tokens_used, _truncated = _run_verifier_batches(client, reviews, ids, max_output_tokens)
 
     changed = 0
     out_parts = [preamble]
@@ -648,7 +670,6 @@ def _stage_4_6_sonnet_verification(chunks_data, repaired_s2_text, max_output_tok
         log.warning(f"{len(unparsed_ids)} chunks unparsed, kept pathophysiology: {unparsed_ids}")
 
     new_text = ''.join(out_parts)
-    tokens_used = response.usage.input_tokens + response.usage.output_tokens
     metadata = _build_metadata(
         new_text, sonnet_used=True, sonnet_failed_fallback=False,
         sonnet_failure_reason=None, corrected=changed, unparsed_ids=unparsed_ids,
