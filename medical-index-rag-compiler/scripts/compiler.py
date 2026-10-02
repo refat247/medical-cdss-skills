@@ -10,6 +10,7 @@ import argparse
 import glob
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -351,7 +352,12 @@ class MedicalBookIndexCompiler:
         root = os.path.abspath(self.config.corpus_root)
         def _rel(p):
             return os.path.relpath(os.path.abspath(p), root).lower()
-        chunk_files = [p for p in chunk_files if not any(k in _rel(p) for k in ("backup", "audit", "bundle"))]
+        # whole path-segment tokens only: "unbundled_cases" / "auditory" are real chapter folders, "audit_2024" is not
+        _skip = {"backup", "backups", "audit", "audits", "bundle", "bundles"}
+        def _is_copy(p):
+            parts = re.split(r"[\\/]", os.path.dirname(_rel(p)))
+            return any(t in _skip for part in parts for t in re.split(r"[^a-z0-9]+", part))
+        chunk_files = [p for p in chunk_files if not _is_copy(p)]
         by_name = {}
         for p in sorted(chunk_files, key=lambda p: (os.path.basename(os.path.dirname(p)) != "rag_pipeline_output",
                                                     _rel(p).count(os.sep), p)):

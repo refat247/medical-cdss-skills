@@ -136,3 +136,25 @@ def test_lowercase_initial_acronym_term_is_a_primary_entry(tmp_path):
     h = json.loads((out / "index_concept_hierarchy.json").read_text(encoding="utf-8"))
     assert h["Atrial fibrillation, 10"] == ["in heart failure, 11"]
     assert "eGFR in, 80" in h and h["eGFR in, 80"] == ["in CKD, 81"]
+
+
+def _extra_chapter(tmp_path, folder, name, chunk_id):
+    d = tmp_path / "corpus" / folder
+    d.mkdir(parents=True)
+    (d / f"{name}_RAG_Optimised.md").write_text(
+        f"---\nchunk_id: {chunk_id}\nchunk_level: 2\ntopic_primary: \"Anaemia\"\nsemantic_type: clinical_feature\n---\nPallor.\n",
+        encoding="utf-8")
+    (d / f"{name}_CHECKPOINT.json").write_text(json.dumps({"stage_completions": {
+        "6": {"status": "COMPLETED"}, "8": {"status": "COMPLETED", "trusted_for_downstream_use": True}}}), encoding="utf-8")
+
+
+def test_path_filter_matches_whole_segments_only(tmp_path):
+    """M26: 'unbundled_cases' was dropped because it contains 'bundle'; 'audit_copy' must still be dropped."""
+    comp, out = build(tmp_path, skip_eval=True)
+    _extra_chapter(tmp_path, "unbundled_cases", "CH02", "C-keep")
+    _extra_chapter(tmp_path, "audit_copy", "CH03", "C-drop")
+    comp.run_all()
+    cat = json.loads((out / "t_chunks_master_catalog.json").read_text(encoding="utf-8"))
+    ids = {c["chunk_id"] for c in cat}
+    assert "C-keep" in ids and "C-drop" not in ids
+
