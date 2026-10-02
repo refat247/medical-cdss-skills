@@ -25,10 +25,26 @@ Still open from those reviews: M2 truncated-line suffix match (wrapped lines sti
 - Prescribing screen: 6 fixed rules; still not an interaction checker.
 
 ## Open
-- Davidson: F18/F22/F25/F29, skipped tests that need the `D:\` corpus (T5).
-- Direct tests now exist for 4.5b, Stage 7 and chunks_checked==0 (tests/test_stage_4_5b_and_7_direct.py, test_second_sweep_regressions.py, test_verify_trusted_corpus_invariants.py). Davidson 1.30 mechanical items fixed (Stage 4 AUDIT_REPORT duplicates, trust-record newest checkpoint, Stage 3 short-doc block, Ch05 backup collision; auto-chain CLI test now asserts exit 3). Not mechanical, left open: edge over-inclusion not flagged, retrieval "accuracy" is self-retrieval, 30 skips need the D:\ corpus. Davidson 1.27 (whole-word keywords, body not frontmatter, <3-chunk clusters reported as `low_evidence`; verdict for them unchanged) and 1.28 (batched verifier, max_tokens rejected, dict replies, CDSS_VERIFIER_MODEL override; the default id "claude-sonnet-5" is still unverified) fixed. Marker-hash recheck (1.20 / F10), 1.24 (table-safe, LaTeX-safe figure tags; PDF image numbering mis-naming still open) and 1.26 (adjudication scoped to the documented chunks, gate evidence read not hard-coded; the false_positive calls themselves need a clinician) fixed. F4-F6 were already fixed; F13/F14 partial (1.19); F20/F21 sit under 1.30; anion-gap wording already fixed; the adult weight cap in the dengue calculator is clinical content (needs a clinician). Kumar and trigger collisions fixed (D-26 with tests; 3.17 via description scoping, qa/test_trigger_scope.py). Preready M18 (cross-run figure overwrite in a shared --out-dir; not reproducible within one run, needs a policy decision) (M17, M19 fixed with tests); compiler (M20-M22, M25, M26 fixed with tests); bridge enhanced-copy-by-basename plus the canned fallback (M28, M29, M30, M31, M32 fixed with tests);.
-- Reviewer minor items F4-F6, F10, F13, F14, F20, F21 (adult weight cap, anion-gap wording, etc.).
-- **All clinical-content concerns** (dengue-shock SBA, MR mutation rationale, gout hard stop, SSRI washout, thalassaemia leaflet) need a clinician.
+**Needs a decision or input (not mechanical)**
+- Preready M18: cross-run figure overwrite in a shared `--out-dir` (not reproducible within one run; refuse or version the file name?).
+- Davidson: edge over-inclusion is not flagged; retrieval "accuracy" is self-retrieval; 1.24 PDF image numbering can mis-name images (unconfirmed).
+- Bridge: enhanced figure is looked up by basename (flat output folder); canned fallback.
+- Davidson 30 skipped tests need the author's `D:\` corpus (T5).
+- `claude-sonnet-5` (default verifier model id) is unverified; override with `CDSS_VERIFIER_MODEL`.
+- Davidson F18/F22/F25/F29 and reviewer F13/F14/F20/F21: no individual definitions in the repo (F13/F14 partial under 1.19; F20/F21 sit under 1.30).
+
+**Needs a clinician (all clinical-content concerns)**
+- Dengue-shock SBA; MR mutation rationale; gout hard stop; SSRI washout; thalassaemia leaflet.
+- Dengue calculator adult weight cap.
+- Ch05 `false_positive` adjudication calls (the script is now scoped to the documented chunks, but the calls are clinical).
+
+## Fixed since second sweep (code change plus regression test)
+- **Compiler**: M20 (`eGFR` as primary entry), M21 (digits inside terms), M22 (duplicate acronyms), M25 (BM25 weights), M26 (path filter tokens).
+- **Bridge** (and packager `enhance_figures.py`): M28 (asterisks, `<br>`), M29 (numbered lists restart), M30 (16-bit greyscale), M31 (refresh enhanced copy), M32 (chapter regex, ambiguous book names).
+- **Preready**: M17 (empty header delimiter), M19 (computed completeness, `PARTIAL`, exit 3).
+- **Davidson**: 1.20/F10 (marker-hash recheck), 1.24 (table-safe, LaTeX-safe figure tags), 1.26 (adjudication scope, gate evidence not hard-coded), 1.27 (whole-word keywords, body-only, `low_evidence`), 1.28 (batched verifier, `max_tokens` rejected, dict replies), 1.30 mechanical items (Stage 4 report duplicates, newest-checkpoint trust record, Stage 3 short documents, Ch05 backup collision; auto-chain CLI test asserts exit 3). Direct tests now exist for 4.5b, Stage 7 and `chunks_checked==0`. F4-F6 and the anion-gap wording were already fixed.
+- **Kumar**: D-26 whole-word, ambiguity-aware drug match.
+- **Trigger collisions (3.17)**: descriptions scoped, guarded by `qa/test_trigger_scope.py`.
 
 ## Behaviour changes to expect
 - Stricter Davidson gates (4.5/6) may fail chapters previously marked trusted; rebuild any chapter produced with the old NFKC step.
@@ -36,7 +52,7 @@ Still open from those reviews: M2 truncated-line suffix match (wrapped lines sti
 - Unified `--json` only with `--query`; prescribing screen exit code changed (alert 1).
 
 ## Test evidence
-Davidson 575 passed/30 skipped; bridge 29; packager 23; guard 50; preceptor ~12; preready 47; Harrison 10; Hurst 11; Kawsar 47; Kumar 10; organizer 13; unified 27; compiler 20; rag-orchestrator 16; version-manager 17; harness 3; `qa/check_all.py` green; suite verify 0 drift.
+Davidson 618 passed/30 skipped; bridge 35; packager 23; guard 50; preceptor ~12; preready 52; Harrison 10; Hurst 11; Kawsar 47; Kumar 13 (7 skipped); organizer 13; unified 27; compiler 25; rag-orchestrator 16; version-manager 17; harness 3; `qa/check_all.py` green; suite verify 0 drift.
 
 ## Environment note
 If `test_fixture_files_match_manifest_hashes` and `test_real_ch05_manifest_validates_against_fresh_stage_4_5d_run` fail on a fresh clone, the fixtures were checked out as LF although `.gitattributes` pins them to CRLF (the attribute only applies when git writes the files). Fix, with no tracked change: `rm -rf davidson-rag-pipeline-antigravity/tests/fixtures && git checkout -- davidson-rag-pipeline-antigravity/tests/fixtures`. Davidson then runs 589 passed / 30 skipped.
