@@ -6,6 +6,7 @@ grounded in Kumar and Clark's Clinical Medicine (11th Edition 2026).
 
 import argparse
 import json
+import re
 import os
 import subprocess
 import sys
@@ -155,17 +156,25 @@ class KumarNavigator:
                 f"==========================================================================="
             )
 
-        # Partial match
-        for d_key, entry in matrix.items():
-            if drug_norm in d_key or d_key in drug_norm:
-                return (
-                    f"===========================================================================\n"
-                    f"KUMAR & CLARK 11TH ED DRUG SAFETY GUARDRAIL: {d_key.upper()}\n"
-                    f"===========================================================================\n"
-                    f"  Indication: {entry.get('general_indication')}\n"
-                    f"  Safety Precautions: {entry.get('safety_precautions')}\n"
-                    f"==========================================================================="
-                )
+        # Partial match on whole words only ("sacubitril" -> "sacubitril/valsartan"; never "ace" -> "acetazolamide").
+        # Several candidates is ambiguous: list them instead of returning one drug's guardrail for another.
+        def _tokens(name):
+            return {t for t in re.split(r"[^a-z0-9]+", name) if t}
+        q = _tokens(drug_norm)
+        hits = [k for k in matrix if q and (q <= _tokens(k) or _tokens(k) <= q)]
+        if len(hits) > 1:
+            return (f"[THERAPY GUARDRAIL] Drug '{drug}' matches several indexed entries: "
+                    f"{', '.join(sorted(hits))}. Re-run with the exact name.")
+        if hits:
+            d_key, entry = hits[0], matrix[hits[0]]
+            return (
+                f"===========================================================================\n"
+                f"KUMAR & CLARK 11TH ED DRUG SAFETY GUARDRAIL: {d_key.upper()} (partial match for '{drug}')\n"
+                f"===========================================================================\n"
+                f"  Indication: {entry.get('general_indication')}\n"
+                f"  Safety Precautions: {entry.get('safety_precautions')}\n"
+                f"==========================================================================="
+            )
 
         return f"[THERAPY GUARDRAIL] Drug '{drug}' not explicitly indexed in current guardrail matrix. Refer to clinical chapters."
 
