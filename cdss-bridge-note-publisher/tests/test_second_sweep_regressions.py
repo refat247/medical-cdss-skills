@@ -133,3 +133,20 @@ def test_16bit_greyscale_png_is_not_whitened(tmp_path):
     assert enhance_figure(src, dst, scale_factor=1)
     px = PIL.open(dst).convert("RGB").getpixel((4, 4))
     assert 100 < px[0] < 135                       # ~30000/256 = 117, not 255
+
+
+def test_enhanced_copy_is_refreshed_when_source_changes(tmp_path):
+    """M31: an existing output copy was never replaced after the source figure changed."""
+    import os
+    PIL = pytest.importorskip("PIL.Image")
+    from enhance_figures import audit_and_enhance_directory
+    figs, out = tmp_path / "figs", tmp_path / "out"
+    figs.mkdir()
+    PIL.new("RGB", (700, 10), (255, 0, 0)).save(figs / "a.png")
+    audit_and_enhance_directory(figs, out)
+    assert PIL.open(out / "a.png").getpixel((0, 0)) == (255, 0, 0)
+    PIL.new("RGB", (700, 10), (0, 0, 255)).save(figs / "a.png")
+    future = (out / "a.png").stat().st_mtime + 10
+    os.utime(figs / "a.png", (future, future))
+    audit_and_enhance_directory(figs, out)
+    assert PIL.open(out / "a.png").getpixel((0, 0)) == (0, 0, 255)

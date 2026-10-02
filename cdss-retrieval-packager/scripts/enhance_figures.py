@@ -82,7 +82,7 @@ def audit_and_enhance_directory(figures_dir: Path, output_dir: Path, min_width: 
                     results["enhanced"] += 1
                 else:
                     results["failed"] += 1
-            elif not dst.exists():
+            elif not dst.exists() or dst.stat().st_mtime < img_path.stat().st_mtime:   # refresh when the source changed
                 with Image.open(img_path) as im:
                     img = im if dst.suffix.lower() == ".png" else _flatten_to_rgb(im)
                     _save(img, dst)
