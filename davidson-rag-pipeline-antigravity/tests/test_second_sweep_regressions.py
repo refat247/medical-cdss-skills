@@ -770,3 +770,26 @@ def test_m2_wrap_cannot_jump_a_blank_source_line(tmp_path, monkeypatch):
     src = "Give Aspirin 300 mg\n\ndaily for 7 days.\n"
     r = _run_45(tmp_path, monkeypatch, src, _l2c("Give Aspirin 300 mg daily for 7 days."))
     assert r["verdict"] == "FAIL" and "C1" in r["failed_ids"]
+
+
+# ---------- L6 decimal-safe drug/dose window ----------
+def test_l6_decimal_dose_does_not_cut_later_drug_window():
+    # The decimal point in 0.5 mg is not a sentence boundary; both doses belong to Aspirin.
+    assert s45._drug_dose_pairs("Aspirin 0.5 mg or 5 mg daily.") == [
+        ("Aspirin", "0.5 mg"),
+        ("Aspirin", "5 mg"),
+    ]
+
+
+def test_l6_real_sentence_boundary_still_stops_drug_carryover():
+    # A genuine full stop still prevents a later bare dose from being attached to Aspirin.
+    assert s45._drug_dose_pairs("Aspirin 0.5 mg. 5 mg daily.") == [
+        ("Aspirin", "0.5 mg"),
+    ]
+
+
+def test_l6_integer_control_still_pairs_both_doses():
+    assert s45._drug_dose_pairs("Aspirin 5 mg or 10 mg daily.") == [
+        ("Aspirin", "5 mg"),
+        ("Aspirin", "10 mg"),
+    ]

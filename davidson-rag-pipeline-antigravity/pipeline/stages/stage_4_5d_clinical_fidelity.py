@@ -584,7 +584,10 @@ def _drug_dose_pairs(text):
     for m in _DOSE_RE.finditer(text):
         line_start = text.rfind("\n", 0, m.start()) + 1
         window = text[max(line_start, m.start() - 40):m.start()]
-        window = window[window.rfind(".") + 1:] if "." in window else window       # stay inside the sentence
+        # Stay inside the sentence, but do not mistake a decimal point (for example 0.5 mg) for a sentence boundary.
+        sentence_stops = list(re.finditer(r"\.(?!\d)", window))
+        if sentence_stops:
+            window = window[sentence_stops[-1].end():]
         words = [w for w in _CAP_WORD_RE.findall(window) if w not in _NOT_A_DRUG]
         if words:
             pairs.append((words[-1], m.group(1)))
