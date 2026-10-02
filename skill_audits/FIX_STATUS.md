@@ -26,7 +26,7 @@ Still open from those reviews: M2 truncated-line suffix match (wrapped lines sti
 
 ## Open
 - Davidson: marker-hash recheck (1.20), `pre_ready_chapter_assets` (1.24), `apply_ch05_adjudication` (1.26), 4.7 completeness (1.27), LLM verifier batching (1.28), F18/F22/F25/F29, skipped tests that need the `D:\` corpus (T5).
-- Preready M17-M19; compiler M25, M26 (M20-M22 fixed with tests); bridge M28-M32 and the canned fallback; Kumar partial drug match; trigger collisions.
+- Preready M17-M19; compiler (M20-M22, M25, M26 fixed with tests); bridge M29 (shared list numId) and enhanced-copy-by-basename plus the canned fallback (M28 asterisks/<br>, M30, M31, M32 fixed with tests); Kumar partial drug match; trigger collisions.
 - Reviewer minor items F4-F6, F10, F13, F14, F20, F21 (adult weight cap, anion-gap wording, etc.).
 - **All clinical-content concerns** (dengue-shock SBA, MR mutation rationale, gout hard stop, SSRI washout, thalassaemia leaflet) need a clinician.
 
