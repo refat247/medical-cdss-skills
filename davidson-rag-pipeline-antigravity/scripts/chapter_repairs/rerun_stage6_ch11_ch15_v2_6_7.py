@@ -106,6 +106,11 @@ def run_one(ch, args):
         ),
     )
     print(f"Stage 6 re-marked COMPLETED for {prefix} under v2.6.7's fixed parser.")
+    next_stage = checkpoint["pipeline_state"]["next_stage_to_run"]
+    if next_stage is not None:
+        print("L7 SAFETY: this archival Stage 6 re-run intentionally leaves the chapter UNTRUSTED. "
+              f"Resume from Stage {next_stage}, complete every required stage through Stage 8, "
+              "then run finalize_trusted_chapter.py and verify_trusted_corpus_invariants.py.")
     return result
 
 

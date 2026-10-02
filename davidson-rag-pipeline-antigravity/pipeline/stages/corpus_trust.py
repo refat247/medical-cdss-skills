@@ -247,6 +247,24 @@ def classify_trust(checkpoint, clinical_fidelity_gate=None,
             "Rerun from Stage 4.5d forward through Stage 6.",
         )
 
+    # L7: STALE is an explicit statement that this evidence was produced
+    # before an earlier stage was re-completed. Old evidence files may still
+    # look clean on disk, so trust must follow the checkpoint lifecycle and
+    # fail closed until every stale stage is genuinely revalidated.
+    stale_stages = [
+        stage for stage in checkpoint_utils.STAGE_ORDER
+        if isinstance(sc.get(stage), dict) and sc[stage].get("status") == "STALE"
+    ]
+    if stale_stages:
+        return result(
+            "CORPUS_REVIEW_PENDING", False,
+            ["Checkpoint contains stale downstream evidence after an earlier-stage re-run: "
+             + ", ".join(stale_stages) + "."],
+            f"Resume from Stage {stale_stages[0]} and re-run every required downstream stage "
+            "through Stage 8; then re-run finalize_trusted_chapter.py and "
+            "verify_trusted_corpus_invariants.py before trusted use.",
+        )
+
     corpus_completed = bool(ps.get("corpus_pipeline_completed", False))
     gate_pass = bool(clinical_fidelity_gate) and clinical_fidelity_gate.get("verdict") == "PASS"
 

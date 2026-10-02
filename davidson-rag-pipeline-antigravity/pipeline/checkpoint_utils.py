@@ -605,6 +605,8 @@ def _pipeline_status_for(checkpoint, next_stage):
     being None would mean the corpus-safe milestone was never reachable
     until the advisory scorecard also happened to run, which defeats the
     entire point of CP-06 (Stage 6 passing must be visible on its own)."""
+    if _earliest_stale_stage(checkpoint) is not None:
+        return "IN_PROGRESS"
     last = checkpoint["pipeline_state"]["last_completed_stage"]
     if last == "8":
         return "CORPUS_GATE_CLOSURE_COMPLETED"
@@ -618,6 +620,32 @@ def _pipeline_status_for(checkpoint, next_stage):
 def _next_stage_after(stage_key):
     idx = STAGE_ORDER.index(stage_key)  # stage_key already validated by caller
     return STAGE_ORDER[idx + 1] if idx + 1 < len(STAGE_ORDER) else None
+
+
+def _earliest_stale_stage(checkpoint):
+    """Return the earliest stage whose recorded evidence is STALE, or None.
+
+    STALE is created deliberately when an earlier stage is re-completed.
+    Archival/repair scripts may then jump ahead and complete a later stage;
+    resume must still point to the earliest invalidated evidence, not merely
+    the stage after the most recently executed one.
+    """
+    sc = checkpoint.get("stage_completions", {})
+    for stage in STAGE_ORDER:
+        entry = sc.get(stage)
+        if isinstance(entry, dict) and entry.get("status") == "STALE":
+            return stage
+    return None
+
+
+def _has_stale_through(checkpoint, terminal_stage):
+    """Whether any stage at or before terminal_stage is explicitly STALE."""
+    terminal_idx = STAGE_ORDER.index(terminal_stage)
+    sc = checkpoint.get("stage_completions", {})
+    return any(
+        isinstance(sc.get(stage), dict) and sc[stage].get("status") == "STALE"
+        for stage in STAGE_ORDER[:terminal_idx + 1]
+    )
 
 
 def _record_execution_provenance(checkpoint, stage_entry):
@@ -673,15 +701,24 @@ def mark_stage_complete(checkpoint, checkpoint_path, stage_key, output_file=None
     _mark_downstream_stale(checkpoint, stage_key)
     checkpoint["stage_completions"][stage_key] = entry
     checkpoint["pipeline_state"]["last_completed_stage"] = stage_key
-    next_stage = _next_stage_after(stage_key)
+
+    # L7: an archival/repair script may intentionally jump ahead after an
+    # earlier re-run. Never let that later completion hide an older STALE
+    # stage by advancing next_stage_to_run past it.
+    earliest_stale = _earliest_stale_stage(checkpoint)
+    next_stage = earliest_stale if earliest_stale is not None else _next_stage_after(stage_key)
     checkpoint["pipeline_state"]["next_stage_to_run"] = next_stage
     checkpoint["pipeline_state"]["pipeline_status"] = _pipeline_status_for(checkpoint, next_stage)
+
+    # A milestone may only be restored if no evidence at or before that
+    # milestone remains explicitly STALE. This keeps out-of-order archival
+    # reruns fail-closed without changing normal forward progress.
     if stage_key == "6":
-        checkpoint["pipeline_state"]["corpus_pipeline_completed"] = True
+        checkpoint["pipeline_state"]["corpus_pipeline_completed"] = not _has_stale_through(checkpoint, "6")
     if stage_key == "7":
-        checkpoint["pipeline_state"]["advisory_scorecard_completed"] = True
+        checkpoint["pipeline_state"]["advisory_scorecard_completed"] = not _has_stale_through(checkpoint, "7")
     if stage_key == "8":
-        checkpoint["pipeline_state"]["corpus_gate_closure_completed"] = True
+        checkpoint["pipeline_state"]["corpus_gate_closure_completed"] = not _has_stale_through(checkpoint, "8")
     save_checkpoint(checkpoint, checkpoint_path)
     print(f"Stage {stage_key} complete. Next: {next_stage}")
 

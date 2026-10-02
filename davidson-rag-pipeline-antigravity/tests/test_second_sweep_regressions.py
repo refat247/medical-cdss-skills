@@ -504,6 +504,46 @@ def test_1_19_a_stage_does_not_run_after_a_blocked_predecessor(tmp_path):
     assert res["status"] == "BLOCKED" and "4.5c" in res.get("reason", "")
 
 
+def test_l7_out_of_order_archival_rerun_keeps_resume_at_earliest_stale_stage(tmp_path):
+    stages = {k: "COMPLETED" for k in cu.STAGE_ORDER}
+    cp, path = _cp(tmp_path, stages)
+
+    # Historical Ch05-style flow: re-complete 4.5d, then jump directly to 6.
+    cu.mark_stage_complete(cp, path, "4.5d", output_file="gate.json")
+    assert cp["pipeline_state"]["next_stage_to_run"] == "4.5b"
+    cu.mark_stage_complete(cp, path, "6", output_file="stage6.md")
+
+    # Completing 6 must not hide the still-stale 4.5b/4.6/4.7/5.x/5 evidence.
+    assert cp["pipeline_state"]["next_stage_to_run"] == "4.5b"
+    assert cp["pipeline_state"]["pipeline_status"] == "IN_PROGRESS"
+    assert cp["pipeline_state"]["corpus_pipeline_completed"] is False
+
+
+def test_l7_clean_stage6_rerun_is_untrusted_until_stale_7_8_are_revalidated(tmp_path):
+    from pipeline.stages import corpus_trust
+    stages = {k: "COMPLETED" for k in cu.STAGE_ORDER}
+    cp, path = _cp(tmp_path, stages)
+
+    cu.mark_stage_complete(cp, path, "6", output_file="stage6.md")
+    assert cp["stage_completions"]["7"]["status"] == "STALE"
+    assert cp["stage_completions"]["8"]["status"] == "STALE"
+    assert cp["pipeline_state"]["next_stage_to_run"] == "7"
+    assert cp["pipeline_state"]["corpus_gate_closure_completed"] is False
+
+    trust = corpus_trust.classify_trust(
+        cp,
+        clinical_fidelity_gate={"verdict": "PASS"},
+        source_lines_precision_summary={"tested": True, "unresolved_count": 0},
+        stage_4_6_review_status="COMPLETED",
+        stage_4_6_chunks_reviewed=10,
+        stage_4_6_total_flagged=10,
+        unresolved_completeness_clusters=0,
+    )
+    assert trust["classification"] == "CORPUS_REVIEW_PENDING"
+    assert trust["trusted_for_downstream_use"] is False
+    assert "Stage 7" in trust["required_action"]
+
+
 def test_1_19_force_overrides_the_predecessor_check(tmp_path, monkeypatch):
     import pipeline.run_stage as rs
     src = tmp_path / "Davidson_25_Ch07_X.md"; src.write_text("# t\n## s\ntext\n")

@@ -86,6 +86,11 @@ def main(argv=None):
     print("Stage 6 re-marked COMPLETED under v2.6.0 rules (including Check 6.4b).")
     print(f"pipeline_status: {checkpoint['pipeline_state']['pipeline_status']}")
     print(f"corpus_pipeline_completed: {checkpoint['pipeline_state']['corpus_pipeline_completed']}")
+    next_stage = checkpoint["pipeline_state"]["next_stage_to_run"]
+    if next_stage is not None:
+        print("L7 SAFETY: this archival repair intentionally leaves the chapter UNTRUSTED. "
+              f"Resume from Stage {next_stage}, complete every required stage through Stage 8, "
+              "then run finalize_trusted_chapter.py and verify_trusted_corpus_invariants.py.")
     return result
 
 
