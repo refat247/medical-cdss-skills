@@ -47,3 +47,14 @@ def test_no_existing_gate_means_detectors_not_tested_not_a_pass(tmp_path):
     mod = _setup(tmp_path, ["L2-097"], gate=None)
     gate, _ = mod.main(["--out-dir", str(tmp_path)])
     assert gate["verdict"] == "NOT_TESTED" and "l2_chunks_scanned" not in gate
+
+
+def test_two_mutations_in_the_same_second_keep_both_backups(tmp_path):
+    mod = _setup(tmp_path, ["L2-097"], gate={"detectors_run": list(s45d.REQUIRED_DETECTORS), "pipeline_version": "1"})
+    for suffix in ("Failures",):
+        (tmp_path / f"{mod.PREFIX}_ClinicalFidelity{suffix}.json").write_text("[]", encoding="utf-8")
+    args = ["--out-dir", str(tmp_path), "--write", "--in-place"]
+    mod.main(args)
+    mod.main(args)
+    baks = [f for f in os.listdir(tmp_path) if f.endswith(".bak")]
+    assert len(baks) == 6                                   # 3 files x 2 runs, none overwritten

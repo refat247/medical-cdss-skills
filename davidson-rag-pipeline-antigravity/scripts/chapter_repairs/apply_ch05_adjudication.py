@@ -111,10 +111,9 @@ def main(argv=None):
         return gate, updated
 
     import shutil
-    from datetime import datetime, timezone
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    from pipeline.stages.mutation_guard import unique_backup_path
     for p in (fidelity_path, gate_path, fail_path):
-        shutil.copyfile(p, f"{p}.pre-mutation-{ts}.bak")
+        shutil.copyfile(p, unique_backup_path(os.path.dirname(p), os.path.basename(p)))   # never overwrites a backup
 
     json.dump({"candidates": updated}, open(fidelity_path, "w", encoding="utf-8"), indent=2)
     json.dump(gate, open(gate_path, "w", encoding="utf-8"), indent=2)
