@@ -15,6 +15,22 @@ from pipeline.stages.ocr_cleanup_rules import (RUNNING_HEADER_RE, has_piracy_tri
                                                normalize_bare_page_lines, strip_toc_preamble)
 
 
+SHORT_DOC_LINES = 50
+
+
+def _preservation_ratio(orig_lines, rep_lines):
+    """Line-level similarity, except for short documents, where losing one 3-character stray line must not look
+    like losing 14% of the chapter: those are weighted by characters instead of counted as whole lines."""
+    sm = difflib.SequenceMatcher(None, orig_lines, rep_lines)
+    if sum(1 for l in orig_lines if l.strip()) >= SHORT_DOC_LINES:
+        return sm.ratio()
+    total = sum(len(l) + 1 for l in orig_lines) + sum(len(l) + 1 for l in rep_lines)
+    if not total:
+        return 1.0
+    matched = sum(sum(len(l) + 1 for l in orig_lines[b.a:b.a + b.size]) for b in sm.get_matching_blocks())
+    return 2.0 * matched / total
+
+
 def compute_reaudit(orig_text, rep_text):
     """Same logic as the original SKILL.md Stage 3 inline block. Returns a
     dict: {preservation_percent, h1_count, issues, verdict}."""
@@ -28,7 +44,7 @@ def compute_reaudit(orig_text, rep_text):
     rep_s = re.sub(r'<!--[\s\S]*?-->\n?', '', rep_text)
     rep_s = re.sub(r'\n{3,}', '\n\n', rep_s)
 
-    ratio = difflib.SequenceMatcher(None, orig_s.splitlines(), rep_s.splitlines()).ratio()
+    ratio = _preservation_ratio(orig_s.splitlines(), rep_s.splitlines())
     issues = []
     if ratio < 0.95:
         issues.append(f"Low preservation: {ratio*100:.1f}%")

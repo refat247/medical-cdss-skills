@@ -82,9 +82,10 @@ def test_run_stage_cli_auto_execution(tmp_path):
         out_dir,
     ]
     proc = subprocess.run(cmd, cwd=REPO_DIR, capture_output=True, text=True, encoding="utf-8")
-    # Since the stub chapter triggers a blocking gate (Stage 4.5c coverage),
-    # the CLI properly exits 1 (fail-closed) rather than masking failure with 0.
-    assert proc.returncode in (0, 1)
+    # The stub chapter runs through every stage (Stage 3 no longer false-blocks a short document) but Stage 8
+    # leaves it untrusted, so the CLI exits 3 -- "finished, not trusted" -- and never 0.
+    assert proc.returncode == 3, proc.stdout[-400:]
+    assert "NOT TRUSTED FOR DOWNSTREAM USE" in proc.stdout
     assert "Starting Automated Pipeline Chaining" in proc.stdout
     assert os.path.exists(os.path.join(out_dir, "Davidson_25_Ch01_Clinical_decision_making_CHECKPOINT.json"))
 
