@@ -37,3 +37,6 @@ Still open from those reviews: M2 truncated-line suffix match (wrapped lines sti
 
 ## Test evidence
 Davidson 575 passed/30 skipped; bridge 29; packager 23; guard 50; preceptor ~12; preready 47; Harrison 10; Hurst 11; Kawsar 47; Kumar 10; organizer 13; unified 27; compiler 20; rag-orchestrator 16; version-manager 17; harness 3; `qa/check_all.py` green; suite verify 0 drift.
+
+## Environment note
+If `test_fixture_files_match_manifest_hashes` and `test_real_ch05_manifest_validates_against_fresh_stage_4_5d_run` fail on a fresh clone, the fixtures were checked out as LF although `.gitattributes` pins them to CRLF (the attribute only applies when git writes the files). Fix, with no tracked change: `rm -rf davidson-rag-pipeline-antigravity/tests/fixtures && git checkout -- davidson-rag-pipeline-antigravity/tests/fixtures`. Davidson then runs 589 passed / 30 skipped.
