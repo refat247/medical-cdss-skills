@@ -298,6 +298,34 @@ def _split_table_row(line: str):
     return [c.replace("\\|", "|").strip() for c in cells]
 
 
+def _resolve_publication_image(base_dir: Path, rel_path: str, basename_counts: dict) -> Path:
+    """Resolve an enhanced figure without basename-collision aliasing.
+
+    Prefer a mirrored enhanced path that preserves the markdown-relative
+    hierarchy. The legacy flat enhanced directory remains supported only
+    when this basename occurs exactly once in the note. If two referenced
+    source paths share a basename, a flat enhanced copy is ambiguous and
+    each original source image is used instead.
+    """
+    img_file = (base_dir / rel_path).resolve()
+    enhanced_root = (base_dir / "figures_enhanced").resolve()
+    rel = Path(rel_path)
+    mirrored = (enhanced_root / rel).resolve()
+
+    try:
+        mirrored.relative_to(enhanced_root)
+    except ValueError:
+        mirrored = enhanced_root / "__invalid__"
+
+    if mirrored.exists():
+        return mirrored
+
+    flat = enhanced_root / img_file.name
+    if basename_counts.get(img_file.name, 0) == 1 and flat.exists():
+        return flat
+    return img_file
+
+
 def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_missing_images=False):
     text = md_path.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -339,6 +367,17 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
     base_dir = Path(base_dir) if base_dir else md_path.parent
     missing_images = []
+
+    # Count image basenames across this note once. A legacy flat enhanced
+    # folder cannot safely disambiguate two different source paths called,
+    # for example, "figure1.png".
+    image_basename_counts = {}
+    for source_line in lines:
+        m = re.match(r'^!\[(.*?)\]\((.*?)\)', source_line.strip())
+        if m:
+            name = Path(m.group(2).strip()).name
+            image_basename_counts[name] = image_basename_counts.get(name, 0) + 1
+
     i = 0
     total_lines = len(lines)
 
@@ -434,8 +473,7 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
             alt_text = img_match.group(1).strip()
             rel_path = img_match.group(2).strip()
             img_file = (base_dir / rel_path).resolve()
-            enhanced_file = base_dir / "figures_enhanced" / img_file.name
-            target_img = enhanced_file if enhanced_file.exists() else img_file
+            target_img = _resolve_publication_image(base_dir, rel_path, image_basename_counts)
 
             if not target_img.exists():
                 missing_images.append(rel_path)

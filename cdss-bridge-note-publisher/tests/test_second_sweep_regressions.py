@@ -191,3 +191,50 @@ def test_m29_separate_numbered_lists_each_restart_at_one(tmp_path):
     for nid in (ids[0], ids[3]):
         override = numbering.num_having_numId(nid).lvlOverride_lst[0]
         assert override.startOverride.val == 1
+
+
+
+def test_bridge_enhanced_lookup_does_not_alias_duplicate_basenames(tmp_path):
+    from publish_executive_docx import _resolve_publication_image
+
+    a = tmp_path / "a" / "same.png"
+    b = tmp_path / "b" / "same.png"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    a.write_bytes(b"A")
+    b.write_bytes(b"B")
+
+    enhanced = tmp_path / "figures_enhanced"
+    enhanced.mkdir()
+    (enhanced / "same.png").write_bytes(b"AMBIGUOUS-FLAT")
+
+    counts = {"same.png": 2}
+    assert _resolve_publication_image(tmp_path, "a/same.png", counts) == a.resolve()
+    assert _resolve_publication_image(tmp_path, "b/same.png", counts) == b.resolve()
+
+
+def test_bridge_enhanced_lookup_keeps_unique_flat_backward_compatibility(tmp_path):
+    from publish_executive_docx import _resolve_publication_image
+
+    src = tmp_path / "assets" / "only.png"
+    src.parent.mkdir()
+    src.write_bytes(b"SRC")
+    enhanced = tmp_path / "figures_enhanced"
+    enhanced.mkdir()
+    flat = enhanced / "only.png"
+    flat.write_bytes(b"ENHANCED")
+
+    assert _resolve_publication_image(tmp_path, "assets/only.png", {"only.png": 1}) == flat.resolve()
+
+
+def test_bridge_enhanced_lookup_prefers_mirrored_path_when_available(tmp_path):
+    from publish_executive_docx import _resolve_publication_image
+
+    src = tmp_path / "a" / "same.png"
+    src.parent.mkdir()
+    src.write_bytes(b"SRC")
+    mirrored = tmp_path / "figures_enhanced" / "a" / "same.png"
+    mirrored.parent.mkdir(parents=True)
+    mirrored.write_bytes(b"ENHANCED")
+
+    assert _resolve_publication_image(tmp_path, "a/same.png", {"same.png": 2}) == mirrored.resolve()
