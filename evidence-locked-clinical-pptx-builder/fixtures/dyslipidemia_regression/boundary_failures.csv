@@ -1,0 +1,4 @@
+recommendation_id,source_id,source_object_type,start_locator,end_locator,source_section_id,source_section_title,recommendation_table_id,recommendation_table_heading,marker_ids,footnote_ids,associated_table_ids,associated_figure_ids,displayed_associated_ids,boundary_validation_status,boundary_semantic_review_status,requires_semantic_review,extracted_text
+REC-HEADER,A,recommendation_row,p1:r1,p1:r1,S1,Section One,T1,Recommendations,,,T12,,T12,PASS,PASS,no,"Recommendation text. CLINICAL STATEMENTS AND GUIDELINES Circulation. 2026;153:e1154–e1276. DOI: 10.1161/CIR.0000000000001423 e1187"
+REC-TABLE,A,recommendation_row,p2:r1,p2:r1,S1,Section One,T1,Recommendations,,,T12,,T22,PASS,PASS,no,"Recommendation text"
+REC-HEADING,A,recommendation_row,p3:r1,p3:r1,S1,Section One,T1,Recommendations,,,,, ,PASS,PASS,no,"Recommendation text Heart Failure With Reduced Ejection Fraction"

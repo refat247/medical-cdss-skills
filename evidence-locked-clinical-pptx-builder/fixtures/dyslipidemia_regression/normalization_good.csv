@@ -1,0 +1,2 @@
+record_id,text_handling_policy,source_text,normalized_text,transformation_type,transformation_log,validation_status
+NORM-GOOD,SOURCE_NATIVE_NORMALIZED,"recom-\nmended LDL-C ≥190 mg/dL","recommended LDL-C ≥190 mg/dL",line_break_join,joined source line break,PASS

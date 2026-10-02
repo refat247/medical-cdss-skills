@@ -1,0 +1,10 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","title":"Case Prompt Semantic Record","type":"object",
+  "required":["case_id","case_query_setup","expected_answer","expected_decision_class","withheld_decision_text","prompt_text","prompt_leak_status","prompt_coherence_status","prompt_semantic_review_status"],
+  "properties":{
+    "case_id":{"type":"string"},"source_derived_scenario":{"type":"string"},"case_query_setup":{"type":"string"},"expected_answer":{"type":"string"},"expected_decision_class":{"type":"string"},
+    "withheld_decision_text":{"type":"string"},"prompt_text":{"type":"string"},
+    "prompt_leak_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED"]},"prompt_coherence_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED"]},
+    "prompt_semantic_review_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED"]}
+  }
+}

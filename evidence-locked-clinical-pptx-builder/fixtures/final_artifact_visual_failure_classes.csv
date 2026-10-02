@@ -1,0 +1,6 @@
+failure_class,observed_in_final_artifact_or_codex_lesson,fixture_status,gate,repair_rule
+source_footer_too_small,automated preflight flags detailed source strings below readability floor,generic fixture required,pptx_preflight+visual_review_ledger,move details to notes or enlarge essential source label
+independent_review_simple_PASS_too_weak,v2.0.0 accepted report containing PASS anywhere,implemented fixture,independent_review_gate,require structured independent-review manifest and per-slide findings
+render_without_ledger_false_certification,rendered images alone are insufficient for final clinical certification,implemented fixture,render_qa_gate,require per-slide visual ledger for final/canonical release
+local_constraint_visual_separation,low-resource deck relies on separating local capability from guideline evidence,ledger domain required,visual_review_ledger,explicit local_constraint_separation domain
+image_ecg_legibility_uncertainty,ECG practice slides need individual projector review,ledger domain required,visual_review_ledger,explicit image_ecg_chart_legibility domain

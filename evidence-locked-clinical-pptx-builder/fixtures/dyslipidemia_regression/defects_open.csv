@@ -1,0 +1,5 @@
+defect_id,severity,defect_family,status,description
+D1,CRITICAL,source_binding,OPEN,wrong footnote bound to recommendation
+D2,HIGH,recommendation_completeness,OPEN,one source recommendation missing
+D3,HIGH,prompt_answer_leakage,OPEN,prompt exposes action
+D4,LOW,visual,OPEN,badge wrap

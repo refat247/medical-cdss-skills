@@ -1,0 +1,4 @@
+node_id,source_id,source_locator,node_type,clinical_decision,explanatory_only
+N1,S1,p1,recommendation,Do A,no
+N2,S1,p2,definition,Define B,no
+N3,S1,p3,explanation,Context only,yes

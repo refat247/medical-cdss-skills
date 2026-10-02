@@ -1,0 +1,10 @@
+project:
+  title: Example Existing Clinical Deck Repair
+mode: PATCH
+inputs:
+  candidate_pptx: existing_deck.pptx
+scope:
+  allowed_changes: [layout, font_size, margins, clipping, citation_visibility]
+  clinical_content_changes: prohibited
+release:
+  rerender_all_after_material_repair: true

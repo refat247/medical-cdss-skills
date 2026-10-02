@@ -1,0 +1,7 @@
+{"kind":"deck","id":"pr/rovy7m","name":"Deck"}
+{"kind":"layout","layoutId":"049a4265-264c-40b7-bb0a-2cccce7ba1e1","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"f5d29207-e1a0-40b5-b57f-1f22fccab23a","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/8t2wwa","slide":1,"title":"Clinical lint fixture","textShapes":2}
+{"kind":"textbox","id":"sh/7a5kbet4","slide":1,"text":"Clinical lint fixture","textPreview":"Clinical lint fixture","textChars":21,"textLines":1,"bbox":[80,70,700,60]}
+{"kind":"textbox","id":"sh/8vel4ju9","slide":1,"text":"FDA-approved product; use 5U daily and double the dose if needed.","textPreview":"FDA-approved product; use 5U daily and double the dose if needed.","textChars":65,"textLines":1,"bbox":[80,180,900,100]}
+{"kind":"notes","id":"nt/8t2wwa","slide":1,"text":""}

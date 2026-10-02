@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Clinical Claim Ledger",
+  "type": "object",
+  "required": ["claims"],
+  "properties": {
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide", "claim", "category", "status", "source_refs"],
+        "properties": {
+          "slide": {"type": "integer", "minimum": 1},
+          "claim": {"type": "string", "minLength": 1},
+          "category": {"enum": ["dose", "route", "frequency", "titration", "indication", "regulatory_approval", "age_cutoff", "contraindication", "boxed_warning", "pregnancy", "lactation", "interaction", "paediatric_use", "off_label_use", "comparative_efficacy", "mortality_or_mace", "procedural_or_anaesthesia_advice", "other_high_risk"]},
+          "status": {"enum": ["SUPPORTED", "SOURCE_PARTIAL", "SOURCE_CONFLICT", "JURISDICTION_SENSITIVE", "UNVERIFIED", "BLOCKED"]},
+          "source_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "jurisdiction": {"type": ["string", "null"]},
+          "checked_date": {"type": ["string", "null"]},
+          "spoken_wording": {"type": ["string", "null"]},
+          "notes": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

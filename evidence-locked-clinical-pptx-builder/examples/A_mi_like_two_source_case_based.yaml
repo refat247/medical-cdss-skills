@@ -1,0 +1,12 @@
+project:
+  title: Example Two-Source Case-Based ACS Project
+mode: BUILD_CASE_BASED
+evidence:
+  approved:
+    - {id: SOURCE-A, path: definition_consensus.pdf, role: definitions/classification}
+    - {id: SOURCE-B, path: management_guideline.pdf, role: management/investigation}
+  no_invention: true
+  case_count: emergent
+outputs: [master_case_library, teaching_architecture, master_deck, live_derivative]
+release:
+  require_visual_review_100_percent: true

@@ -1,0 +1,3 @@
+defect_id,severity,defect_family,status,description
+D1,CRITICAL,source_binding,RESOLVED,wrong footnote bound to recommendation
+D2,HIGH,recommendation_completeness,RESOLVED,one source recommendation missing

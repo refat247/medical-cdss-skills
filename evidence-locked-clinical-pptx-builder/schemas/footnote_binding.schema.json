@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Footnote Binding Record",
+  "type":"object",
+  "required":["recommendation_id","footnote_id","scope","source_locator","required_for_meaning","display_location","binding_status"],
+  "properties":{
+    "recommendation_id":{"type":"string","minLength":1},
+    "footnote_id":{"type":"string","minLength":1},
+    "marker_id":{"type":"string"},
+    "recommendation_marker_ids":{"type":"array","items":{"type":"string"}},
+    "scope":{"enum":["recommendation","table","section","document"]},
+    "source_locator":{"type":"string","minLength":1},
+    "source_owner_recommendation_id":{"type":"string"},
+    "source_scope_id":{"type":"string"},
+    "required_for_meaning":{"type":"boolean"},
+    "display_location":{"enum":["on_screen","speaker_notes","omitted"]},
+    "binding_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED"]},
+    "semantic_adjudication":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED",""]},
+    "notes":{"type":"string"}
+  }
+}

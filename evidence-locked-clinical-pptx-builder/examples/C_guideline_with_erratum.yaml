@@ -1,0 +1,10 @@
+project:
+  title: Example Guideline + Official Correction
+mode: BUILD_STANDARD
+evidence:
+  approved:
+    - {id: ORIGINAL, path: "2026 ACC-AHA Dyslipidemia Guideline.pdf", role: original guideline}
+    - {id: CORRECTION, path: "Correction to 2026 ACC-AHA Dyslipidemia Guideline.pdf", role: official correction, correction_of: ORIGINAL}
+correction_policy:
+  enabled: true
+  require_explicit_scope: true

@@ -1,0 +1,6 @@
+{"kind":"deck","id":"pr/k8z49p","name":"Deck"}
+{"kind":"layout","layoutId":"b9233066-fe38-482e-8726-816fb6f89179","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"9fa835d8-c107-4531-b020-a4268d30a977","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/a9187a","slide":1,"title":"Contrast fixture","textShapes":1}
+{"kind":"textbox","id":"sh/b6tsnyps","slide":1,"text":"Contrast fixture","textPreview":"Contrast fixture","textChars":16,"textLines":1,"bbox":[80,70,700,60]}
+{"kind":"notes","id":"nt/a9187a","slide":1,"text":""}

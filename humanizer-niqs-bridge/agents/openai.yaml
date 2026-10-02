@@ -1,0 +1,45 @@
+name: humanizer-niqs-bridge
+display_name: Humanizer NIQS Bridge
+version: 1.0.0
+description: Apply upstream Humanizer v3.1.0 to eligible human-facing prose while
+  enforcing the Khaled Knowledge OS NIQS preservation boundary and a final semantic-drift
+  check.
+entrypoint: SKILL.md
+status: stable
+default_mode: edit
+metadata:
+  release_date: 2026-09-28
+  upstream_humanizer: blader/humanizer@v3.1.0
+  niqs_overlay: v1.0.0
+policy:
+  preserve_evidence_over_style: true
+  native_humanizer_activation_separate: true
+  semantic_drift_check_required: true
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
+trigger_examples:
+- Humanize this Notion page without changing evidence.
+- Apply Humanizer with NIQS preservation.
+- Clean this owner-facing prose but preserve clinical and audit meaning.
+required_files:
+- SKILL.md
+- README.md
+- CHANGELOG.md
+- ACTIVATION_SMOKE_TEST.md
+- agents/openai.yaml
+- references/upstream-humanizer-v3.1.0.md
+- references/niqs-preservation-overlay-v1.0.0.md
+- references/semantic-drift-check.md
+- assets/icon.svg
+interface:
+  display_name: humanizer niqs bridge
+  short_description: Apply upstream Humanizer v3.1.0 as the prose-cleanup engine while
+    enforcing the Khaled Knowledge OS NIQS preservation boundary for evidence-bearing,
+    clinical, legal, technical, provenance, and governance text. Use for human-facing
+    prose cleanup in governed Notion workflows when Humanizer and NIQS must cooperate.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg

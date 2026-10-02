@@ -1,0 +1,42 @@
+profile: clinical_cme
+source_mode: strict
+duplicate_policy: flag_only
+external_research_default: false
+high_risk_categories:
+  - dose
+  - route
+  - frequency
+  - titration
+  - indication
+  - regulatory_approval
+  - age_cutoff
+  - contraindication
+  - boxed_warning
+  - pregnancy
+  - lactation
+  - interaction
+  - paediatric_use
+  - off_label_use
+  - comparative_efficacy
+  - mortality_or_mace
+  - procedural_or_anaesthesia_advice
+allowed_claim_statuses:
+  - SUPPORTED
+  - EXPLANATORY_ONLY
+  - SOURCE_PARTIAL
+  - SOURCE_CONFLICT
+  - JURISDICTION_SENSITIVE
+  - UNVERIFIED
+  - BLOCKED
+block_if:
+  - status_is_BLOCKED
+  - unqualified_local_approval_without_local_source
+  - unsupported_numeric_high_risk_claim
+  - unsupported_dose_or_titration
+require_human_confirmation_for:
+  - current_local_regulatory_status
+  - patient_specific_treatment_recommendation
+  - irreversible_or_high_stakes_decision
+timing:
+  speaking_words_per_minute: 130
+  tolerance_seconds: 30

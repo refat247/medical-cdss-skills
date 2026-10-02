@@ -1,0 +1,11 @@
+project:
+  title: Example 45-Minute Derivative
+mode: DERIVATIVE_BUILD
+inputs:
+  master_case_library: Master_Case_Library_FINAL.csv
+  teaching_architecture: Teaching_Architecture_FINAL.yaml
+  canonical_parent: Master_Core_CANONICAL.pptx
+derivative:
+  duration_minutes: 45
+  target_audience: general physicians
+  preserve_clinical_fingerprint: true

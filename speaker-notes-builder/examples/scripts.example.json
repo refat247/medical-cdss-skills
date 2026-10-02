@@ -1,0 +1,20 @@
+{
+  "slides": [
+    {
+      "slide": 1,
+      "title": "Example clinical slide",
+      "section": "Evidence",
+      "included": true,
+      "delivery_intent": "State the clinical question and frame the evidence without overclaiming.",
+      "main_script": "This slide introduces the clinical question and the evidence we will use to answer it. The key point is to distinguish what the study demonstrated from what is licensed or recommended in our jurisdiction.",
+      "compressed_script": "The key distinction is evidence versus approved or recommended use.",
+      "optional_expansion": "If time allows, briefly explain the study population and why external validity matters.",
+      "key_emphasis": ["Evidence is not automatically an indication."],
+      "pause_or_point": ["Pause after the main distinction."],
+      "transition": "Next, look at the magnitude of effect.",
+      "estimated_seconds": 28,
+      "cautions": ["Verify current local label before making an approval claim."],
+      "claim_status": "JURISDICTION_SENSITIVE"
+    }
+  ]
+}

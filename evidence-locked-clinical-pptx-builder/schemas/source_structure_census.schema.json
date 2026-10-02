@@ -1,0 +1,23 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Source Structure Census Record",
+  "type":"object",
+  "required":["source_id","recommendation_table_id","expected_recommendation_row_count","standalone_narrative_recommendation_count","enumeration_method","reviewer","certification_status","independent_from_inventory_generation"],
+  "properties":{
+    "source_id":{"type":"string","minLength":1},
+    "source_section_id":{"type":"string"},
+    "source_section_title":{"type":"string"},
+    "recommendation_table_id":{"type":"string"},
+    "recommendation_table_heading":{"type":"string"},
+    "page_location":{"type":"string"},
+    "expected_recommendation_row_count":{"type":"integer","minimum":0},
+    "standalone_narrative_recommendation_count":{"type":"integer","minimum":0},
+    "enumeration_method":{"enum":["deterministic","structured_table_enumeration","machine_enumeration","semantic_manual","manual_semantic","human_semantic","manual"]},
+    "reviewer":{"type":"string","minLength":1},
+    "certification_status":{"enum":["PASS","CERTIFIED","FAIL","ADJUDICATION_REQUIRED"]},
+    "independent_from_inventory_generation":{"enum":["yes","no"]},
+    "semantic_review_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED",""]},
+    "deterministic_unavailable_reason":{"type":"string"},
+    "notes":{"type":"string"}
+  }
+}

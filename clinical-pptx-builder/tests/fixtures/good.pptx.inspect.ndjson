@@ -1,0 +1,7 @@
+{"kind":"deck","id":"pr/fnj4l7","name":"Deck"}
+{"kind":"layout","layoutId":"9f0954b5-1f24-47e7-a5bb-abaf9fca9c42","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"b502b360-7a0e-480a-ad6c-33ba65f42ff9","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/2eb1kz","slide":1,"title":"Good fixture","textShapes":2}
+{"kind":"textbox","id":"sh/t0nylg3a","slide":1,"text":"Good fixture","textPreview":"Good fixture","textChars":12,"textLines":1,"bbox":[80,70,700,60]}
+{"kind":"textbox","id":"sh/6xwzq1kj","slide":1,"text":"Readable clinical teaching point\nOne concise supporting line.","textPreview":"Readable clinical teaching point | One concise supporting line.","textChars":61,"textLines":2,"bbox":[80,180,700,150]}
+{"kind":"notes","id":"nt/2eb1kz","slide":1,"text":""}

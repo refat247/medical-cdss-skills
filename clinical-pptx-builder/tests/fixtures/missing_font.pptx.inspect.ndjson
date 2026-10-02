@@ -1,0 +1,7 @@
+{"kind":"deck","id":"pr/5b97lp","name":"Deck"}
+{"kind":"layout","layoutId":"41aa54ab-d7b4-401a-ba10-0c3893e90a6e","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"f4fef01f-d09e-4e0a-8ae7-9d7fd44c2b0b","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/7hedc2","slide":1,"title":"Missing font fixture","textShapes":2}
+{"kind":"textbox","id":"sh/rilc761w","slide":1,"text":"Missing font fixture","textPreview":"Missing font fixture","textChars":20,"textLines":1,"bbox":[80,70,700,60]}
+{"kind":"textbox","id":"sh/cjutgbih","slide":1,"text":"Font substitution should be reported.","textPreview":"Font substitution should be reported.","textChars":37,"textLines":1,"bbox":[80,180,700,80]}
+{"kind":"notes","id":"nt/7hedc2","slide":1,"text":""}

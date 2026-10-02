@@ -1,0 +1,5 @@
+repair_id,defect_id,defect_severity,original_state,proposed_repair,repair_authority,source_support,user_authority,clinical_content_changed,source_wording_changed,pedagogic_only_change,normalization_only_change,affected_case_ids,affected_slide_ids,change_type,binding_evidence,source_object_link,adjudication,post_repair_validation
+R-TIER,D1,HIGH,Core,Advanced,editorial,,,no,no,yes,no,C1,S1,audience_tier,,,PASS,PASS
+R-FOOT,D2,CRITICAL,FN-A on A,move FN-A to B,editorial,,,no,no,yes,no,C2,S2,footnote_reassignment,,,PASS,PASS
+R-TABLE,D3,HIGH,Table 22 in source,attach to unrelated case,editorial,,,no,no,yes,no,C3,S3,table_relocation,,,PASS,PASS
+R-THRESH,D4,CRITICAL,≥190,>190,editorial,,,yes,yes,no,no,C4,S4,threshold,,,PASS,PASS

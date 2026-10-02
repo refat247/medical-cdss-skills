@@ -1,0 +1,10 @@
+profile: clinical_cme
+source_mode: strict
+audience: physicians
+requested_talk_minutes: 15
+qa_minutes: 2
+duplicate_policy: flag_only
+output:
+  rehearsal_docx: true
+  live_docx: true
+  inject_pptx_notes: true

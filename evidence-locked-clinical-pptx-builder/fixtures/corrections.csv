@@ -1,0 +1,2 @@
+correction_id,original_source_id,correction_source_id,scope_locator,original_locator,corrected_locator,status,notes
+C1,S1,S1C,Table 1 row 2,p2,c1,active,

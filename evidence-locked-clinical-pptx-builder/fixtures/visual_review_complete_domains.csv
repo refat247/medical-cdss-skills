@@ -1,0 +1,3 @@
+slide,reviewer,final_status,projector_readability,title_hierarchy,body_text_size,source_footer_readability,clipping_overflow,overlap_alignment_spacing,image_ecg_chart_legibility,density_whitespace,case_reveal_rhythm,local_constraint_separation,notes
+1,qa-runtime,PASS,pass,pass,pass,pass,pass,pass,pass,pass,pass,pass,ok
+2,qa-runtime,PASS_WITH_WARNINGS,pass,pass,pass,warn,pass,pass,pass,warn,pass,pass,small footer acceptable because full provenance is in notes

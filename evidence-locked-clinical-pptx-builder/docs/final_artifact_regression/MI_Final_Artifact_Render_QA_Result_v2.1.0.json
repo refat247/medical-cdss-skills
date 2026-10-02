@@ -1,0 +1,14 @@
+{
+  "slides": 65,
+  "rendered_unique": 65,
+  "missing": [],
+  "low_or_bad_dimensions": [],
+  "rendered_slide_set_sha256": "ee1a2839d3c9107f7777d835e715c22bc23983b81cf0342a751885e3b6742846",
+  "pass": true,
+  "ledger": {
+    "rows": 65,
+    "slide_count": 65,
+    "issues": [],
+    "pass": true
+  }
+}
