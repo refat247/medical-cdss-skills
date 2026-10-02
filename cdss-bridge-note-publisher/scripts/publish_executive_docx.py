@@ -78,6 +78,17 @@ def prevent_row_split(row):
     trPr = row._tr.get_or_add_trPr()
     trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
 
+def restart_numbering(doc, paragraph):
+    """Give `paragraph` (and the list items that follow it) a fresh w:num that restarts at 1. 'List Number' alone
+    shares one numId, so a second separate list would carry on from the first (e.g. start at 4)."""
+    numbering = doc.part.numbering_part.numbering_definitions._numbering
+    style_num_id = paragraph.style.element.pPr.numPr.numId.val
+    abstract_id = numbering.num_having_numId(style_num_id).abstractNumId.val
+    num = numbering.add_num(abstract_id)
+    num.add_lvlOverride(ilvl=0).add_startOverride(1)
+    paragraph._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = num.numId
+
+
 def add_formatted_runs(paragraph, text: str, default_font="Calibri", default_size=11, default_color=COLOR_TEXT_DARK):
     if not text:
         return
@@ -637,7 +648,14 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
         num_m = re.match(r'^(\s*)(\d+)\.\s+(.*)$', line)
         if num_m:
+            prev = doc.paragraphs[-1] if doc.paragraphs else None
             np_p = doc.add_paragraph(style='List Number')
+            if prev is None or prev.style.name != 'List Number':
+                restart_numbering(doc, np_p)          # otherwise every list continues the previous list's count
+            else:
+                prev_pPr = prev._p.pPr
+                if prev_pPr is not None and prev_pPr.numPr is not None:
+                    np_p._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = prev_pPr.numPr.numId.val
             np_p.paragraph_format.space_before = Pt(1)
             np_p.paragraph_format.space_after = Pt(2)
             np_p.paragraph_format.line_spacing = 1.1

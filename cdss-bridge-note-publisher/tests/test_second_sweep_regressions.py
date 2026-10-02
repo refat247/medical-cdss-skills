@@ -171,3 +171,23 @@ def test_br_tags_become_line_breaks_not_literal_text():
     add_formatted_runs(para, "first**bold**<br>second<br/>third")
     assert "<br" not in para.text
     assert para.text.replace("\n", "|") == "firstbold|second|third"
+
+
+def test_m29_separate_numbered_lists_each_restart_at_one(tmp_path):
+    """M29: every 'List Number' paragraph shared one numId, so a second list carried on from the first."""
+    pytest.importorskip("docx")
+    import docx
+    from publish_executive_docx import compile_executive_docx
+    md = tmp_path / "n.md"
+    md.write_text("# T\n\n1. a\n2. b\n3. c\n\nBetween the lists.\n\n1. x\n2. y\n", encoding="utf-8")
+    out = tmp_path / "n.docx"
+    compile_executive_docx(md, out)
+    d = docx.Document(str(out))
+    items = [p for p in d.paragraphs if p.style.name == "List Number"]
+    ids = [p._p.pPr.numPr.numId.val if p._p.pPr is not None and p._p.pPr.numPr is not None else None for p in items]
+    assert len(items) == 5 and None not in ids
+    assert len(set(ids[:3])) == 1 and len(set(ids[3:])) == 1 and ids[0] != ids[3]   # one num per list
+    numbering = d.part.numbering_part.numbering_definitions._numbering
+    for nid in (ids[0], ids[3]):
+        override = numbering.num_having_numId(nid).lvlOverride_lst[0]
+        assert override.startOverride.val == 1
