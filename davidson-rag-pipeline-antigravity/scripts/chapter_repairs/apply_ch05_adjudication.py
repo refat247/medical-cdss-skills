@@ -62,6 +62,8 @@ from pipeline.stages.mutation_guard import require_authorization_for_in_place_mu
 
 OUT_DIR = r"D:\davidson_25_full_pipeline\05"
 PREFIX = "Davidson_25_Ch05_Nutritional_factors_in_disease"
+# Only the chunks investigated in the docstring above are adjudicated; any other candidate stays unresolved.
+ADJUDICATED_CHUNKS = {"L2-097", "L2-038", "L2-070", "L2-118", "L2-126"}
 
 
 def main(argv=None):
@@ -70,27 +72,35 @@ def main(argv=None):
     parser.add_argument("--in-place", action="store_true")
     parser.add_argument("--backup", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--out-dir", default=OUT_DIR)
     args = parser.parse_args(argv)
+    out_dir = args.out_dir
 
-    fidelity_path = f"{OUT_DIR}\\{PREFIX}_ClinicalFidelity.json"
-    gate_path = f"{OUT_DIR}\\{PREFIX}_ClinicalFidelityGate.json"
-    fail_path = f"{OUT_DIR}\\{PREFIX}_ClinicalFidelityFailures.json"
+    fidelity_path = os.path.join(out_dir, f"{PREFIX}_ClinicalFidelity.json")
+    gate_path = os.path.join(out_dir, f"{PREFIX}_ClinicalFidelityGate.json")
+    fail_path = os.path.join(out_dir, f"{PREFIX}_ClinicalFidelityFailures.json")
 
     data = json.load(open(fidelity_path, encoding="utf-8"))
     candidates = data["candidates"]
 
-    decisions = {c["candidate_id"]: "false_positive" for c in candidates}
+    decisions = {c["candidate_id"]: "false_positive" for c in candidates if c.get("chunk_id") in ADJUDICATED_CHUNKS}
+    skipped = [c["candidate_id"] for c in candidates if c.get("chunk_id") not in ADJUDICATED_CHUNKS]
     updated, unmatched = s45d.apply_adjudication_decisions(candidates, decisions)
-    print(f"Computed {len(decisions)} decisions, {len(unmatched)} unmatched: {unmatched}")
+    print(f"Computed {len(decisions)} decisions, {len(unmatched)} unmatched: {unmatched}; "
+          f"{len(skipped)} candidate(s) outside the documented adjudication left unresolved: {skipped}")
 
-    gate = s45d.build_clinical_fidelity_gate(updated, s45d.REQUIRED_DETECTORS, "2.6.0", PREFIX)
-    gate["context_fallback_used_for_n_chunks"] = 0
-    gate["l2_chunks_scanned"] = 139
+    # Evidence comes from the existing gate, not from constants: what actually ran, on how many chunks, at what version.
+    old_gate = json.load(open(gate_path, encoding="utf-8")) if os.path.exists(gate_path) else {}
+    gate = s45d.build_clinical_fidelity_gate(updated, old_gate.get("detectors_run", []),
+                                             old_gate.get("pipeline_version", "unknown"), PREFIX)
+    for key in ("context_fallback_used_for_n_chunks", "l2_chunks_scanned"):
+        if key in old_gate:
+            gate[key] = old_gate[key]
     confirmed = [c for c in updated if c["severity"] == "CONFIRMED_CORRUPTION"]
 
     try:
         require_authorization_for_in_place_mutation(
-            OUT_DIR, PREFIX, args,
+            out_dir, PREFIX, args,
             target_description=f"{PREFIX}'s ClinicalFidelity.json/Gate.json/Failures.json",
         )
     except MutationRefused:
