@@ -109,3 +109,16 @@ def test_escaped_pipe_does_not_create_an_extra_cell(tmp_path):
     d = build_docx(tmp_path, md)
     row = [c.text for c in d.tables[0].rows[1].cells]
     assert row == ["P(A|B)", "y"]
+
+
+def test_literal_asterisks_are_not_treated_as_italic(tmp_path):
+    """M28: 'a * b * c' lost its asterisks and italicised ' b '."""
+    pytest.importorskip("docx")
+    import docx
+    from publish_executive_docx import add_formatted_runs
+    doc = docx.Document()
+    para = doc.add_paragraph()
+    add_formatted_runs(para, "dose a * b * c and *real italic* and **bold**")
+    assert "".join(r.text for r in para.runs) == "dose a * b * c and real italic and bold"
+    italic = [r.text for r in para.runs if r.italic]
+    assert italic == ["real italic"]

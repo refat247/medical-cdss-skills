@@ -81,7 +81,7 @@ def prevent_row_split(row):
 def add_formatted_runs(paragraph, text: str, default_font="Calibri", default_size=11, default_color=COLOR_TEXT_DARK):
     if not text:
         return
-    pattern = re.compile(r'(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))')
+    pattern = re.compile(r'(\*\*\*(?=\S).*?(?<=\S)\*\*\*|\*\*(?=\S).*?(?<=\S)\*\*|\*(?=[^\s*]).*?(?<=[^\s*])\*|`.*?`|\[.*?\]\(.*?\))')
     tokens = pattern.split(text)
     for token in tokens:
         if not token:
