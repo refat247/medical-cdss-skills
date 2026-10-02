@@ -94,6 +94,18 @@ def scan_figure_citations(md_text: str) -> List[Dict[str, str]]:
     return citations
 
 
+def _end_of_table_block(text: str, pos: int) -> int:
+    """Index of the end of the last consecutive '|' row of the table containing `pos`."""
+    end = text.find("\n", pos)
+    end = len(text) if end == -1 else end
+    while True:
+        nxt = text.find("\n", end + 1)
+        nxt = len(text) if nxt == -1 else nxt
+        if end >= len(text) or not text[end + 1:nxt].lstrip().startswith("|"):
+            return end
+        end = nxt
+
+
 def inline_figure_tags(md_text: str, citations: List[Dict[str, str]], assets_dir: str) -> Tuple[str, List[Dict]]:
     """Inlines markdown image tags ![Caption](assets/figures/...) where cited."""
     updated_text = md_text
@@ -113,8 +125,14 @@ def inline_figure_tags(md_text: str, citations: List[Dict[str, str]], assets_dir
             # Look for citation anchor to insert right after
             target_pattern = re.compile(re.escape(c["full_citation"]), re.IGNORECASE)
             tag_to_insert = f"\n\n![{c['caption']}]({asset_rel_path})\n"
-            if target_pattern.search(updated_text):
-                updated_text = target_pattern.sub(rf"\g<0>{tag_to_insert}", updated_text, count=1)
+            m = target_pattern.search(updated_text)
+            if m:
+                at = m.end()
+                line_start = updated_text.rfind("\n", 0, m.start()) + 1
+                if updated_text[line_start:].lstrip().startswith("|"):
+                    at = _end_of_table_block(updated_text, at)   # never insert mid-row
+                # slice instead of re.sub: a caption containing backslashes (LaTeX) crashed the replacement template
+                updated_text = updated_text[:at] + tag_to_insert + updated_text[at:]
                 inlined_now = True
 
         audit_results.append({
