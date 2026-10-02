@@ -81,6 +81,13 @@ def prevent_row_split(row):
 def add_formatted_runs(paragraph, text: str, default_font="Calibri", default_size=11, default_color=COLOR_TEXT_DARK):
     if not text:
         return
+    br_parts = re.split(r'<br\s*/?>', text, flags=re.IGNORECASE)
+    if len(br_parts) > 1:                      # table cells use <br> as a line break; it must not print literally
+        for n, part in enumerate(br_parts):
+            if n:
+                paragraph.add_run().add_break()
+            add_formatted_runs(paragraph, part.strip(), default_font, default_size, default_color)
+        return
     pattern = re.compile(r'(\*\*\*(?=\S).*?(?<=\S)\*\*\*|\*\*(?=\S).*?(?<=\S)\*\*|\*(?=[^\s*]).*?(?<=[^\s*])\*|`.*?`|\[.*?\]\(.*?\))')
     tokens = pattern.split(text)
     for token in tokens:

@@ -160,3 +160,14 @@ def test_book_and_chapter_matching_are_not_loose():
     assert CHAPTER_RE.search("Chapter 7").group(1) == "7"
     assert normalise_book("Davidson_vs_Harrison_notes") is None
     assert normalise_book("01_Davidson_25") == "davidson"
+
+
+def test_br_tags_become_line_breaks_not_literal_text():
+    """M28: '<br>' was printed literally in table cells."""
+    pytest.importorskip("docx")
+    import docx
+    from publish_executive_docx import add_formatted_runs
+    para = docx.Document().add_paragraph()
+    add_formatted_runs(para, "first**bold**<br>second<br/>third")
+    assert "<br" not in para.text
+    assert para.text.replace("\n", "|") == "firstbold|second|third"
