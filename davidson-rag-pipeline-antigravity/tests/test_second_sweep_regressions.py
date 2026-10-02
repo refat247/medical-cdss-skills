@@ -605,6 +605,22 @@ def test_1_17_stage3_flags_every_trigger_stage2_removes():
     assert any("Piracy" in i for i in r["issues"])
 
 
+def test_stage1_piracy_policy_matches_shared_weak_trigger_semantics():
+    from pipeline.stages.stage_1_audit import audit_stage1
+    legitimate = "Smartphone apps available from the App Store may support treatment adherence in selected patients."
+    assert audit_stage1(legitimate)["piracy_hits"] == []
+
+    watermark = "Download on the App Store"
+    assert audit_stage1(watermark)["piracy_hits"]
+
+
+def test_stage1_and_stage3_agree_on_strong_structural_watermark():
+    from pipeline.stages.stage_1_audit import audit_stage1
+    text = "## Medical Higher Study\nClinical prose follows."
+    assert audit_stage1(text)["piracy_hits"]
+    assert any("Piracy" in i for i in compute_reaudit(text, text)["issues"])
+
+
 # ---------- 1.25 4A/4B line numbering must agree, even with a form feed in the text ----------
 def test_1_25_stage_4a_numbers_lines_like_stage_4b_and_the_source_lines_parser(tmp_path, monkeypatch):
     from pipeline.stages import stage_4_parse as s4

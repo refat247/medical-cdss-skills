@@ -7,7 +7,14 @@ import io
 import os
 import re
 
-from pipeline.stages.ocr_cleanup_rules import RUNNING_HEADER_RE, count_bare_page_lines, strip_toc_preamble
+from pipeline.stages.ocr_cleanup_rules import (
+    RUNNING_HEADER_RE,
+    count_bare_page_lines,
+    has_piracy_trigger,
+    has_strong_trigger,
+    is_structural,
+    strip_toc_preamble,
+)
 import sys
 from collections import Counter
 
@@ -18,20 +25,6 @@ from pipeline.checkpoint_utils import (
     should_run_stage,
 )
 
-
-PIRACY_PATS = [
-    r"Medical Higher Study",
-    r"HIGHER STUDY",
-    r"apps?\.apple\.com",
-    r"play\.google\.com",
-    r"App Store",
-    r"Google Play",
-    r"Join.*[Tt]elegram",
-    r"t\.me/",
-    r"bit\.ly/",
-    r"(?:Free|free)\s+(?:Download|download)",
-    r"[\u0980-\u09ff]{5,}",
-]
 
 ICON_PATS = [
     r"^Information icon:.*$",
@@ -58,12 +51,16 @@ def audit_stage1(text: str) -> dict:
 
     dead_tbl_links = re.findall(r"\[tbl-\d+\.md\]\(tbl-\d+\.md\)", text)
 
+    # One shared policy for Stages 1/2/3. Strong triggers are always
+    # suspicious; weak triggers only count when the shared detector says the
+    # line is watermark-like, and weak structural lines are not treated as
+    # piracy. This prevents Stage 1 from calling legitimate prose such as
+    # "available from the App Store" CRITICAL while Stage 2/3 preserve it.
     piracy_hits = []
-    for pat in PIRACY_PATS:
-        ms = list(re.finditer(pat, text))
-        if ms:
-            ctx = text[max(0, ms[0].start() - 50):ms[0].start() + 50].replace("\n", "LF")
-            piracy_hits.append(f"  [{len(ms)}x] '{pat}' -> ...{ctx}...")
+    for lineno, line in enumerate(lines, 1):
+        if has_strong_trigger(line) or (has_piracy_trigger(line) and not is_structural(line)):
+            excerpt = line.strip().replace("\n", " ")[:120]
+            piracy_hits.append(f"  [line {lineno}] {excerpt}")
 
     headers = [l for l in lines if re.match(r"^#+\s", l)]
     h1s = [l for l in lines if re.match(r"^# [^#]", l)]
