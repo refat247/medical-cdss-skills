@@ -1,7 +1,8 @@
-"""Advisory retrieval-accuracy evaluation over a chapter corpus (Phase 5 future work
+"""Advisory self-retrieval sanity check over a chapter corpus (Phase 5 future work
 harness, v2.6.10).
 
-SELF-SUPERVISED, STRUCTURAL, LEXICAL-ONLY — explicitly NOT a substitute for the
+SELF-SUPERVISED, STRUCTURAL, LEXICAL-ONLY — this is NOT an independent retrieval
+benchmark and must never be cited as retrieval accuracy. It is explicitly NOT a substitute for the
 retrieval/generation/clinical/educational validation that the corpus protected markers
 disclaim. It answers only: "for each RAG_Optimised L2 chunk, if a user asks about that
 chunk's own section heading + declared topic, can a pure lexical BM25 retriever
@@ -134,8 +135,8 @@ class BM25Index:
 
 def main():
     ap = argparse.ArgumentParser(
-        description='Advisory BM25 retrieval-accuracy eval over RAG_Optimised L2 chunks. '
-                    'Read-only; writes its own report.')
+        description='Advisory BM25 self-retrieval sanity check over RAG_Optimised L2 chunks. '
+                    'Not an independent retrieval benchmark; read-only over corpus evidence.')
     ap.add_argument('corpus_root', help='corpus root containing chapter directories')
     ap.add_argument('--report-dir', default=None,
                     help='directory for the advisory JSON+MD report (default: <corpus_root>\\..\\retrieval_accuracy_report)')
@@ -198,7 +199,11 @@ def main():
                                                  'retrieval_accuracy_report')
     os.makedirs(report_dir, exist_ok=True)
     report = {
-        'method': ('Self-supervised lexical retrieval accuracy (structural, not clinical). '
+        'evaluation_scope': 'SELF_RETRIEVAL_SANITY_ONLY',
+        'independent_queries': False,
+        'independent_relevance_labels': False,
+        'eligible_for_retrieval_benchmark_claim': False,
+        'method': ('Self-supervised lexical self-retrieval sanity check (structural, not clinical). '
                    'Query per chunk = its section heading + declared topic frontmatter '
                    '(parentheticals stripped, stopword-filtered, deduped). Retriever = Okapi '
                    'BM25 (k1=1.5, b=0.75) over all RAG_Optimised L2 chunk bodies. Ground truth '
@@ -218,7 +223,8 @@ def main():
     with open(os.path.join(report_dir, 'retrieval_accuracy_report.json'), 'w',
               encoding='utf-8') as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
-    lines = ['# Retrieval Accuracy Report (self-supervised lexical eval)', '',
+    lines = ['# Self-Retrieval Sanity Report (not an independent retrieval benchmark)', '',
+             '**Scope:** SELF_RETRIEVAL_SANITY_ONLY — do not cite these metrics as retrieval accuracy.', '',
              '**Method:** ' + report['method'], '',
              '| Metric | Value |', '|---|---|']
     for k in KS:
