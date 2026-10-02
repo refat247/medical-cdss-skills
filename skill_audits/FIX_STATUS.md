@@ -26,7 +26,7 @@ Still open from those reviews: L1 glued/adjacent page numbers (exact failing pro
 
 ## Open
 **Needs a decision or input (not mechanical)**
-- Preready M18: cross-run figure overwrite in a shared `--out-dir` (not reproducible within one run; refuse or version the file name?).
+- Preready M18 is fixed fail-closed: a shared output may reuse an identical canonical figure, but a different pre-existing target is refused before any figure copy occurs.
 - Davidson: edge over-inclusion is not flagged; retrieval "accuracy" is self-retrieval; 1.24 PDF image numbering can mis-name images (unconfirmed).
 - Bridge: enhanced figure is looked up by basename (flat output folder); canned fallback.
 - Davidson 30 skipped tests need the author's `D:\` corpus (T5).
