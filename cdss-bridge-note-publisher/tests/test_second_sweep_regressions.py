@@ -238,3 +238,21 @@ def test_bridge_enhanced_lookup_prefers_mirrored_path_when_available(tmp_path):
     mirrored.write_bytes(b"ENHANCED")
 
     assert _resolve_publication_image(tmp_path, "a/same.png", {"same.png": 2}) == mirrored.resolve()
+
+
+
+def test_auscultation_framework_code_block_preserves_note_text_not_canned_content(tmp_path):
+    md = (
+        "# Custom Auscultation Note\n\n"
+        "```\n"
+        "7-ATTRIBUTE AUSCULTATION FRAMEWORK\n"
+        "1. TIMING — custom evidence-locked timing text\n"
+        "7. DYNAMIC — custom evidence-locked manoeuvre text\n"
+        "```\n"
+    )
+    d = build_docx(tmp_path, md)
+    text = "\n".join(p.text for p in d.paragraphs)
+    assert "custom evidence-locked timing text" in text
+    assert "custom evidence-locked manoeuvre text" in text
+    assert "Carvallo sign" not in text
+    assert "Brock-Braunwald" not in text

@@ -28,7 +28,7 @@ Still open from those reviews: L1 glued/adjacent page numbers (exact failing pro
 **Needs a decision or input (not mechanical)**
 - Preready M18 is fixed fail-closed: a shared output may reuse an identical canonical figure, but a different pre-existing target is refused before any figure copy occurs.
 - Davidson source-lines edge over-inclusion is now surfaced as an adjudication candidate while structural boundary lines are ignored. The lexical harness is now explicitly labeled SELF_RETRIEVAL_SANITY_ONLY and ineligible for an independent retrieval-accuracy claim; a real benchmark still needs independent queries + relevance labels. 1.24 PDF image numbering can mis-name images (unconfirmed; needs real PDF).
-- Bridge basename collision is fixed: mirrored enhanced paths are preferred; legacy flat enhanced files are used only for unique basenames. Canned auscultation fallback remains open.
+- Bridge basename collision is fixed: mirrored enhanced paths are preferred; legacy flat enhanced files are used only for unique basenames. The canned auscultation substitution is removed; publication now preserves the note's own code-block text instead of injecting unverified clinical content.
 - Davidson 30 skipped tests need the author's `D:\` corpus (T5).
 - `claude-sonnet-5` (default verifier model id) is unverified; override with `CDSS_VERIFIER_MODEL`.
 - Davidson F18/F22/F25/F29 and reviewer F13/F14/F20/F21: no individual definitions in the repo (F13/F14 partial under 1.19; F20/F21 sit under 1.30).

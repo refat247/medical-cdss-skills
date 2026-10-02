@@ -427,29 +427,7 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
             code_text = "\n".join(code_lines)
 
-            if "7-ATTRIBUTE AUSCULTATION FRAMEWORK" in code_text or ("1. TIMING" in code_text and "7. DYNAMIC" in code_text):
-                print("[PUBLISH-DOCX] WARNING: this block matches the built-in 7-attribute auscultation framework; the document uses "
-                      "the BUILT-IN (unverified, not note-derived) card grid instead of the note's own text.", file=sys.stderr)
-                r1 = [
-                    ("1. TIMING", ["Systolic (Early, Mid, Late, Pan)", "Diastolic (Early, Mid-diastolic)", "Continuous (extends past S2)"]),
-                    ("2. ACOUSTIC SHAPE", ["Crescendo-Decrescendo (Ejection)", "Plateau (Holosystolic)", "Decrescendo (Early diastolic)"]),
-                    ("3. PRECORDIAL SITE", ["Aortic: 2nd RICS", "Pulmonic: 2nd LICS", "Left Sternal Border (3rd-4th)", "Apex: 5th LMCL"]),
-                    ("4. RADIATION", ["Carotids (Aortic Stenosis)", "Left Axilla (Mitral Regurgitation)", "Base / Sternum (Ant Leaflet MR)", "Precordium (VSD)"])
-                ]
-                r2 = [
-                    ("5. INTENSITY", ["Levine Scale Grade I - VI", "Grade I-II: Soft / Faint", "Grade III: Loud (no thrill)", "Grade IV-VI: THRILL PALPABLE"]),
-                    ("6. PITCH & QUALITY", ["High-pitched / Blowing (MR, AR)", "Low-pitched / Rumbling (MS, TS)", "Harsh / Rasping (AS, PS)"]),
-                    ("7. DYNAMIC MANEUVERS", [
-                        "Respiration: Carvallo sign (Right-sided ↑ with inspiration)",
-                        "Valsalva Strain / Standing: Softens most; HOCM/MVP LOUDENS",
-                        "Squatting / Passive Leg Raise: Preload ↑ (AS/MR louder; HOCM softer)",
-                        "Handgrip: SVR ↑ (MR/AR/VSD louder; AS/HOCM softer)",
-                        "Post-PVC: Brock-Braunwald (HOCM pulse drops; AS pulse rises)"
-                    ])
-                ]
-                create_card_grid_table(doc, "THE SYSTEMATIC 7-ATTRIBUTE AUSCULTATION FRAMEWORK (DAVIDSON BOX 16.10)", r1, r2)
-                continue
-            elif "COVERAGE DECLARATION" in code_text:
+            if "COVERAGE DECLARATION" in code_text:
                 create_callout_box(doc, code_text, box_type="cov")
                 continue
             elif "QB AWARENESS" in code_text:
