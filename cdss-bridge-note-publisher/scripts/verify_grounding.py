@@ -52,7 +52,7 @@ ANCHOR_RE = re.compile(r"\[Anchor:\s*([^\]]+?)\s*\]", re.IGNORECASE)
 CHUNK_RE = re.compile(r"\[chunk:\s*([A-Za-z0-9_.\-]+)\s*\]", re.IGNORECASE)
 REF_RE = re.compile(r"\b(Box|Table|Fig(?:ure)?)\.?\s+(\d{1,2}\.\d{1,3})\b", re.IGNORECASE)
 CHUNK_ID_LINE_RE = re.compile(r"^\s*(?:full_)?chunk_id:\s*[\"']?([A-Za-z0-9_.\-]+)", re.MULTILINE)
-CHAPTER_RE = re.compile(r"(?:Ch|Chapter|Part|Section)[ _-]?0*(\d{1,3})", re.IGNORECASE)
+CHAPTER_RE = re.compile(r"(?<![A-Za-z])(?:Ch|Chapter|Part|Section)[ _-]?0*(\d{1,3})", re.IGNORECASE)
 BOOK_ED_CH_RE = re.compile(r"^[A-Za-z]+_\d{1,2}_0*(\d{1,3})_")  # e.g. Davidson_25_18_Cardiovascular
 
 EXEMPT_HEADINGS = ("COVERAGE DECLARATION", "VISUAL ASSET", "LAYER 0", "PHYSIOLOGY FOUNDATION",
@@ -66,10 +66,8 @@ def normalise_book(token: str) -> Optional[str]:
     t = re.sub(r"[^a-z&]", "", token.lower())
     if t in BOOK_ALIASES:
         return BOOK_ALIASES[t]
-    for key, val in BOOK_ALIASES.items():
-        if len(key) > 3 and key in t:
-            return val
-    return None
+    found = {val for key, val in BOOK_ALIASES.items() if len(key) > 3 and key in t}
+    return next(iter(found)) if len(found) == 1 else None   # a name mentioning two books is ambiguous
 
 
 def book_from_path(p: Path, package_dir: Path) -> Optional[str]:

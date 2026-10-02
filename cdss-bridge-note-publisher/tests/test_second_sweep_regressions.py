@@ -150,3 +150,13 @@ def test_enhanced_copy_is_refreshed_when_source_changes(tmp_path):
     os.utime(figs / "a.png", (future, future))
     audit_and_enhance_directory(figs, out)
     assert PIL.open(out / "a.png").getpixel((0, 0)) == (0, 0, 255)
+
+
+def test_book_and_chapter_matching_are_not_loose():
+    """M32: 'Research_12' parsed as chapter 12; a name mentioning two books resolved to the first."""
+    from verify_grounding import CHAPTER_RE, normalise_book
+    assert CHAPTER_RE.search("Research_12") is None and CHAPTER_RE.search("Search 3") is None
+    assert CHAPTER_RE.search("Davidson_25_Ch16_X").group(1) == "16"
+    assert CHAPTER_RE.search("Chapter 7").group(1) == "7"
+    assert normalise_book("Davidson_vs_Harrison_notes") is None
+    assert normalise_book("01_Davidson_25") == "davidson"
