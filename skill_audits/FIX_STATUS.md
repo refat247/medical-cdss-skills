@@ -17,7 +17,7 @@ Every Fixed item is covered by the suites listed at the bottom; none of this has
 
 ## Verification-review findings (Agents E and F)
 Both reviewers found regressions introduced by the first round of fixes. Fixed with tests: dead `--search`, guard `/day` ISMP + LaTeX leaks, plural/brand matching, compiler same-topic benchmark / router class / chunk divider, organizer backup location, unified partial packet, federated empty-package exit, version-manager name over-match; and from Davidson review: **H1** (Stage 4.5 blocked every MCQ chapter), **H2** (ligature/soft-hyphen asymmetry in 4.5/4.5b/4.5d), **H3/M1** (structural watermark lines, weak triggers deleting clinical sentences), **M2** (numeric substring match), **M3/M4/L5** (4.5d tie alignment, quadratic runtime, punctuation, re-bulleted negation), **M5** (legacy checkpoint prefix), **M6/M7** (caption headings, publisher PDF URL), **L3/L4** (checkpoint mode, explanation/answer regex).
-Still open from those reviews: L1 glued page numbers, L2 TOC-preamble lead-in lines, and no real-chapter validation (all review inputs synthetic). M2 truncated-line suffix, L6 decimal drug-window handling, L7 archival rerun lifecycle, and Stage 1 piracy-policy consistency are now fixed with regression tests.
+Still open from those reviews: L1 glued/adjacent page numbers (exact failing probe not preserved in-repo) and no real-chapter validation (all review inputs synthetic). M2 truncated-line suffix, L6 decimal drug-window handling, L7 archival rerun lifecycle, Stage 1 piracy-policy consistency, and L2 TOC-preamble lead-in cleanup are now fixed with regression tests.
 
 ## Partial
 - Guard: LaTeX handling covers common patterns only (M6/M7 and cleanroom `$..$` remain).

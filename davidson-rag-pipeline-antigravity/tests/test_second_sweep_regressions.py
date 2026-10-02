@@ -96,6 +96,19 @@ def test_1_7_toc_strip_keeps_h1():
     assert "Intro ........ 5" not in out
 
 
+def test_l2_toc_leadin_is_removed_when_numbered_entries_confirm_a_toc():
+    out = _s2("# Vitamin B12\n\nContents\nIntroduction ........ 3\nTreatment ........ 8\n\n## Section\ntext\n")
+    assert "# Vitamin B12" in out
+    assert "\nContents\n" not in out
+    assert "Introduction ........ 3" not in out
+    assert "Treatment ........ 8" not in out
+
+
+def test_l2_contents_word_in_real_preamble_prose_is_not_removed_without_toc_entries():
+    src = "# Title\n\nContents may vary between formulations and should be checked clinically.\n\n## Section\ntext\n"
+    assert "Contents may vary" in _s2(src)
+
+
 def test_1_5_stage3_agrees_with_stage2_on_clean_text():
     src = "# Title\n\n## Sec\n5 • HYPERTENSION\n\nACE inhibitors 3 • NaCl 0.9%\n"
     r = compute_reaudit(src, _s2(src))

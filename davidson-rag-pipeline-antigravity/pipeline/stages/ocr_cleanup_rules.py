@@ -47,16 +47,37 @@ def normalize_bare_page_lines(text, marker=True):
     return "\n".join(out), len(idx)
 
 
+_TOC_LEADIN_RE = re.compile(
+    r"^\s*(?:table\s+of\s+contents|chapter\s+contents|contents(?:\s+of\s+(?:this\s+)?chapter)?)\s*:?\s*$",
+    re.IGNORECASE,
+)
+
+
 def strip_toc_preamble(text):
-    """Remove TOC-looking lines (ending in a 1-3 digit page number) before the first '## ' heading,
-    except markdown headings. Returns (new_text, removed_count)."""
+    """Remove TOC-looking preamble lines before the first ## heading.
+
+    Numbered TOC entries are removed as before. L2 hardening also removes a
+    narrow set of unmistakable TOC lead-in labels (for example "Contents")
+    only when at least one numbered TOC entry is present in the same
+    preamble. Markdown headings are always preserved.
+    """
     first_h2 = re.search(r"^##\s", text, re.MULTILINE)
     if not first_h2:
         return text, 0
     block = text[:first_h2.start()]
+    block_lines = block.split("\n")
+    toc_entry = [
+        bool(re.search(r"\d{1,3}\s*$", line) and line.strip() and not line.lstrip().startswith("#"))
+        for line in block_lines
+    ]
+    has_toc_entries = any(toc_entry)
+
     kept, removed = [], 0
-    for line in block.split("\n"):
-        if re.search(r"\d{1,3}\s*$", line) and line.strip() and not line.lstrip().startswith("#"):
+    for line, is_entry in zip(block_lines, toc_entry):
+        if is_entry:
+            removed += 1
+            continue
+        if has_toc_entries and _TOC_LEADIN_RE.fullmatch(line):
             removed += 1
             continue
         kept.append(line)
