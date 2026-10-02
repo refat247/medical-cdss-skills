@@ -1,0 +1,18 @@
+schema_version: 2
+project_id: ""
+locked: true
+approved_clinical_sources: []
+forbidden_clinical_sources: []
+context_sources: []
+correction_policy:
+  enabled: false
+  require_explicit_scope: true
+terminology_rule: "Preserve source-specific terminology and label differences explicitly."
+no_invention_rule: "No clinically meaningful detail without approved-source support."
+case_count_rule: "Final case count emerges from exhaustive extraction, audit, deduplication and coverage."
+visual_policy:
+  allow_official_source_figures: true
+  allow_user_clinical_images: true
+  allow_external_illustrative_visuals: true
+  allow_model_generated_decorative: true
+  diagnostic_image_fabrication: false

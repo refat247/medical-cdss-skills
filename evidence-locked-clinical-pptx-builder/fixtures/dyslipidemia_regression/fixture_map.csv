@@ -1,0 +1,22 @@
+fixture,validator,expected_failure,severity,required_repair_or_adjudication
+130/131 missing recommendation,source_inventory_completeness,SRC-003 unaccounted,HIGH,extract/map source row or explicitly adjudicate nondeterministic scope
+unrelated table text leaking,recommendation_boundary_validator,unbound displayed associated object,CRITICAL,remove or bind only with source-native association
+running header/DOI contamination,recommendation_boundary_validator,header/DOI/page contamination,CRITICAL,repair semantic boundaries and revalidate
+wrong source-section label,source_section_validator,section mismatch,HIGH,restore source-native hierarchy; keep deck module editorial
+footnote A attached to B,footnote_binding_validator,displayed footnote unbound/marker mismatch,CRITICAL,restore marker/scope binding
+marker present definition dropped,footnote_binding_validator,required footnote missing,HIGH,restore definition or adjudicate display policy
+DECIDE prompt exposes answer,prompt_semantics_validator,action predicate leak,HIGH,rewrite prompt and semantic-review PASS
+fragment prompt,prompt_semantics_validator,fragment/orphan,HIGH,rewrite coherent decision prompt
+≥ altered to >,normalization_fidelity_validator,protected token mutation,CRITICAL,restore source operator
+unsupported audience-tier repair,repair_fidelity_validator,unauthorized tier change,HIGH,revert or record explicit user authority
+source material attached without marker/link,recommendation_boundary_validator,unbound associated source object,CRITICAL,restore binding/remove material
+canonical promotion with unresolved CRITICAL/HIGH,semantic_promotion_gate,REPAIR_REQUIRED,CRITICAL,resolve blockers before promotion
+source table heading confused with deck module,source_section_validator,source hierarchy mismatch,HIGH,separate source-native vs editorial fields
+recommendation includes neighbouring subheading,recommendation_boundary_validator,neighbour heading contamination,CRITICAL,repair boundary
+source-native typo silently changed,normalization_fidelity_validator,SOURCE_NATIVE_EXACT changed,HIGH,preserve typo or explicitly use normalized/paraphrase policy
+38-table census vs 130-row truncated inventory,source_inventory_certification,source census expects 131 but inventory contains 130,HIGH,restore missing source-inventory row before decision-node extraction
+38-table census vs 131-row complete inventory,source_inventory_certification,PASS,N/A,certify source inventory before extraction
+EXTRACTED blank decision node,source_inventory_completeness,blank decision_node_id,HIGH,create node or use explicit adjudicated non-node disposition
+user-authority-only clinical threshold repair,repair_fidelity_validator,approved locked-source support missing,CRITICAL,revert or formally expand/relock evidence boundary and cite approved source
+non-independent gate WAIVED,semantic_promotion_gate,gate failure/HIGH promotion block,CRITICAL,obtain PASS/CERTIFIED; only independent visual QA has waiver pathway
+unknown CRITICAL/HIGH defect family,semantic_promotion_gate,REPAIR_REQUIRED,CRITICAL,resolve defect; fail closed for new families

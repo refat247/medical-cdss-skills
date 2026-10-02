@@ -1,0 +1,7 @@
+{"kind":"deck","id":"pr/f4ehu3","name":"Deck"}
+{"kind":"layout","layoutId":"4ab8ff0f-5f25-4d10-9d01-6f6b6ddffbf5","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"601c8f40-d181-416b-b7c0-1c6bc81dd8b5","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/r88x8p","slide":1,"title":"Overflow fixture","textShapes":2}
+{"kind":"textbox","id":"sh/gn2p8nmt","slide":1,"text":"Overflow fixture","textPreview":"Overflow fixture","textChars":16,"textLines":1,"bbox":[80,70,700,60]}
+{"kind":"textbox","id":"sh/vmtofil8","slide":1,"text":"This deliberately long sentence is placed in a very short text box so the preflight and render checks have a known hard failure to detect.","textPreview":"This deliberately long sentence is placed in a very short text box so the preflight and render checks have a known hard failure to detect.","textChars":138,"textLines":1,"bbox":[80,180,480,45]}
+{"kind":"notes","id":"nt/r88x8p","slide":1,"text":""}

@@ -1,0 +1,54 @@
+name: research-method-curator
+version: 1.1.2
+primary_skill: true
+entrypoint: SKILL.md
+metadata:
+  status: stable
+  release_date: 2026-09-23
+  package_state: manual_upload_candidate
+  humanizer_baseline: blader/humanizer 3.0.0
+  trigger_examples:
+  - Audit a research report and verify its important claims.
+  - Create a timestamped evidence archive for a current research update.
+  - Design a source-bound RAG or CDSS benchmark method.
+  required_files:
+  - SKILL.md
+  - README.md
+  - CHANGELOG.md
+  - references/timestamped-discovery-evidence-archive.md
+  - references/package-maintenance.md
+  - agents/openai.yaml
+  - assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
+interface:
+  display_name: Research Method Curator
+  short_description: Audit and structure decision-grade research.
+  default_prompt: Use $research-method-curator to audit this research with source
+    provenance, claim verification, timestamped evidence, and decision-readiness labels.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+humanizer_finishing_gate:
+  enabled: true
+  final_human_facing_narrative_only: true
+  after_evidence_verification: true
+  preserve_semantics: true
+  semantic_drift_check_required: true
+  fallback_if_unavailable: preservation_safe_local_cleanup
+  protected:
+  - raw_source_material
+  - quotations
+  - exact_support_excerpts
+  - claim_ledger_evidence_fields
+  - code
+  - logs
+  - metrics
+  - qrels
+  - chunk_ids
+  - provenance_identifiers
+  - exact_clinical_legal_wording

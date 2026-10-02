@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "speaker-notes-builder"
+version = "1.0.0"
+description = "Deck-aware speaker notes, presenter DOCX companions, clinical lint, and PPTX note injection"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+  "python-pptx>=0.6.23",
+  "python-docx>=1.1.0",
+  "PyMuPDF>=1.23",
+  "Pillow>=10",
+  "PyYAML>=6",
+  "jsonschema>=4"
+]
+
+[project.scripts]
+speaker-notes-builder = "speaker_notes_builder.cli:main"
+
+[tool.setuptools]
+packages = ["speaker_notes_builder"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+speaker_notes_builder = ["resources/schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Source Recommendation Boundary Record",
+  "type":"object",
+  "required":["source_recommendation_id","source_id","source_object_type","start_locator","end_locator","source_section_id","source_section_title","boundary_validation_status"],
+  "properties":{
+    "source_recommendation_id":{"type":"string","minLength":1},
+    "source_id":{"type":"string","minLength":1},
+    "source_object_type":{"type":"string"},
+    "start_locator":{"type":"string"},"end_locator":{"type":"string"},
+    "source_section_id":{"type":"string"},"source_section_title":{"type":"string"},
+    "recommendation_table_id":{"type":"string"},"recommendation_table_heading":{"type":"string"},
+    "marker_ids":{"type":"array","items":{"type":"string"}},"footnote_ids":{"type":"array","items":{"type":"string"}},
+    "associated_table_ids":{"type":"array","items":{"type":"string"}},"associated_figure_ids":{"type":"array","items":{"type":"string"}},
+    "boundary_validation_status":{"enum":["PASS","FAIL","ADJUDICATION_REQUIRED"]},
+    "boundary_adjudication":{"type":"string"}
+  }
+}

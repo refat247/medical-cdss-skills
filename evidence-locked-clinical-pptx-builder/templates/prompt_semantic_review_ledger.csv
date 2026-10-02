@@ -1,0 +1,1 @@
+case_id,source_derived_scenario,case_query_setup,expected_answer,expected_decision_class,withheld_decision_text,prompt_text,prompt_leak_status,prompt_coherence_status,prompt_semantic_review_status,reviewer_notes

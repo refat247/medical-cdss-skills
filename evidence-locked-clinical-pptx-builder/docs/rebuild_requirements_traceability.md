@@ -1,0 +1,3 @@
+# Rebuild Requirements Traceability
+
+The v2 rebuild implements the requested requirements: actual MI workflow reconstruction; current-skill gap matrix; two pipelines; nine operating modes; exhaustive case-based corpus pipeline; emergent case count; hard source lock; correction/erratum support; visual provenance classes; speaker-note evidence lock; derivative engine; projector-safe rules; automated QA; 100% final render/individual review; independent visual QA handoff; handoff/resume rules; semantic versioning; package/docs/scripts/tests/fixtures/examples; MI read-only regression; adversarial audit/repair/re-audit; activation smoke test; installable ZIP.

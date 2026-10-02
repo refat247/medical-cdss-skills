@@ -1,0 +1,7 @@
+{"kind":"deck","id":"pr/h1ezty","name":"Deck"}
+{"kind":"layout","layoutId":"5bef98f7-c8aa-48f6-bc1f-8b70ace53e7c","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"31d9da4d-83e8-4013-b2a0-29495eb9f087","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/yeh7ez","slide":1,"title":"Dense citations fixture","textShapes":2}
+{"kind":"textbox","id":"sh/qdknex83","slide":1,"text":"Dense citations fixture","textPreview":"Dense citations fixture","textChars":23,"textLines":1,"bbox":[80,70,900,60]}
+{"kind":"textbox","id":"sh/dgb6ps7u","slide":1,"text":"1. Trial A. Journal. 2022;1:1. 2. Trial B. Journal. 2023;2:2. 3. Guideline C. Society. 2024. 4. Review D. Journal. 2025;4:4. 5. Label E. Manufacturer. 2026. 6. Meta-analysis F. Journal. 2026;6:6.","textPreview":"1. Trial A. Journal. 2022;1:1. 2. Trial B. Journal. 2023;2:2. 3. Guideline C. Society. 2024. 4. Review D. Journal. 2025;4:4. 5. Label E. ...","textChars":195,"textLines":1,"bbox":[80,180,1080,100]}
+{"kind":"notes","id":"nt/yeh7ez","slide":1,"text":""}

@@ -1,0 +1,5 @@
+case_id,case_query_setup,expected_answer,expected_decision_class,withheld_decision_text,prompt_text,prompt_leak_status,prompt_coherence_status,prompt_semantic_review_status
+CASE-LEAK,Adult at high risk,initiate high-intensity statin,COR 1,initiate high-intensity statin,"In this adult, high-intensity statin therapy is recommended to reduce risk.",FAIL,PASS,FAIL
+CASE-FRAG,Adult with diabetes,initiate moderate-intensity statin,COR 2b,initiate moderate-intensity statin,"it",PASS,FAIL,FAIL
+CASE-SYN,Adult with ASCVD,add ezetimibe,COR 2a,add ezetimibe,"Which adjunctive LDL-lowering drug is the indicated next step?",PASS,PASS,FAIL
+CASE-MEANINGLESS,Adult with severe hypercholesterolemia,add therapy,COR 1,add therapy,"For this patient, management?",PASS,FAIL,FAIL

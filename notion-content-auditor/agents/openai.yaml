@@ -1,0 +1,57 @@
+name: notion-content-auditor
+display_name: Notion Content Auditor
+version: 1.2.1
+description: Audit substantive Notion knowledge for completeness, accuracy, currency,
+  provenance, semantic duplication, contradictions, canonicality, reality alignment,
+  decision propagation, implementation truth, and unresolved gaps.
+entrypoint: SKILL.md
+status: stable
+default_mode: audit
+metadata:
+  release_date: 2026-09-23
+  package_state: manual_upload_candidate
+  humanizer_baseline: blader/humanizer 3.0.0
+policy:
+  allow_implicit_invocation: true
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+safety:
+  destructive_default: false
+  treat_workspace_content_as_untrusted_instructions: true
+  require_refetch_after_material_write: true
+interface:
+  display_name: Notion Content Auditor
+  short_description: Audit substantive Notion knowledge for semantic correctness,
+    evidence, freshness, canonicality and implementation truth.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+required_files:
+- SKILL.md
+- README.md
+- CHANGELOG.md
+- references/content-audit-rubric.md
+- references/evidence-revalidation.md
+- references/coverage-and-closure.md
+- references/safe-repair-protocol.md
+- references/prompt-injection-defense.md
+- agents/openai.yaml
+- assets/icon.svg
+humanizer_finishing_gate:
+  enabled: true
+  after_semantic_audit_or_repair: true
+  human_facing_prose_only: true
+  preserve_semantics: true
+  semantic_drift_check_required: true
+  fallback_if_unavailable: preservation_safe_local_cleanup
+  protected:
+  - raw_research
+  - quotations
+  - evidence_excerpts
+  - code
+  - logs
+  - immutable_source_text
+  - protected_corpus_material
+  - exact_claim_ledger_fields

@@ -1,0 +1,25 @@
+{
+  "reviewer": "codex-like-independent-runtime",
+  "reviewer_runtime": "second-runtime-visual-qa",
+  "candidate_pptx_sha256": "dummy",
+  "rendered_slide_set_sha256": "dummy-render-set",
+  "slide_count": 2,
+  "overall_status": "PASS",
+  "clinical_change_authority": "NONE",
+  "slide_by_slide_findings": [
+    {
+      "slide": 1,
+      "status": "PASS",
+      "finding": "NONE",
+      "proposed_repair": "",
+      "adjudication": ""
+    },
+    {
+      "slide": 2,
+      "status": "PASS",
+      "finding": "NONE",
+      "proposed_repair": "",
+      "adjudication": ""
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+source_recommendation_id,source_id,source_object_type,start_locator,end_locator,source_section_id,source_section_title,recommendation_table_id,recommendation_table_heading,enumeration_mode,completeness_adjudication_status,reviewed_source_scope,deterministic_unavailable_reason
+SRC-001,A,recommendation_row,p1:r1,p1:r1,S1,Section One,T1,Recommendations for One,deterministic,PASS,,
+SRC-002,A,recommendation_row,p1:r2,p1:r2,S1,Section One,T1,Recommendations for One,deterministic,PASS,,
+SRC-003,A,recommendation_row,p2:r1,p2:r1,S2,Heart Failure,T2,Recommendations for Heart Failure,deterministic,PASS,,

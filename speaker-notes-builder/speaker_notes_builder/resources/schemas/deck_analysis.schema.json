@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Deck Analysis",
+  "type": "object",
+  "required": ["purpose", "audience", "source_mode", "narrative_arc", "sections", "known_gaps"],
+  "properties": {
+    "purpose": {"type": "string", "minLength": 1},
+    "audience": {"type": "string", "minLength": 1},
+    "source_mode": {"enum": ["strict", "explanatory", "research_enhanced"]},
+    "requested_talk_minutes": {"type": ["number", "null"], "minimum": 0},
+    "qa_minutes": {"type": ["number", "null"], "minimum": 0},
+    "narrative_arc": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "slides"],
+        "properties": {
+          "name": {"type": "string"},
+          "slides": {"type": "array", "items": {"type": "integer", "minimum": 1}}
+        }
+      }
+    },
+    "high_risk_claims": {"type": "array", "items": {"type": "string"}},
+    "known_gaps": {"type": "array", "items": {"type": "string"}},
+    "known_conflicts": {"type": "array", "items": {"type": "string"}}
+  }
+}

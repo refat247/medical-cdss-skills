@@ -1,0 +1,10 @@
+{
+  "skill": "offline-study-guide",
+  "test_cases": [
+    {"input": "Make an offline HTML study guide from these chapters", "should_trigger": true},
+    {"input": "Fix bookmarks in the beginner investigation HTML so section and chapter show", "should_trigger": true},
+    {"input": "Build a printable mobile reader like the medicine guide", "should_trigger": true},
+    {"input": "What is the capital of France?", "should_trigger": false},
+    {"input": "Summarize this PDF into a Word memo", "should_trigger": false}
+  ]
+}

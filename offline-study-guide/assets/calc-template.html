@@ -1,0 +1,20 @@
+<template id="readerCalcTemplate">
+  <div class="calc-row"><label for="calcWeight">Weight (kg):</label><input type="number" id="calcWeight" value="60" min="0.5" max="300" step="any" inputmode="decimal" aria-describedby="calcWeightHint"><span id="calcWeightHint" class="calc-hint">0.5–300 kg</span></div>
+  <div class="calc-row"><label for="calcDrug">Drug:</label>
+    <select id="calcDrug" style="flex:1;padding:6px 10px;border:1px solid var(--clr-border);border-radius:var(--radius-sm);font-family:var(--font-body);">
+      <option value="">-- Select --</option>
+      <option value="insulin-short">Short-acting Insulin (0.3 U/kg/day)</option>
+      <option value="insulin-premix">Pre-mixed Insulin (0.3 U/kg/day)</option>
+      <option value="norepinephrine" disabled>Norepinephrine (8-12 mcg/min) — unavailable, under review</option>
+      <option value="dopamine-low" disabled>Dopamine Low (1-5 mcg/kg/min) — unavailable, under review</option>
+      <option value="dopamine-mid">Dopamine Mid (5-10 mcg/kg/min)</option>
+      <option value="dopamine-high">Dopamine High (10-20 mcg/kg/min)</option>
+      <option value="dobutamine">Dobutamine (2-20 mcg/kg/min)</option>
+      <option value="albumin-5">Albumin 5% (10-15 ml/kg)</option>
+      <option value="albumin-20">Albumin 20% (dose calc)</option>
+      <option value="iron-iv" disabled>IV Iron (Ganzoni formula) — unavailable, under review</option>
+      <option value="amino-acid" disabled>Amino Acid (0.15-0.25 g/kg/day) — unavailable, under review</option>
+      <option value="fatty-acid">Fatty Acid (1-2 g/kg/day)</option>
+    </select>
+  </div>
+  <div class="calc-result" id="calcResult">Select a drug and enter weight</div></template>

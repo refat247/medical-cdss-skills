@@ -1,0 +1,14 @@
+interface:
+  display_name: speaker notes builder
+  short_description: Build evidence-bounded, deck-aware speaker notes from PPTX/PDF;
+    create rehearsal/live presenter DOCX companions; optionally inject clean notes
+    back into PPTX; verify mapping, timing, clinical safety, and rendered artifacts.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

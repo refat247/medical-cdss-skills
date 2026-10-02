@@ -1,0 +1,24 @@
+project: MI Case-Based Presentation Project
+reference_only: true
+locked_metrics:
+  approved_sources: 2
+  udmi_nodes_final: 168
+  esc_nodes_final: 340
+  source_nodes_total: 508
+  reconciliation_records: 56
+  conflict_items: 10
+  provisional_cases: 493
+  final_cases: 481
+  teaching_modules: 16
+  core_live_anchors: 78
+  storyboard_units: 39
+  master_core_slides: 137
+  live_slides: 70
+  derivative_60_slides: 55
+  derivative_45_slides: 42
+  derivative_30_slides: 25
+  advanced_slides: 122
+  reference_slides: 24
+  modular_index_slides: 35
+  canonical_clinical_slides_indexed: 475
+  case_occurrence_rows: 1002

@@ -1,0 +1,18 @@
+{
+  "name": "speaker-notes-builder",
+  "version": "1.0.0",
+  "validated_at": "2026-09-07T17:42:15+06:00",
+  "engineering_release_state": "PASS",
+  "work_mode_manual_import_state": "UNVERIFIED",
+  "exact_tirzepatide_pptx_injection_state": "UNVERIFIED",
+  "tests": {"passed": 7, "failed": 0},
+  "tirzepatide_pdf_regression": {
+    "sha256": "268a2af92d6a8f91784290e976d251ec33d5ba6da2a3d535eac17daff2de5f8d",
+    "source_pages": 31,
+    "true_duplicate": {"slide": 31, "duplicate_of": 30},
+    "presenter_pages": 30,
+    "clinical_lint": "PASS",
+    "rehearsal_render": "PASS",
+    "live_render": "PASS"
+  }
+}

@@ -1,0 +1,31 @@
+deck:
+  title: "Clinical teaching deck"
+  audience: "Clinicians"
+  purpose: "Evidence-based education"
+  jurisdiction: "UNKNOWN"
+  label_check_date: "UNKNOWN"
+  duration_minutes: 15
+  output_filename: "clinical_deck.pptx"
+  status: "DRAFT"
+  typography:
+    title_min_pt: 32
+    body_min_pt: 24
+    citation_min_pt: 9
+  requested_closing_slides:
+    take_home: false
+    q_and_a: false
+    thank_you: false
+  design_exclusions: []
+  coverage_ledger: []
+slides:
+  - id: "s01"
+    type: "title"
+    title: ""
+    key_message: ""
+    evidence: []
+    interpretation: []
+    recommendation: []
+    risks_or_exceptions: []
+    citations: []
+    visual: "none"
+    notes: ""

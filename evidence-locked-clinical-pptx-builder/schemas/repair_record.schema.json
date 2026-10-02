@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Repair Fidelity Record",
+  "type":"object",
+  "required":["repair_id","defect_id","defect_severity","original_state","proposed_repair","repair_authority","clinical_content_changed","source_wording_changed","pedagogic_only_change","normalization_only_change","affected_case_ids","affected_slide_ids","adjudication","post_repair_validation"],
+  "properties":{
+    "repair_id":{"type":"string"},
+    "defect_id":{"type":"string"},
+    "defect_severity":{"enum":["CRITICAL","HIGH","MEDIUM","LOW"]},
+    "source_support":{"type":"string"},
+    "source_support_status":{"enum":["PASS","VERIFIED","CERTIFIED","FAIL",""]},
+    "source_is_approved":{"enum":["yes","no",""]},
+    "source_lock_status":{"enum":["LOCKED","PASS","CERTIFIED","VERIFIED","FAIL",""]},
+    "evidence_boundary_relocked":{"enum":["yes","no",""]}
+  }
+}

@@ -1,0 +1,28 @@
+/* V5 print sheet. Layer after reader.css. Chapter titles start a page; tables repeat their header. */
+@media print{
+  h1{page-break-before:auto!important;break-before:auto!important}
+  main article.chapter>h1.chapter-title,
+  main article.chapter>h2.chapter-title,
+  main>h1.chapter-title,
+  main h1.chapter-title{page-break-before:always!important;break-before:page!important}
+  main h1.chapter-title:first-child,
+  main article.chapter:first-of-type>h1.chapter-title,
+  main article.chapter:first-of-type>h2.chapter-title{page-break-before:avoid!important;break-before:avoid!important}
+  main :is(hr,.reader-ruler,.reader-status,.sr-only,.chapter-flipper){display:none!important}
+  h1,h2,h3,h4,h5,h6{page-break-after:avoid!important;break-after:avoid-page!important;page-break-inside:avoid;break-inside:avoid}
+  p,li,blockquote{orphans:3;widows:3}
+  .table-wrapper{overflow:visible!important;max-width:100%!important}
+  .table-wrapper table{min-width:0!important;width:100%!important;font-size:9.5pt!important}
+  thead{display:table-header-group!important}
+  tfoot{display:table-footer-group!important}
+  tr,td,th{page-break-inside:avoid;break-inside:avoid}
+  .reader-header,.reader-dialog,.reader-dialog::backdrop,.reader-skip,.reader-status,.chapter-nav,.chapter-flipper,.fab-top{display:none!important}
+  html,body,body.ui-reader{overflow:visible!important;height:auto!important}
+  pre{white-space:pre-wrap!important;word-break:break-word}
+  a{color:#000!important;text-decoration:none!important}
+  @page{size:A4;margin:14mm 12mm}
+}
+.diagram-source{border:1px dashed #bbb;border-radius:8px;padding:8px 10px;margin:0 0 1rem}
+.diagram-source>figcaption{font-size:.8rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;margin-bottom:6px}
+.diagram-source pre{margin:0}
+.calc-hint{display:block;font-size:.8rem;margin-top:.2rem}

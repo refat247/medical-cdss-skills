@@ -1,0 +1,32 @@
+profile: default
+source_mode: explanatory
+duplicate_policy: flag_only
+timing:
+  speaking_words_per_minute: 135
+  tolerance_seconds: 30
+  role_weights:
+    divider: 0.35
+    title: 0.45
+    reference: 0.45
+    takeaway: 0.8
+    mechanism: 1.0
+    evidence: 1.25
+    safety: 1.3
+    dosing: 1.3
+    counselling: 1.25
+    case: 1.45
+    general: 1.0
+  density_multiplier:
+    low: 0.8
+    medium: 1.0
+    high: 1.25
+docx:
+  page_size: A4
+  margin_inches: 0.55
+  font_family: Aptos
+  body_pt: 10.5
+  main_green: "0E4B42"
+  accent_green: "1E6D5B"
+  pale_green: "EAF4F1"
+  caution_orange: "B85B32"
+  pale_orange: "F9EEE8"

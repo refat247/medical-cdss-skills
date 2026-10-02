@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Slide Briefs",
+  "type": "object",
+  "required": ["slides"],
+  "properties": {
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide", "title", "role", "core_message", "presenter_job", "risk_level", "claim_status", "coverage"],
+        "properties": {
+          "slide": {"type": "integer", "minimum": 1},
+          "title": {"type": "string"},
+          "role": {"type": "string"},
+          "core_message": {"type": "string"},
+          "visible_claims": {"type": "array", "items": {"type": "string"}},
+          "decisive_numbers": {"type": "array", "items": {"type": "string"}},
+          "qualifiers": {"type": "array", "items": {"type": "string"}},
+          "presenter_job": {"type": "array", "items": {"type": "string"}},
+          "transition_target": {"type": "string"},
+          "risk_level": {"enum": ["low", "moderate", "high", "critical"]},
+          "claim_status": {"enum": ["SUPPORTED", "EXPLANATORY_ONLY", "SOURCE_PARTIAL", "SOURCE_CONFLICT", "JURISDICTION_SENSITIVE", "UNVERIFIED", "BLOCKED"]},
+          "coverage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["element", "disposition"],
+              "properties": {
+                "element": {"type": "string"},
+                "disposition": {"enum": ["spoken", "intentionally_omitted", "unresolved"]},
+                "reason": {"type": "string"}
+              }
+            }
+          },
+          "source_refs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+record_id,text_handling_policy,source_text,normalized_text,transformation_type,transformation_log,validation_status
+NORM-OP,SOURCE_NATIVE_NORMALIZED,"LDL-C ≥190 mg/dL","LDL-C >190 mg/dL",ocr_spacing_repair,operator normalized,PASS
+NORM-UNIT,SOURCE_NATIVE_NORMALIZED,"dose 3.75 mg","dose 3.75 g",ocr_spacing_repair,unit normalized,PASS
+NORM-TYPO,SOURCE_NATIVE_EXACT,"muscles symptoms","muscle symptoms",none,,PASS

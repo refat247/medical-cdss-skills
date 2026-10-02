@@ -1,0 +1,4 @@
+recommendation_id,marker_ids,footnote_ids,displayed_footnote_ids,required_footnote_ids,footnote_scope,footnote_display_policy,footnote_binding_status,footnote_semantic_adjudication,footnote_marker__FN-A,footnote_marker__FN-B
+REC-A,*,FN-A,FN-A,FN-A,recommendation,on_screen,PASS,PASS,* ,
+REC-B,†,FN-B,FN-A,FN-B,recommendation,on_screen,PASS,PASS,,*
+REC-C,‡,FN-B,,FN-B,recommendation,speaker_notes_only,PASS,FAIL,,‡

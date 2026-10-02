@@ -1,0 +1,3 @@
+recommendation_id,source_recommendation_id,source_section_id,source_section_title,recommendation_table_id,recommendation_table_heading,deck_teaching_module,deck_module_is_editorial
+REC-1,SRC-001,S1,Section One,T1,Recommendations for One,Module A,yes
+REC-2,SRC-003,S1,Severe Hypercholesterolemia,T2,Recommendations for Heart Failure,Module B,yes

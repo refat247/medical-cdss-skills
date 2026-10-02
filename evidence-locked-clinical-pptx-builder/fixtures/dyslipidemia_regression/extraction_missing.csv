@@ -1,0 +1,3 @@
+source_recommendation_id,decision_node_id,accounting_status
+SRC-001,NODE-001,EXTRACTED
+SRC-002,NODE-002,EXTRACTED

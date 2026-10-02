@@ -1,0 +1,8 @@
+project:
+  title: Example Single-Guideline Update Lecture
+mode: BUILD_STANDARD
+evidence:
+  approved:
+    - {id: GUIDELINE, path: guideline.pdf, role: sole clinical source}
+  no_invention: true
+outputs: [slide_specification, presentation]

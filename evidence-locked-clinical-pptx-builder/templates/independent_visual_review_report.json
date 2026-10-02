@@ -1,0 +1,24 @@
+{
+  "reviewer": "",
+  "reviewer_runtime": "",
+  "candidate_pptx_sha256": "",
+  "rendered_slide_set_sha256": "",
+  "slide_count": 0,
+  "overall_status": "PASS",
+  "clinical_change_authority": "NONE",
+  "slide_by_slide_findings": [
+    {
+      "slide": 1,
+      "status": "PASS",
+      "finding": "NONE",
+      "proposed_repair": "",
+      "adjudication": ""
+    }
+  ],
+  "repaired_pptx_sha256": "",
+  "repaired_rendered_slide_set_sha256": "",
+  "repair_mapping": [],
+  "second_full_render_verification": false,
+  "post_repair_overall_status": "",
+  "post_repair_slide_by_slide_findings": []
+}

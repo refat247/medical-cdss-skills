@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","title":"Text Normalization Record","type":"object",
+  "required":["text_handling_policy","source_text","normalized_text","transformation_type","transformation_log","validation_status"],
+  "properties":{"text_handling_policy":{"enum":["SOURCE_NATIVE_EXACT","SOURCE_NATIVE_NORMALIZED","PEDAGOGIC_PARAPHRASE"]}}
+}

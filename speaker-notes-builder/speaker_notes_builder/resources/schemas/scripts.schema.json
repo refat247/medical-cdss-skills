@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Speaker Scripts",
+  "type": "object",
+  "required": ["slides"],
+  "properties": {
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide", "title", "main_script", "compressed_script", "optional_expansion", "delivery_intent", "estimated_seconds"],
+        "properties": {
+          "slide": {"type": "integer", "minimum": 1},
+          "title": {"type": "string"},
+          "section": {"type": "string"},
+          "included": {"type": "boolean", "default": true},
+          "main_script": {"type": "string", "minLength": 1},
+          "compressed_script": {"type": "string"},
+          "optional_expansion": {"type": "string"},
+          "delivery_intent": {"type": "string"},
+          "key_emphasis": {"type": "array", "items": {"type": "string"}},
+          "pause_or_point": {"type": "array", "items": {"type": "string"}},
+          "transition": {"type": "string"},
+          "estimated_seconds": {"type": "number", "minimum": 0},
+          "cautions": {"type": "array", "items": {"type": "string"}},
+          "claim_status": {"enum": ["SUPPORTED", "EXPLANATORY_ONLY", "SOURCE_PARTIAL", "SOURCE_CONFLICT", "JURISDICTION_SENSITIVE", "UNVERIFIED", "BLOCKED"]}
+        }
+      }
+    }
+  }
+}
