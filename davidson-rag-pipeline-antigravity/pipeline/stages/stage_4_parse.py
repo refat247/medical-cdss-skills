@@ -300,6 +300,20 @@ def make_chunk(
 MCQ_EXPLANATION_END_RE = re.compile(r"(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])(?=[ \t]*(?:[:.)]|\r?\n|$))", re.IGNORECASE)
 
 
+def _write_stage4_report_sections(log_path, sections_text):
+    """Append Stage 4's sections to the AUDIT_REPORT, first dropping any left by an earlier Stage 4 run so a
+    re-run replaces them instead of duplicating (Stage 1 owns everything above the first Stage 4 heading)."""
+    existing = ""
+    if os.path.exists(log_path):
+        with open(log_path, encoding="utf-8") as f:
+            existing = f.read()
+    marker = existing.find("\n\n## Stage 4 Header Map")
+    if marker != -1:
+        existing = existing[:marker]
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(existing + sections_text)
+
+
 def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
     """Executes Stage 4A pre-flight heading map and manifest."""
     checkpoint, checkpoint_path = load_checkpoint(out_dir, prefix)
@@ -341,10 +355,11 @@ def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
     manifest_header = "| ## section | location | children present | required L2 strategy |\n|---|---|---|---|"
 
     log_path = os.path.join(out_dir, f"{prefix}_AUDIT_REPORT.md")
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(f"\n\n## Stage 4 Header Map ({len(hmap)} headers)\n\n" + "\n".join(hmap))
-        f.write(f"\n\n## Stage 4A Heading-Depth Manifest ({len(sections)} ## sections) — Rule J3\n\n"
-                + manifest_header + "\n" + "\n".join(manifest))
+    _write_stage4_report_sections(
+        log_path,
+        f"\n\n## Stage 4 Header Map ({len(hmap)} headers)\n\n" + "\n".join(hmap)
+        + f"\n\n## Stage 4A Heading-Depth Manifest ({len(sections)} ## sections) — Rule J3\n\n"
+        + manifest_header + "\n" + "\n".join(manifest))
 
     h4_only = sum(1 for s in sections if s["has_h4"] and not s["has_h3"])
     flat = sum(1 for s in sections if not s["has_h3"] and not s["has_h4"])
