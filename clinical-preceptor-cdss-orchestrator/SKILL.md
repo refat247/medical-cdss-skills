@@ -9,6 +9,7 @@ description: |
   runtime engine (Socratic Preceptor, Exam SBA Generator, Prescribing Safety Guard, 4-Textbook Federation,
   Tropical Ward Calculator, Bilingual Retrieval, OSCE Visual Spotters, Residency Progression Curriculum,
   GraphRAG Causal Graphs, Acute SBAR Handovers, Bengali Patient Leaflets, Anki Cloze Decks, and Never-Events Toxic Matrix).
+  Use for building/running a general preceptor corpus; for Habijabi-series-only queries use kawsar-habijabi-cdss-navigator, and for a federated textbook query use medical-cdss-unified-orchestrator.
 ---
 
 # Clinical Preceptor CDSS Orchestrator (v1.2.1)

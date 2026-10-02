@@ -6,6 +6,7 @@ description: |
   ACTIVATE this skill whenever the user asks to bump version, update skill or software version,
   prepare a release, maintain changelogs, synchronize version declarations across code, tests,
   and documentation, or verify zero-drift version consistency across files.
+  Not for a build run's own verify-versions stage, which belongs to medical-rag-orchestrator.
 ---
 
 # Version Manager Skill (v1.2.1)

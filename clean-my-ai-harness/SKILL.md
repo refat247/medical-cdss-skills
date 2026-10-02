@@ -1,7 +1,7 @@
 ---
 name: clean-my-ai-harness
 version: 1.0.2
-description: Map the setup Antigravity and AI agents can see and prepare a safe cleanup plan. Use after model changes or when instructions, skills, rules, tools, permissions, or checks may overlap.
+description: Map the setup Antigravity and AI agents can see and prepare a safe cleanup plan. Use after model changes or when instructions, skills, rules, tools, permissions, or checks may overlap. Not for token or cost analysis; use token-audit for that.
 ---
 
 # Clean My AI Harness — Antigravity & Codex Edition

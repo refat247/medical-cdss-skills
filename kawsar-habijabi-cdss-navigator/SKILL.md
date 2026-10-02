@@ -8,6 +8,7 @@ description: |
   bedside prescribing keyword screen (6 fixed rules; never a safety clearance), Habijabi-to-Davidson bridge lookup (other books via the unified orchestrator) (Davidson 25,
   Harrison 22, Hurst 15, Kumar & Clark 11), tropical fluid calculation heuristics, and bilingual
   sub-millisecond retrieval.
+  Use ONLY for Dr. Kawsar Uddin's Habijabi series; for federated 4-textbook queries use medical-cdss-unified-orchestrator, and to build or run a general preceptor corpus use clinical-preceptor-cdss-orchestrator.
 ---
 
 # Kawsar Habijabi CDSS & Socratic Preceptor Navigator (v1.1.1)

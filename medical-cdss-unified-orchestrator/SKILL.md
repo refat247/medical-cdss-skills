@@ -7,6 +7,7 @@ description: |
   (22nd Edition), Fuster & Hurst's The Heart (15th Edition), and Kumar and Clark's Clinical Medicine
   (11th Edition 2026). Provides multi-turn clinical QA, case vignette decomposition, zero-hallucination
   drug therapy safety verification, and sub-millisecond retrieval across 28,000+ clinical chunks.
+  Use ONLY for multi-book (federated) queries; a query about one book goes to that book's navigator (harrison/hurst/kumar-cdss-navigator) and is not handled here.
 ---
 
 # Unified Medical CDSS Orchestrator (v1.5.1)
