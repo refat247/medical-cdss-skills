@@ -59,8 +59,16 @@ def check_help(files) -> list[str]:
         if "argparse" not in src:  # scripts without argparse would execute real work on --help
             continue
         env = {**os.environ, "PYTHONPATH": pypath, "PYTHONIOENCODING": "utf-8"}
+        cmd, cwd = [sys.executable, f.name, "--help"], f.parent
+        if (f.parent / "__init__.py").exists():
+            # a module inside a package (relative imports) must run as `python -m pkg.mod`, not as a loose script
+            parts, top = [f.stem], f.parent
+            while (top / "__init__.py").exists():
+                parts.insert(0, top.name)
+                top = top.parent
+            cmd, cwd = [sys.executable, "-m", ".".join(parts), "--help"], top
         try:
-            r = subprocess.run([sys.executable, f.name, "--help"], cwd=f.parent, env=env, stdin=subprocess.DEVNULL,
+            r = subprocess.run(cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
                                capture_output=True, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             bad.append(f"{rel}: --help timed out")
