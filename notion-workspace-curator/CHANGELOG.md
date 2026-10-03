@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0] — 2026-10-03
+
+### Added
+- Deterministic artifact/writing routing chain: **Domain / Ownership → NIQS Page Role → Artifact Form → Canonical Home**.
+- Routing precedence: **existing canonical parent → domain ownership → NIQS Page Role → artifact form**.
+- `references/artifact-routing.md` with routing rules for research outputs, audits, SOPs/how-tos, guides, prompts, handoffs, learning notes, execution/test reports, benchmarks, manuscripts, references and archives.
+- Existing-router-first guardrail: search and extend the canonical routing/control surface before creating a competing peer/top-level router.
+- Explicit domain-specific vs reusable artifact-placement rules and a writing guardrail: prose alone is not a reason to route material into a writing area.
+
+### Preserved
+- NIQS remains **v1.0**; Artifact Form is subordinate to NIQS Page Role rather than a competing taxonomy.
+- Content Auditor and Research Method Curator ownership boundaries remain unchanged.
+- Existing mobile/access, evidence-archive, duplicate-control, provenance, safe-editing and re-fetch verification rules remain intact.
+
+### State boundary
+- **Canonical Git source:** this release must be merged to `refat247/medical-cdss-skills` `main` before source state is called canonical.
+- **Notion mirror:** maintained as a separate readable governance/archive state.
+- **Runtime installation/activation:** NOT VERIFIED by source or Notion state; requires a user-controlled install/update and fresh-session activation test.
+
 ## [0.5.0] — 2026-09-25
 
 ### Added

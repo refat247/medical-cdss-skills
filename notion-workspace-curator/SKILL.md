@@ -1,13 +1,13 @@
 ---
 name: notion-workspace-curator
-description: Audit, design, repair and maintain Notion workspaces, hubs, dashboards, databases, archives, navigation, research outputs, mobile access surfaces and documentation systems. Use when organizing existing Notion content, consolidating research, reducing duplication, improving mobile usability, creating canonical navigation, routing evidence archives, or applying consistent native Notion UX.
+description: Audit, design, repair and maintain Notion workspaces, hubs, dashboards, databases, archives, navigation, research outputs, mobile access surfaces and documentation systems. Use when organizing existing Notion content, consolidating research, reducing duplication, improving mobile usability, creating canonical navigation, routing evidence archives and written artifacts, or applying consistent native Notion UX.
 metadata:
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Notion Workspace Curator
 
-**Version:** `0.5.0`
+**Version:** `0.6.0`
 
 Use this skill to make Notion workspaces easier to understand, navigate, maintain, verify and reuse. Treat Notion as a structured knowledge system and operating workspace, not a dumping ground.
 
@@ -62,6 +62,49 @@ For substantial systems prefer:
 9. **Archive / Superseded** — retained historical material excluded from current navigation.
 
 Do not force unrelated domains into one giant page.
+
+### 2A. Artifact-form routing protocol
+
+When a new or existing page's destination is unclear, route it with this chain:
+
+**DOMAIN / OWNERSHIP → NIQS PAGE ROLE → ARTIFACT FORM → CANONICAL HOME**
+
+Use these meanings:
+1. **Domain / ownership** — what subject, project, programme, or life/work area owns the knowledge.
+2. **NIQS Page Role** — what job the page performs: HUB, CURRENT STATE, RESEARCH, EVIDENCE ARCHIVE, SOURCE CARD, DECISION, EXECUTION, BENCHMARK, LEARNING, REFERENCE, or ARCHIVE.
+3. **Artifact Form** — the document form when it adds routing clarity, such as audit report, SOP/how-to, guide, prompt, handoff, manuscript, decision memo, learning note, research report, source artifact, or execution/test report.
+4. **Canonical Home** — the already-governed parent, database, project, or domain location that should own the page.
+
+#### Routing precedence
+
+When signals conflict, prefer:
+
+**existing canonical parent → domain ownership → NIQS Page Role → artifact form**
+
+Artifact Form is subordinate metadata. It must not become a second competing Page Role taxonomy and must not automatically create a new top-level folder, database, or index.
+
+#### Existing-router-first guardrail
+
+Before creating a new router, index, database, or top-level control page:
+- search for the existing canonical routing/control surface;
+- fetch it and test whether one compact section, table, view, or child reference can add the needed route without making it unusable;
+- extend that existing canonical surface when safe;
+- create a new routing surface only when the existing canonical router cannot remain readable, maintainable, or appropriately scoped;
+- if uncertain, mark the destination `UNRESOLVED` rather than creating a competing router.
+
+#### Domain-specific vs reusable routing
+
+- Domain-specific SOPs, audits, handoffs, prompts, guides, test reports, and research stay with the domain/project they govern.
+- Cross-domain reusable methods, standards, or SOPs belong in the reusable reference/methodology layer.
+- Project-specific prompts remain inside the project; reusable AI prompts belong in the AI prompt/system library.
+- Audit reports belong with the nearest governed object they audit; do not centralize all audits merely because they share the word "audit".
+- Handoffs belong inside the project/workstream being handed off.
+- Finished subject guides belong in the subject domain. Writing methodology belongs in the writing-methodology layer.
+- A book/manuscript belongs in the writing/manuscript programme when manuscript production itself is the active project; otherwise preserve the owning subject/project context.
+- Historical/superseded material normally archives within its owning domain. Raw imported legacy material stays in the designated raw-import archive until deliberately promoted.
+- **Being prose or "writing" is never sufficient reason by itself to route a page into a writing area.**
+
+For the detailed routing matrix and examples, read [references/artifact-routing.md](references/artifact-routing.md).
 
 ### 3. Mobile-first first-screen contract
 

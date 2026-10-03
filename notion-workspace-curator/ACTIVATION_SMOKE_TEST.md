@@ -1,7 +1,7 @@
-# Activation Smoke Test — Notion Workspace Curator v0.5.0
+# Activation Smoke Test — Notion Workspace Curator v0.6.0
 
 ## Purpose
-Fresh-session runtime activation test for the NIQS release. This test must not infer activation from Git, Notion, installation visibility, filesystem presence, or previous chats.
+Fresh-session runtime activation test for the NIQS v1.0 + artifact-routing release. This test must not infer activation from Git, Notion, installation visibility, filesystem presence, or previous chats.
 
 ## Fresh-chat prompt
 
@@ -29,20 +29,24 @@ If the skill is actually loaded, report:
 - exact loaded title/header
 - the first operational heading or sentence after the title
 - whether the loaded instructions explicitly reference NIQS v1.0 / Notion Information Quality Standard
+- whether the loaded instructions contain the artifact-routing chain `DOMAIN / OWNERSHIP → NIQS PAGE ROLE → ARTIFACT FORM → CANONICAL HOME`
+- whether the loaded instructions require extending an existing canonical router before creating a competing routing surface when safe
 
 Expected:
 - internal name: `notion-workspace-curator`
-- version: `0.5.0`
+- version: `0.6.0`
 - title/header: `Notion Workspace Curator`
 - NIQS v1.0 present in loaded instructions
+- artifact-routing chain present
+- existing-router-first guardrail present
 
 Final verdict exactly one of:
 
-PASS — notion-workspace-curator v0.5.0 activated with NIQS v1.0
+PASS — notion-workspace-curator v0.6.0 activated with NIQS v1.0 + artifact routing
 
 or
 
-FAIL — notion-workspace-curator v0.5.0 runtime did not activate as declared
+FAIL — notion-workspace-curator v0.6.0 runtime did not activate as declared
 
 ## Evidence rule
 PASS requires runtime-injected instructions in the fresh chat. Package visibility, Git, Notion mirrors, or on-disk files are not sufficient.
