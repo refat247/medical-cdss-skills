@@ -1,0 +1,1848 @@
+{
+  "gate": "VISUAL_POLISH",
+  "source": "/home/user/workspace/slides/uploads/DYS_2026_Master_Core_v1.5.pptx",
+  "output": "/tmp/vp/dense.pptx",
+  "profile": "dense_case_reveal",
+  "profile_approved_by": "deck owner (test run)",
+  "metric_font": "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+  "slides": 193,
+  "summary": {
+    "POLISHED": 189,
+    "SKIPPED": 0,
+    "SPLIT_REQUIRED": 4
+  },
+  "slides_report": [
+    {
+      "slide": 1,
+      "kind": "cover",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 2,
+      "kind": "contract",
+      "status": "POLISHED",
+      "row_pt": 24
+    },
+    {
+      "slide": 3,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 4,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 5,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 21,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 6,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 7,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 8,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 9,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 10,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 11,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 21,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 12,
+      "kind": "reveal",
+      "status": "SPLIT_REQUIRED",
+      "reason": "body needs 292 pt at 18 pt floor; 266 pt available"
+    },
+    {
+      "slide": 13,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 26,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 14,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 25,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 15,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 16,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 26,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 17,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 26,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 18,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 19,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 20,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 21,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 30,
+      "title_pt": 26,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 22,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 26,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 23,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 24,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 25,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 26,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 27,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 28,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 29,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 30,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 31,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 27,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 32,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 33,
+      "kind": "reveal",
+      "status": "SPLIT_REQUIRED",
+      "reason": "body needs 270 pt at 18 pt floor; 266 pt available"
+    },
+    {
+      "slide": 34,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 35,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 26,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 36,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 37,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 38,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 39,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 40,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 22,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 41,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 42,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 43,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 24,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 44,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 45,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 46,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 47,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 48,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 49,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 50,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 51,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 52,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 53,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 54,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 55,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 26,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 56,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 22,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 57,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 58,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 20,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 59,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 60,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 61,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 62,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 63,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 64,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 65,
+      "kind": "reveal",
+      "status": "SPLIT_REQUIRED",
+      "reason": "body needs 300 pt at 20 pt floor; 296 pt available"
+    },
+    {
+      "slide": 66,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 35,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 67,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 68,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 69,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 21,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 70,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 71,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 72,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 23,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 73,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 74,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 20,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 75,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 76,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 77,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 78,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 33,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 79,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 80,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 81,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 82,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 83,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 84,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 85,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 24,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 86,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 26,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 87,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 88,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 89,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 90,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 91,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 31,
+      "header_rows": 2,
+      "watermark": false
+    },
+    {
+      "slide": 92,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 37,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 93,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 24,
+      "title_pt": 31,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 94,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 95,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 96,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 97,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 98,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 99,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 100,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 101,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 102,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 103,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 104,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 105,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 106,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 107,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 108,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 109,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 22,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 110,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 111,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 112,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 113,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 114,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 36,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 115,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 116,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 22,
+      "title_pt": 36,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 117,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 118,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 119,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 34,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 120,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 121,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 21,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 122,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 123,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 124,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 125,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 126,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 127,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 128,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 31,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 129,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 130,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 131,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 132,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 133,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 31,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 134,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 135,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 136,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 137,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 138,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 39,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 139,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 140,
+      "kind": "reveal",
+      "status": "SPLIT_REQUIRED",
+      "reason": "body needs 270 pt at 18 pt floor; 266 pt available"
+    },
+    {
+      "slide": 141,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 142,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 143,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 144,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 145,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 146,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 18,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 147,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 148,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 149,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 150,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 151,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 25,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 152,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 23,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 153,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 25,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 154,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 155,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 21,
+      "title_pt": 25,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 156,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 157,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 25,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 158,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 28,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 159,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 25,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 160,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 161,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 28,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 162,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 2,
+      "body_pt": 23,
+      "title_pt": 40,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 163,
+      "kind": "divider",
+      "status": "POLISHED"
+    },
+    {
+      "slide": 164,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 165,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 166,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 167,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 168,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 30,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 169,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 170,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 171,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 172,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 173,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 174,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 175,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 26,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 176,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 177,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 25,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 178,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 25,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 179,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 24,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 180,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 181,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 29,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 182,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 24,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 183,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 184,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 19,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 185,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 186,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 187,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 188,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 189,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 190,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 1,
+      "body_pt": 32,
+      "title_pt": 30,
+      "header_rows": 1,
+      "watermark": true
+    },
+    {
+      "slide": 191,
+      "kind": "decide",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 24,
+      "title_pt": 38,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 192,
+      "kind": "reveal",
+      "status": "POLISHED",
+      "cards": 3,
+      "body_pt": 23,
+      "title_pt": 32,
+      "header_rows": 1,
+      "watermark": false
+    },
+    {
+      "slide": 193,
+      "kind": "closure",
+      "status": "POLISHED",
+      "row_pt": 20
+    }
+  ],
+  "certifies_anything": false
+}

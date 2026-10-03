@@ -1,0 +1,2953 @@
+diff --git a/evidence-locked-clinical-pptx-builder/ACTIVATION_SMOKE_TEST.md b/evidence-locked-clinical-pptx-builder/ACTIVATION_SMOKE_TEST.md
+index 8457e43..58023fa 100644
+--- a/evidence-locked-clinical-pptx-builder/ACTIVATION_SMOKE_TEST.md
++++ b/evidence-locked-clinical-pptx-builder/ACTIVATION_SMOKE_TEST.md
+@@ -1,4 +1,4 @@
+-# Runtime Activation Smoke Test - v2.3.0
++# Runtime Activation Smoke Test - v2.4.0
+ 
+ Run in a fresh chat after installing the package.
+ 
+@@ -6,7 +6,7 @@ Ask the runtime to report only instructions already injected by the selected ski
+ 
+ Expected identity:
+ - skill: `evidence-locked-clinical-pptx-builder`
+-- version: `2.3.0`
++- version: `2.4.0`
+ - schema version: `3`
+ 
+ Expected capability markers include:
+@@ -16,8 +16,9 @@ Expected capability markers include:
+ - CASE/DECIDE prompt leak/coherence gate;
+ - source-derived scenario to neutral DECIDE prompt alignment;
+ - advisory case/reveal layout screen plus full rendered visual review;
++- `VISUAL_POLISH` mode with `VISUAL_POLISH_CONTENT_LOCK` gate (fail-closed SKIPPED / SPLIT_REQUIRED);
+ - `SOURCE_NATIVE_EXACT` / `SOURCE_NATIVE_NORMALIZED` / `PEDAGOGIC_PARAPHRASE`;
+ - repair-fidelity audit;
+ - CRITICAL/HIGH semantic canonical-promotion blocking.
+ 
+-PASS string: `PASS - evidence-locked-clinical-pptx-builder v2.3.0 activated`
++PASS string: `PASS - evidence-locked-clinical-pptx-builder v2.4.0 activated`
+diff --git a/evidence-locked-clinical-pptx-builder/CHANGELOG.md b/evidence-locked-clinical-pptx-builder/CHANGELOG.md
+index d3fbd3f..7bb53f1 100644
+--- a/evidence-locked-clinical-pptx-builder/CHANGELOG.md
++++ b/evidence-locked-clinical-pptx-builder/CHANGELOG.md
+@@ -1,5 +1,30 @@
+ # Changelog
+ 
++## 2.4.0 - 2026-10-02
++
++- Added `VISUAL_POLISH` mode and `scripts/visual_polish/` (`polish.py`, `style.py`,
++  `verify.py`): a content-locked, rule-based restyle of an already-built deck,
++  run after `clinical_provenance_audit` and before `automated_preflight`.
++- Added the `VISUAL_POLISH_CONTENT_LOCK` gate: slide identity/order/layout,
++  verbatim text (multiset), no non-token additions, speaker notes, byte-identical
++  layout/master/theme parts, font floors, independent fit re-measurement, and
++  the repo's own `pptx_preflight`. It also writes the render manifest and a blank per-slide visual-review ledger.
++- Fail-closed outcomes: `SKIPPED` (unrecognised structure) and `SPLIT_REQUIRED`
++  (cannot fit at the floor). Both leave the slide byte-identical to the build.
++- Profiles: `projector_default` (section 17 floors) and opt-in `dense_case_reveal`
++  (DYS_2026 v1.5 density; owner approval required and validated in project state).
++- Design semantics: amber DECIDE / green SOURCE REVEAL with icon cues; ACC/AHA
++  COR colour pills; compound COR/LOE codes split into separate pills; uniform body size per slide.
++- `semantic_promotion_gate.py` now requires `visual_polish_content_lock = PASS`
++  whenever `visual_polish_applied` is true. It cannot be waived.
++- `project_state.yaml`: new `visual_polish` state and `release_policy.visual_polish`
++  block. `validate_project.py` enforces the profile approval.
++- `mode_router.py` routes beautify/polish/restyle requests to `VISUAL_POLISH`.
++- `case_reveal_layout_gate.py`: the hard-coded `C:/Windows/Fonts/arialbd.ttf` was replaced
++  with a portable metric-font lookup (it previously crashed off Windows).
++- Added a synthetic fixture deck and 21 regression tests (110 total).
++- No clinical source, frozen artifact or design-reference deck changed. Backward compatible.
++
+ ## 2.3.0 - 2026-10-02
+ 
+ - Added a source-derived scenario and neutral DECIDE question contract, with
+diff --git a/evidence-locked-clinical-pptx-builder/MANIFEST.json b/evidence-locked-clinical-pptx-builder/MANIFEST.json
+index 1827720..5164d8c 100644
+--- a/evidence-locked-clinical-pptx-builder/MANIFEST.json
++++ b/evidence-locked-clinical-pptx-builder/MANIFEST.json
+@@ -1,8 +1,8 @@
+ {
+   "name": "evidence-locked-clinical-pptx-builder",
+-  "version": "2.3.0",
++  "version": "2.4.0",
+   "schema_version": 3,
+-  "immediate_predecessor": "2.2.1",
++  "immediate_predecessor": "2.3.0",
+   "lineage_origin": "1.0.0",
+   "major_predecessor": "2.0.0",
+   "breaking_change": false,
+diff --git a/evidence-locked-clinical-pptx-builder/MIGRATION_NOTES_v2.3.0_to_v2.4.0.md b/evidence-locked-clinical-pptx-builder/MIGRATION_NOTES_v2.3.0_to_v2.4.0.md
+new file mode 100644
+index 0000000..1a8dca3
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/MIGRATION_NOTES_v2.3.0_to_v2.4.0.md
+@@ -0,0 +1,19 @@
++# Migration Notes - v2.3.0 to v2.4.0
++
++Existing project state files remain valid. To adopt the new pipeline state,
++insert `visual_polish` (depends on `clinical_provenance_audit`) and make
++`automated_preflight` depend on it. Projects that do not polish should mark
++`visual_polish` as `complete` or `waived` with a note.
++
++To polish a built deck:
++
++1. Set `release_policy.visual_polish.enabled: true` and choose a profile.
++   `dense_case_reveal` needs `profile_approved_by`.
++2. Run `python -m scripts.visual_polish.polish` (sample with `--only` first).
++3. Run `python -m scripts.visual_polish.verify ... --render <dir>`; it must exit 0.
++4. Complete the generated per-slide ledger, then run `render_qa_gate.py --require-ledger`.
++5. Add `"visual_polish_applied": true, "visual_polish_content_lock": "PASS"` to
++   the promotion gates JSON.
++
++`scripts/case_reveal_layout_gate.py` no longer requires Windows. Set
++`LAYOUT_GATE_FONT` to pin a specific metric font.
+diff --git a/evidence-locked-clinical-pptx-builder/PACKAGE_MANIFEST.md b/evidence-locked-clinical-pptx-builder/PACKAGE_MANIFEST.md
+index c000405..9f26756 100644
+--- a/evidence-locked-clinical-pptx-builder/PACKAGE_MANIFEST.md
++++ b/evidence-locked-clinical-pptx-builder/PACKAGE_MANIFEST.md
+@@ -4,37 +4,82 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ 
+ | Path | Bytes | SHA-256 |
+ |---|---:|---|
+-| `ACTIVATION_SMOKE_TEST.md` | 988 | `c3d4174402d2031101dbb533857bcfcf537bacfc25cb6c2086fc3e589bc8c1a3` |
+-| `agents/openai.yaml` | 377 | `b8f1750ea9c40d53f961179ab5c365e4ffe5b6c1a0cc29bfddc981806f74de4b` |
+-| `assets/design_references/DYS_2026_Master_Core_v1.5_VISUAL_REPAIR_PRECANONICAL.pptx` | 790889 | `71c61806dba38d06ecef730bf8a8a0073995596327da6b6f567490fbf2f913d2` |
+-| `assets/icon.svg` | 325 | `693199a44b8c3085ce92c5911301f2011d0295d4ac403ab763f7218eefc4a3dd` |
+-| `CHANGELOG.md` | 9034 | `026b9f59d2eea26f3b7be492d7b87319c39fe7807f31bbe90ecb5fb781883a71` |
++| `ACTIVATION_SMOKE_TEST.md` | 1090 | `0807f9a263c27138d76d5e117129b29a2de640e1ce348ec2519f04693078725e` |
++| `CHANGELOG.md` | 10847 | `2ef610e2f48fe8597e74b4403fe650209e7670e80500df40904b21ef88bc7cf2` |
+ | `CODEX_LESSON_INTEGRATION_REPORT_v1.0.md` | 1581 | `bf2935bbc325b80ab17e63cb2db22ab5abc20d67617dbb8f41b00f9483c3ad68` |
+ | `CURRENT_SKILL_GAP_ANALYSIS.md` | 2488 | `e4ff7d79aa2826ea01c40a9ce0255848768d513789e925e1555956f914872822` |
+ | `DETERMINISTIC_VS_SEMANTIC_ENFORCEMENT_MATRIX.md` | 1792 | `722b689686436efde8235e6bbfddcec90f17bc28871145e5575f64fbbf67eaf1` |
++| `DYSLIPIDEMIA_FAILURE_REGRESSION_REPORT_v1.0.md` | 3329 | `0cdfe5009eed4159c74a11815ad52f0cd91c10ef27fe34ace19bec7afb35dc5b` |
++| `DYSLIPIDEMIA_FAILURE_REGRESSION_REPORT_v1.1.md` | 1632 | `d0bea78f9a1f586e5e5a0a499bf0af8203ba8c04757091d4b063da13855f9ddc` |
++| `FINAL_REAUDIT_REPORT.md` | 1228 | `522d3e93cc3899beff2922d7dbfd0be78ecba53acce5eed94e2b21d92702b052` |
++| `GIT_RELEASE_NOTES.md` | 321 | `0145f2494237b8cd95afcf68b5b9179114ed72a9952b0fe7ac4aa8f74a257b1e` |
++| `INDEPENDENT_AUDIT_REPORT.md` | 864 | `ad1e1deedabab88194d04c3b4288a4b56bb567806c946de161c24fc99e40dd8e` |
++| `INDEPENDENT_VISUAL_QA_PROMPT.md` | 2353 | `d9999cc710f74bd00c73e313181a8822a9acb546bf3ab76bb2e7ea27411b6fd9` |
++| `MANIFEST.json` | 404 | `0b2b576a933edecb3055e2de6cc2fd47dfbd2b0d390127d58ab7f981c82261b7` |
++| `MIGRATION_NOTES_v1_to_v2.md` | 1756 | `d1f81a42402fd69b3c4456d23324c86ce7d2623cae377505d61af0fa57accb04` |
++| `MIGRATION_NOTES_v2.1.0_to_v2.1.1.md` | 452 | `5a1d76e7a030cc5898cbc2a796e353c6a8ab91edd5558b5bfc34f47209e730dc` |
++| `MIGRATION_NOTES_v2.1.1_to_v2.2.0.md` | 763 | `78c80df996c689c353cb38faee2dd8e4af07f5f3338f886417aa4779f2874ec4` |
++| `MIGRATION_NOTES_v2.2.0_to_v2.2.1.md` | 1570 | `569f96be0125b8a4b82ef955e19e63e17de71fc97a31ef6bfd8b3bebb6eff026` |
++| `MIGRATION_NOTES_v2.2.1_to_v2.3.0.md` | 629 | `b10adbbd99d9a08dc0b9ad30ebe22f35a3a142e0c3a9abd66a7b1bdbb3a9d151` |
++| `MIGRATION_NOTES_v2.3.0_to_v2.4.0.md` | 952 | `df49a6428c37c3ced4c3df346db7675db07edf1fd7f62abeffd18e9a814d3f1b` |
++| `MI_FINAL_ARTIFACT_REGRESSION_REPORT_v1.0.md` | 2521 | `f50dc159fe15b31631bd2e493a771d9bcb27e1bf698f1dd030520359403737de` |
++| `MI_REGRESSION_MAPPING_REPORT.md` | 1932 | `459fcaba50eac929896cf9a6feaafc06268a76a24730dd49c21a59e55cf1c909` |
++| `MI_REGRESSION_PRESERVATION_v2.2.1.md` | 775 | `c700155ed0664ca9031f0210ac0fff8bcc7a389dece159616f622a1dd9f3cd32` |
++| `MI_WORKFLOW_RECONSTRUCTION.md` | 4897 | `ba51b35fc2e05ad6e51ae53dba26c5c076e99dbb140f9833711f5843503fd1c2` |
++| `NEW_SKILL_ARCHITECTURE.md` | 1223 | `2b265c9597876892206b6c163607a4937fc38d297bd7b041f455b074ac0bc736` |
++| `PACKAGE_TREE.md` | 1081 | `b92b7e402c7970354b05d9f721fe17e18ded892d51690b443df4042a8315d930` |
++| `README.md` | 5324 | `af5980053ac0d6a267393b3af4082f0130deea09c485f0a79245cdb49ec0e77b` |
++| `RELEASE_AUDIT.md` | 1180 | `ed0025d5ed49c805d2433f4283395f5a523c2187a1a271652deb14d2c6e2c009` |
++| `REPAIR_REPORT.md` | 271 | `87c4432dcd7a8039f5a05db9506d79c10894638ae5782decbeb5ba960906414f` |
++| `SKILL.md` | 32675 | `ef4a82e0a91a3b894b1556f0b5a2111327dcda7d8e53fb08a76b295719758a90` |
++| `TEST_REPORT.md` | 696 | `1a8b5e11050c17dd155bee9749157353cfda59f3e1bef5df17c115d479c6940b` |
++| `V2_0_PROSE_CODE_ENFORCEMENT_AUDIT_v1.0.md` | 1344 | `4cea90c2b6273c2b603bc2519e6fccf00c45ef01fd933de5498bc8fb1b1481da` |
++| `V2_1_0_FINAL_REAUDIT_REPORT.md` | 937 | `c7cb71e9e06de2955d62903c4e44a1cb01d3f6f99f81f10b2a26e1b65d5e3411` |
++| `V2_1_0_REPAIR_REPORT.md` | 1053 | `9a2a37925efaf9d5ce82cf2db49851952b5cf8e04a88419acc9cd8c2dd18b3ca` |
++| `V2_1_1_FINAL_REAUDIT_REPORT.md` | 1006 | `1d3b67314f4d17e3ae6379c050da80b5f936d5b9550b90c652449327dd00687b` |
++| `V2_1_1_HARDENING_REPORT.md` | 909 | `512d6240c9770abcacc8c4b837073bb407d1c344c662b071c42a73c55153984e` |
++| `V2_1_1_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 1815 | `d0c05e812c7c4dc29b9cc19912dac197e3242d3c66a6628ba90a5937fd81bc89` |
++| `V2_2_0_ADVERSARIAL_REAUDIT_REPORT.md` | 1172 | `f57260eba56412a92bb7f3cbc7cea0be9f1d5fd8ff35578f9bcd9f14cca81ff1` |
++| `V2_2_0_FINAL_REAUDIT_REPORT.md` | 770 | `6d579c7d22216e38094ee1ac2effc23284b18749f94abcb00b79a80eb5f39aa7` |
++| `V2_2_0_HARDENING_REPORT.md` | 1577 | `da4b50735147f3e6b0f5b4f0c59675e0f285d93d6432c280ece0c282b474c9af` |
++| `V2_2_0_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 483 | `f7e76bafcd97daaae2701afad1ebb2b4e639dc932d4c8e4310a4d080e8e8273d` |
++| `V2_2_1_ADVERSARIAL_REAUDIT_REPORT.md` | 1378 | `9819044bf6511d3a5d43f0e6adcfc47e529eeb49723791ab2fde23f1593e6651` |
++| `V2_2_1_HARDENING_REPORT.md` | 2621 | `16d4b4e4a49fb3fa5f63f148337614d250520b1a27314ec8d25ec60d62c4c175` |
++| `V2_2_1_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 2079 | `1af7313ff7cb64f396f99bf8157ae7a1e9e8e7efbbef6ce342509f57e8f3416f` |
++| `V2_3_0_RELEASE_AUDIT.md` | 726 | `85f76a4d4968974a3dbffcf310996deaaab5dd8104f06789710fedbaf7c9e7f0` |
++| `VERSION` | 6 | `2ad7b0c3f0ede58c3165b7a8a5479e890a758d39bfe8683eaef50ce6afad7232` |
++| `VERSIONING_DECISION.md` | 631 | `fe18f8b1e5cf1dd33da1ac9d35442475fa653d5f3a98653dfc02819ba60ff2c3` |
++| `VERSIONING_DECISION_v2.1.0.md` | 783 | `a20d9006b4145dccfde10b9b9566a55c41dfd1b5d4ba370c0a99d19d97fed558` |
++| `VERSIONING_DECISION_v2.2.0.md` | 631 | `fe18f8b1e5cf1dd33da1ac9d35442475fa653d5f3a98653dfc02819ba60ff2c3` |
++| `VERSIONING_DECISION_v2.2.1.md` | 639 | `7c7416c4c3c14b6a8db60779463ef91e0a0e33a930be394bc25bc7e4c034242f` |
++| `VERSIONING_DECISION_v2.3.0.md` | 543 | `6e4c85e19344941b179ec416c9d57f34ba3c24668b0d541998b53fdd258576e6` |
++| `VERSIONING_DECISION_v2.4.0.md` | 634 | `358b28de44bff1e6de850323da52d48d94519cb87f222c47aa715a5b681e5451` |
++| `agents/openai.yaml` | 407 | `480cf8b3823e91d13b1090e5951d5183ed4baec9bff47bdf04e3a7142462e743` |
++| `assets/design_references/DYS_2026_Master_Core_v1.5_VISUAL_REPAIR_PRECANONICAL.pptx` | 790889 | `71c61806dba38d06ecef730bf8a8a0073995596327da6b6f567490fbf2f913d2` |
++| `assets/icon.svg` | 325 | `693199a44b8c3085ce92c5911301f2011d0295d4ac403ab763f7218eefc4a3dd` |
+ | `docs/actual_mi_workflow_reconstruction.md` | 4897 | `ba51b35fc2e05ad6e51ae53dba26c5c076e99dbb140f9833711f5843503fd1c2` |
+ | `docs/adversarial_audit.md` | 864 | `ad1e1deedabab88194d04c3b4288a4b56bb567806c946de161c24fc99e40dd8e` |
+-| `docs/architecture.md` | 1500 | `44462edd475209d79ec8e3a2fbac654e9dcdd9885326fc93defa8e1fd118e822` |
++| `docs/architecture.md` | 1583 | `11847d1862fe83dc9b560198f13958b71a18ef2d60ce18669c11f91fc03bdcc2` |
+ | `docs/artifact_naming_convention.md` | 890 | `8348dc3e8d0c0eddf2e1cf6d2b7eeebd215235c4a0c0fa2087cc17a63c142424` |
+-| `docs/audit_gates.md` | 1421 | `c570fa46c5ed10ea4984b053382929197ee9685ca243fc99e110bfc8cd53fa38` |
++| `docs/audit_gates.md` | 1892 | `3a6b5871354cd3849169e65283aa9e83c7d6332d913f9666e4848418c3585c56` |
+ | `docs/canonical_promotion.md` | 1171 | `332aff87f2dd1f5271237b3da05d883e74bfe32f77a80aedd741d87474bdfea5` |
+ | `docs/case_corpus_schema.md` | 549 | `003c2709f9f6cd50c03ebf21e7079bb7542a7b29c2634f8f4c832daabd9056d7` |
+ | `docs/correction_erratum_protocol.md` | 481 | `dd2da68347bc8d8d5b3578679db971d134e8469ac1374e41442afc42b720a847` |
+ | `docs/current_skill_gap_analysis.md` | 5524 | `9a9687cc47301872b31139b7e3c122166a48b3e879b142edfe335c8e4d874947` |
+ | `docs/decide_prompt_contract.md` | 1562 | `33c10bde52223ba50f384c151dec285c94b235f77cbceb852cfd29c247ebe7d5` |
+ | `docs/derivative_deck_protocol.md` | 632 | `8fd13bc6412d41ab73f683d63420bc6daf43c8603a6b5677c96330fe0822e929` |
+-| `docs/dys_2026_v1_5_design_reference.md` | 1862 | `b1161058ea77dbf497d0f1b6d8f0e75ef7b8be1b38824fc48055b6bdf4541681` |
++| `docs/dys_2026_v1_5_design_reference.md` | 2015 | `d0d1f645ca1e8f29693c10e06b331848451b2edd191081ef9dfae486a83c8c53` |
+ | `docs/failure_protocol.md` | 527 | `de88331daa4146c1a6b5ca58f93a36133a002f6aa7eeee5a8f0b4dc01e561161` |
+ | `docs/final_artifact_regression/MI_Final_Artifact_PPTX_Preflight_Result_v2.1.0.json` | 144884 | `159f13c7fa11e3a3c546eb4130b8048c32dcc18b92e4b62269983f41b2293897` |
+ | `docs/final_artifact_regression/MI_Final_Artifact_Render_Manifest_v1.0.json` | 14357 | `34aaa5d8aae6128048d3fb2e7f6777493eda03b765fff74749f3f99460a8a90e` |
+ | `docs/final_artifact_regression/MI_Final_Artifact_Render_QA_Result_v2.1.0.json` | 300 | `827210b3c8ebcec5e18dd54907d0779ed536867799f63a346fdc8002adda421e` |
+-| `docs/final_artifact_regression/MI_Final_Artifact_Visual_Review_Ledger_v1.0.csv` | 25129 | `24d517780b0d68cdcd2ea8f5b28dbcff31cc79b1ea13c02367826f11876eac87` |
++| `docs/final_artifact_regression/MI_Final_Artifact_Visual_Review_Ledger_v1.0.csv` | 25063 | `3367a77204a5a5693706aaeef87b8db1e9cbcbaa39b23b6fa1849fa5d59f68dd` |
+ | `docs/final_reaudit_report.md` | 635 | `bbc2ae016a41bf553a1e707ffa9a56a709e108dc83c87df4879a80c98bf0e000` |
+ | `docs/handoff_resume_protocol.md` | 448 | `301d6bd2a57681f0158e7e29323dfcfa2165f3762b1d45ad934ba088f74da54c` |
+ | `docs/independent_visual_qa_handoff.md` | 2354 | `4737ae40163ca7e12c9e38db091e12d9f7f21d5b6a48fa837ca2bac8907e5f70` |
+ | `docs/mi_regression_evidence_verified.md` | 971 | `0d44493eae9054598378c2055d93cfef6710cb8eeec918b8437107d08d2ba597` |
+ | `docs/mi_regression_mapping.md` | 1932 | `459fcaba50eac929896cf9a6feaafc06268a76a24730dd49c21a59e55cf1c909` |
+-| `docs/mode_router.md` | 1224 | `c032c7e982ab5ac5d146f1675fbe33738ecdca6d0601dd57bb2bee782c5c6957` |
++| `docs/mode_router.md` | 1387 | `a82e5b67e87ebdaf462584beb7bd0dfbb294cf2d107aff5074ebf0081dd5ff62` |
+ | `docs/projector_design_acceptance.md` | 540 | `564cc5a18ef619f1837ea8dc0599b422de59ecc798bb36da50de4e76a2d2ff19` |
+ | `docs/rebuild_requirements_traceability.md` | 662 | `fb435390bffc1a50ca53bf8986526238ce20a60f7a2db114751a3552c2571516` |
+ | `docs/repair_report.md` | 1417 | `31cf541d7e7d696ce3e195b237e8b5e96c77d719b8e4fccd28651be5204e75f1` |
+@@ -44,16 +89,14 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `docs/source_visual_provenance.md` | 410 | `49fd8ce769639a8173bb4698a56c54f9a5efdc649e526af52d3d8c76425734d0` |
+ | `docs/speaker_notes_contract.md` | 510 | `819cf8037b2bd73631d72cc700036017d24efef2310b4f63b393927057ef5de7` |
+ | `docs/versioning_decision.md` | 524 | `faf1b4ad719504408853c7cd211f168b122ca716e539b720ac8055a4ee16bfa7` |
+-| `docs/visual_qa_protocol.md` | 1233 | `b8d1eac04e6f0f62d7eea85fa85534c151bc1e5c0283680ad5360c02a9901cdf` |
+-| `DYSLIPIDEMIA_FAILURE_REGRESSION_REPORT_v1.0.md` | 3329 | `0cdfe5009eed4159c74a11815ad52f0cd91c10ef27fe34ace19bec7afb35dc5b` |
+-| `DYSLIPIDEMIA_FAILURE_REGRESSION_REPORT_v1.1.md` | 1632 | `d0bea78f9a1f586e5e5a0a499bf0af8203ba8c04757091d4b063da13855f9ddc` |
++| `docs/visual_polish_protocol.md` | 7764 | `1f8ad92b3327e3074b355d58387a578c72c3a404ad41d8b0f137e9d496def846` |
++| `docs/visual_qa_protocol.md` | 1421 | `fc3dad3f0d66ad3635e10390f9d5f93a26ce1723b3e04300ca9804eb52c291b1` |
+ | `examples/A_mi_like_two_source_case_based.yaml` | 456 | `d2a93ae5afeb1342d16280a4d2bebe05f84720930b4551c199290bd540d9d73e` |
+ | `examples/B_single_guideline_standard.yaml` | 238 | `634921c905dee7c419ea604e554a562914df0fa3004ddf4b37924ec3dc7c08a4` |
+ | `examples/C_guideline_with_erratum.yaml` | 401 | `d4c39fa8879110c9a0d42ac0fd202c1a07069f385653afdca1e46e81ab0bdc8b` |
+ | `examples/D_derivative_from_frozen_master.yaml` | 347 | `c1eb4369209e95f05f545183960d06525c90af758c8c43eab94e44a048eba86b` |
+ | `examples/E_audit_repair_existing_deck.yaml` | 290 | `b3e1ddbf804842c2a68582e3830cea907432322764bdb672710f2ec373da79ea` |
+ | `examples/mi_readonly_regression_reference.yaml` | 608 | `a51821bbedefb6b8a96d68b876dc24ca8ad5b4f112de6b9dc64dd190b81a0478` |
+-| `FINAL_REAUDIT_REPORT.md` | 1228 | `522d3e93cc3899beff2922d7dbfd0be78ecba53acce5eed94e2b21d92702b052` |
+ | `fixtures/cases_complete.csv` | 157 | `46faba758f3311980ac72819e8c75e4a0e8d321133d2f145c65d79d2e34675f1` |
+ | `fixtures/cases_duplicate.csv` | 105 | `6d36d8e7768b2eaa8a80ef213c44d227832e63d083ddc83be624d6e8df28df66` |
+ | `fixtures/corrections.csv` | 154 | `b2d17e840fe14809b38e42eba4a185d89bc0a1f000c0830719f5d5d8f54e82f1` |
+@@ -76,10 +119,10 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `fixtures/dyslipidemia_regression/prompt_failures.csv` | 764 | `4b252426be44a99284cfb1c6f9ffa614622d484731869970596d14370cf86a87` |
+ | `fixtures/dyslipidemia_regression/repair_failures.csv` | 733 | `cc1d1941b71f2bec32a613e8ffb3bf31c7d19c62be46051628cfe42911b763ed` |
+ | `fixtures/dyslipidemia_regression/section_nodes_wrong.csv` | 345 | `36225bde3cb30621324a493350408e18e893cb828c03b221b5a3a55bedc7e123` |
+-| `fixtures/dyslipidemia_regression/source_census_38_tables_131.csv` | 8474 | `21eba09212d664e137066a0e546f62a5e107683f526212d06efe149e9382a328` |
++| `fixtures/dyslipidemia_regression/source_census_38_tables_131.csv` | 8435 | `f58d521297f8f8bd2374e2355967c8f782ad2840bce0ab770adb665825e8f66b` |
+ | `fixtures/dyslipidemia_regression/source_inventory.csv` | 601 | `273e08c2c42a8d3f9ee70d4f5e3d1a8a5c8984c96e40a69718069438735b77cb` |
+-| `fixtures/dyslipidemia_regression/source_inventory_130_truncated.csv` | 17106 | `a1930e42c24cd61e2256473b34760c4ae1aa18f71bacaa47ff42bf5f36f8bb85` |
+-| `fixtures/dyslipidemia_regression/source_inventory_131.csv` | 17236 | `3037388d2d6a71e43943588548c8d6f14cc1042316d686c676e084d8b3ead7ba` |
++| `fixtures/dyslipidemia_regression/source_inventory_130_truncated.csv` | 16975 | `e87cc2a372ff6e08ce8f124f4bd8a7bd0c69d97ea827f340300ea70382a01a14` |
++| `fixtures/dyslipidemia_regression/source_inventory_131.csv` | 17104 | `d612836a1af648e90a169b70e77f961b52e7bb7a163b5f503bb8691f7ddd3dc1` |
+ | `fixtures/final_artifact_visual_failure_classes.csv` | 1091 | `b0c6091c26d92698740ac012dae5d387bed6112b7ba2ac64499e34dd1b45e5aa` |
+ | `fixtures/independent_review_bad_pass_marker.txt` | 5 | `c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431` |
+ | `fixtures/independent_review_good.json` | 578 | `3dcae818035e3fde7f55aa9070a81c2a6a39c3b0fb37004190ade6882764a4d6` |
+@@ -94,28 +137,12 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `fixtures/slide_spec_good.csv` | 166 | `73cb1cc9e85728c2aaa31a4fbe8f2e088134616bc3763836fb95311a387ca181` |
+ | `fixtures/source_nodes.csv` | 180 | `212c6ca2b0d6391ee5173b27962b311c9a0636cb12c4f54a66b48a9a5c3ef775` |
+ | `fixtures/supersessions.csv` | 124 | `24ef012e0ed454c99089d7577ef7e0cc2545d101d4180bc4e82eeeae0c6bf2fa` |
++| `fixtures/visual_polish/case_reveal_mini.pptx` | 45771 | `b4fe15496b2ead44784ce6334c02bdcb58873e19981f512bc8eab64b5c1f6958` |
++| `fixtures/visual_polish/make_fixture.py` | 4204 | `02ec7ee2f8d84a252811b396492f177416564c588d194c97eb3759a0260f2739` |
+ | `fixtures/visual_review_complete.csv` | 156 | `a01093217e4c28c8e32b40fcb226a4628594bf79f981bf190174e71710925ce1` |
+ | `fixtures/visual_review_complete_domains.csv` | 463 | `f665d12eae9e319f1ea3c56e417a17a77ba5d640dbc5eaa4f2e522a821044c43` |
+ | `fixtures/visual_review_incomplete.csv` | 128 | `f7d74d499fa1ff0a6b0fdbf9e079d90554f9201f3d59e46425011844a2dc32d0` |
+-| `GIT_RELEASE_NOTES.md` | 321 | `0145f2494237b8cd95afcf68b5b9179114ed72a9952b0fe7ac4aa8f74a257b1e` |
+-| `INDEPENDENT_AUDIT_REPORT.md` | 864 | `ad1e1deedabab88194d04c3b4288a4b56bb567806c946de161c24fc99e40dd8e` |
+-| `INDEPENDENT_VISUAL_QA_PROMPT.md` | 2353 | `d9999cc710f74bd00c73e313181a8822a9acb546bf3ab76bb2e7ea27411b6fd9` |
+-| `MANIFEST.json` | 404 | `e0390fa081942bf3ffd8c07b5305565138d9fa296d5da803bfd3ad7693ec84b3` |
+-| `MI_FINAL_ARTIFACT_REGRESSION_REPORT_v1.0.md` | 2521 | `f50dc159fe15b31631bd2e493a771d9bcb27e1bf698f1dd030520359403737de` |
+-| `MI_REGRESSION_MAPPING_REPORT.md` | 1932 | `459fcaba50eac929896cf9a6feaafc06268a76a24730dd49c21a59e55cf1c909` |
+-| `MI_REGRESSION_PRESERVATION_v2.2.1.md` | 775 | `c700155ed0664ca9031f0210ac0fff8bcc7a389dece159616f622a1dd9f3cd32` |
+-| `MI_WORKFLOW_RECONSTRUCTION.md` | 4897 | `ba51b35fc2e05ad6e51ae53dba26c5c076e99dbb140f9833711f5843503fd1c2` |
+-| `MIGRATION_NOTES_v1_to_v2.md` | 1756 | `d1f81a42402fd69b3c4456d23324c86ce7d2623cae377505d61af0fa57accb04` |
+-| `MIGRATION_NOTES_v2.1.0_to_v2.1.1.md` | 452 | `5a1d76e7a030cc5898cbc2a796e353c6a8ab91edd5558b5bfc34f47209e730dc` |
+-| `MIGRATION_NOTES_v2.1.1_to_v2.2.0.md` | 763 | `78c80df996c689c353cb38faee2dd8e4af07f5f3338f886417aa4779f2874ec4` |
+-| `MIGRATION_NOTES_v2.2.0_to_v2.2.1.md` | 1570 | `569f96be0125b8a4b82ef955e19e63e17de71fc97a31ef6bfd8b3bebb6eff026` |
+-| `MIGRATION_NOTES_v2.2.1_to_v2.3.0.md` | 629 | `b10adbbd99d9a08dc0b9ad30ebe22f35a3a142e0c3a9abd66a7b1bdbb3a9d151` |
+-| `NEW_SKILL_ARCHITECTURE.md` | 1223 | `2b265c9597876892206b6c163607a4937fc38d297bd7b041f455b074ac0bc736` |
+-| `PACKAGE_TREE.md` | 549 | `87e5d68b435a6e1a3a9b401d7321ba91b524cca9c4fa90f054537898eea0bb60` |
+-| `README.md` | 4953 | `7aed2063ac20a18cca579417b34096f49f21d073784f32eabaf6b249789744a7` |
+-| `RELEASE_AUDIT.md` | 1180 | `ed0025d5ed49c805d2433f4283395f5a523c2187a1a271652deb14d2c6e2c009` |
+-| `REPAIR_REPORT.md` | 271 | `87c4432dcd7a8039f5a05db9506d79c10894638ae5782decbeb5ba960906414f` |
+-| `requirements.txt` | 56 | `1bb0dbad86bd0c9c75327fba283a251c013fe0cd24423144fe54d4aa098f60dc` |
++| `requirements.txt` | 139 | `97a86a7344db792f234b9654063636a783418a64368ff37c5c7eae476e680afd` |
+ | `schemas/footnote_binding.schema.json` | 1017 | `70392165c6a021d24b25b70e9d0b67a27480f45c49f0647e8e210377e49b4a07` |
+ | `schemas/prompt_semantics.schema.json` | 855 | `de883ae948f20940d0d8eb971275ea760003db889818668d04358ea17b1c1c95` |
+ | `schemas/repair_record.schema.json` | 889 | `817b54408c94e8ba88f87ffdff132510e82bd12cf77d8b9c2b7a55345c500917` |
+@@ -127,7 +154,7 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `scripts/canonical_guard.py` | 1088 | `516627eb7e0b557f124e9ed95e304df81c75bc8879db8baa1899b2063407284a` |
+ | `scripts/case_coverage_audit.py` | 1259 | `e2b16353811074db5bce8608b3a4d9863cf3a0dadede6701f0064bf9e1863d8e` |
+ | `scripts/case_dedup_audit.py` | 1017 | `9f526c81ec223b6635e4b7f334968b18ac45e634ea0b18383f8f7ca8a1dd15dd` |
+-| `scripts/case_reveal_layout_gate.py` | 5132 | `d42f389311951022110ca4da5a6106001422c178e9fed8f0787ac81e5f8cc30a` |
++| `scripts/case_reveal_layout_gate.py` | 6040 | `51d7cef9e8a6a22df3827e89262d4b7d92243a3f1a92d9ca7b7162c1efbc192b` |
+ | `scripts/clinical_lint.py` | 1464 | `82aea1238fb6d773c19cfeec8249c5ee8878f51bcd0af62456d0b9796774b1bb` |
+ | `scripts/common.py` | 875 | `f425ddc9a5bae729ea4c7be4b743767471410abdfe167d15429b62f82510dc93` |
+ | `scripts/correction_validator.py` | 1464 | `50a3597308b8b5e0b1216bce15567ca55c78ac21592d16518c05ba7ee1613c2f` |
+@@ -137,7 +164,7 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `scripts/handoff_generator.py` | 864 | `2aa5157fefbecf64c45234717f8f6e906ddc9d5f8dbdf3eccea2fb42c67b1f7b` |
+ | `scripts/hash_manifest.py` | 4097 | `1d75bce576713c998bee914b69553c19e9d90f61f568da617fd88d89b039c9a7` |
+ | `scripts/independent_review_gate.py` | 12797 | `a133417fa6e03c4a95264c4349e6d82f26882ee6c5791f47986134fef4cb019e` |
+-| `scripts/mode_router.py` | 1468 | `1fbc41d8cc52dfb913ce8edc9dcd0ae61fc2f1ce230428d0f7a1ae4db50a5b8d` |
++| `scripts/mode_router.py` | 1611 | `36b72ceeeec6ff70eab4f6c133ef6cd0ff9642939cdeb951c3f2baa25bb319aa` |
+ | `scripts/normalization_fidelity_validator.py` | 4295 | `f8cd0cd1850f8097df910ebbfcac0a3e5d3a45cabcc8313a9f90251911399dc6` |
+ | `scripts/package_closure.py` | 1651 | `cff09d55d99e57c6c16bb58532b80fc176052821eaf458cd5b215c434a9e53b0` |
+ | `scripts/pptx_notes_audit.py` | 1906 | `0064b04dc099a8dfc274823de56f262defaed605211aad6476f3038e24c41d28` |
+@@ -148,7 +175,7 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `scripts/reconciliation_validator.py` | 1179 | `c8cbcfa3caf4c2f4335cb0dd15acd4f98265234e5ac759bd154a0a8cb56b54d2` |
+ | `scripts/render_qa_gate.py` | 2838 | `9651cc25b1673ea0133ad39c29e165e0ae862606debdc312d5abfa652e1064c3` |
+ | `scripts/repair_fidelity_validator.py` | 3034 | `0602a5494d1d820071b1d96a1b20d3c6b434191f482c3872e1c2fbd91b4a6595` |
+-| `scripts/semantic_promotion_gate.py` | 4299 | `7de906028f4d9c31165f499908952ea9a47f781ee6c2cb11fa270cbaca420494` |
++| `scripts/semantic_promotion_gate.py` | 4843 | `0b495a639b6a89c6b3b177d65a0849fc3652e56cfb14b96cb85db3a529879f49` |
+ | `scripts/slide_index_builder.py` | 2220 | `60ee48e28e6e3420df7b77c18ce0da25e893f714762f303e4c654d9a1fd28270` |
+ | `scripts/slide_spec_validator.py` | 1277 | `b25d8e46445fd12e9a403a5704a7fb4bf1a427a6e17f39be3c956a5abcb31984` |
+ | `scripts/source_inventory_certification.py` | 5286 | `de1a93fb070e6c96a50f9f7e7d23e7b9d36ba505acf5106f105d771d70df3304` |
+@@ -156,9 +183,12 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `scripts/source_lock_validator.py` | 1616 | `f7ceb1a6522698aff20bf076b9945934dc0402cf945e68a5395857b1370befc7` |
+ | `scripts/source_section_validator.py` | 1805 | `259eb905b9c36ef706c931e9920b4678e60317c56239eab1a9581474e836ac1e` |
+ | `scripts/state_manager.py` | 2735 | `a3a642e54c6b094b7fd99656d5422de0cd384cbba34ef18299d8609ba73129fe` |
+-| `scripts/validate_project.py` | 1489 | `edf2e224d3d561491988c6306bda9db1f4cb450079d07507a3081f2f3e65b154` |
++| `scripts/validate_project.py` | 2236 | `e705a64441ffd09a06d986175ddddee1a4ee8ed99cc23f75bbfb571883f8b3cb` |
++| `scripts/visual_polish/__init__.py` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
++| `scripts/visual_polish/polish.py` | 27660 | `31254b128e65153d23ce56ceabfc3d339701b18da04c61370ce4460b36073a63` |
++| `scripts/visual_polish/style.py` | 6735 | `64f58fceb0e6cc22fe48fb04bbfdabdeb73d9c517a6037db7c4653fbbb99cdc4` |
++| `scripts/visual_polish/verify.py` | 12206 | `777eee2bbbe256681cc0cab4b3a9b1ce066313856b37406fb160d824255f75f2` |
+ | `scripts/visual_review_ledger.py` | 2981 | `c1d64378f12fa72dcb52a0030f636f022279548e36ac2e67dde60003271c8ff3` |
+-| `SKILL.md` | 30006 | `28b4faeb864627c172af0acfc05727f8b7ee1ba75a4b7d883bbab8c5994131fe` |
+ | `templates/audience_prioritization.csv` | 105 | `4aac0ec2e1a9aa72190cc2260360be9067435b988926016f6208a0288682866d` |
+ | `templates/audit_report.md` | 218 | `81a2f2887b2f36f5268c766caa87c4a5fcd4e14428b31dafe75f4b46d0f20dd2` |
+ | `templates/build_report.md` | 262 | `75813f4f22197226de018294730d8de077006786b0ff3523df19ae8ae6cc2a93` |
+@@ -178,7 +208,7 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `templates/independent_visual_review_report.json` | 592 | `e67b23730ecc27dd618c6d4f50cc00f1ffbad5b96a8b29830c47aa73b36e033a` |
+ | `templates/independent_visual_review_report.md` | 795 | `fec3ca2ae854cdaad63bf4680bce62339fc12fcc1386dc154ebd1b5d1f2b5161` |
+ | `templates/master_case_library.csv` | 297 | `dc8f88703994c2e17447c2abcbb5040704c1ef4cd94a7d2a986e8d8f46071eb6` |
+-| `templates/project_state.yaml` | 3791 | `c8de929cb6822acd293009a31fc2fe36407bedc89418f78bc0fc570f68581cfc` |
++| `templates/project_state.yaml` | 4044 | `a9609c25c3aeac68be3783d80507fca9de504768f252cae91ce6f28ba7ae2610` |
+ | `templates/promotion_decision.md` | 1841 | `5e90f9ff927d3b50082e5b39da2ca45af6ac6e1640a2584cd79b462f583afcd8` |
+ | `templates/prompt_semantic_review_ledger.csv` | 212 | `1c50aff1399575a6a0837f3e0e425ab981f7dd989740523abd75979d9762d996` |
+ | `templates/reconciliation_register.csv` | 141 | `c79194a3b307b7874718fa2b5041f149b0f1827581b0694e5e0061da1e7b0a79` |
+@@ -195,7 +225,6 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `templates/text_normalization_ledger.csv` | 116 | `dff22f43934edfbf7554251bb193ebf84626028ed8eeb63284cd5cf40e81da0d` |
+ | `templates/visual_asset_register.csv` | 150 | `f6d8dd8085f1f5fb895bf4cad2a1e8aff55f4f97d350f7a8ed47a9075924660c` |
+ | `templates/visual_review_ledger.csv` | 100 | `7c44f02c1d74f14dff67d23f0ab03a89594c998106601b02f4c3c3b9f5150aeb` |
+-| `TEST_REPORT.md` | 696 | `1a8b5e11050c17dd155bee9749157353cfda59f3e1bef5df17c115d479c6940b` |
+ | `tests/__init__.py` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+ | `tests/test_canonical_guard.py` | 295 | `4d7f29b0001a623d766483e41c2ab8a72c725e615c35ee59610c545e08b12c3d` |
+ | `tests/test_case_coverage.py` | 207 | `48225c0eda2de2e87edbc200314acc5b61e0ff802d96c6d2b321137919e023db` |
+@@ -211,7 +240,7 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `tests/test_pptx_notes_audit.py` | 222 | `bdaae96fb3ddcc7b8c9fa570d5f4655cacbb873e2b019b8dbc6aeef2aa33f023` |
+ | `tests/test_pptx_preflight.py` | 291 | `42bf6d55c8640246ab90861f06e14b3af2a5e23ddc12931c56a9170192a0eb33` |
+ | `tests/test_reconciliation_validator.py` | 267 | `07d99680274aca774ba66029fb55f344032c2daf0f94351a1deeefb149873eb8` |
+-| `tests/test_release_metadata_policy.py` | 1685 | `0aa6daeba7d690037936c692a9ea6d674ff6d59d88748e685a2d25ff41603da8` |
++| `tests/test_release_metadata_policy.py` | 1685 | `7a71eafd4d65b727ee088c6d48544ffc0367553a2eb587ec1a44bd79ddab8ab8` |
+ | `tests/test_render_qa_gate.py` | 768 | `685f3b65a92e100d70378b6f91c169453d1b42072ee4346fd10713d1018a5b23` |
+ | `tests/test_slide_index_builder.py` | 106 | `a92713007dfc5ba422343a085d6071beb1ca2ba6753489d10720777729c45dba` |
+ | `tests/test_slide_spec_validator.py` | 200 | `00631ff39f25785de0a5576c993b7ff358eb6d5476189be4c72604dd471806e9` |
+@@ -220,24 +249,5 @@ Generation rule: the output manifest is automatically excluded from its own cont
+ | `tests/test_v2_2_1_package_hygiene.py` | 1060 | `a498d2986a614abc29db9325bed7e2f44d042d7bb9387c2dfe1e28ccfc5b27f7` |
+ | `tests/test_v2_2_semantic_hardening.py` | 16189 | `546acf1bba95965825a3f5b19d9e453026b0a5f5c943cf112c70aa551abc44c8` |
+ | `tests/test_v2_3_visual_prompt_hardening.py` | 3616 | `98b67752ca10f0a3e07b852937ec033ceb10c401ad2235c38c31db279b8e961d` |
++| `tests/test_v2_4_visual_polish.py` | 8651 | `3d014c6e525243011bdc2e9522fad02076739fcf9205b6dea83e7c62f9466de2` |
+ | `tests/test_visual_review_ledger.py` | 1148 | `ea309d24a305d2fc243a782d54ee225054288c24175971ad7a73e3200882cb23` |
+-| `V2_0_PROSE_CODE_ENFORCEMENT_AUDIT_v1.0.md` | 1344 | `4cea90c2b6273c2b603bc2519e6fccf00c45ef01fd933de5498bc8fb1b1481da` |
+-| `V2_1_0_FINAL_REAUDIT_REPORT.md` | 937 | `c7cb71e9e06de2955d62903c4e44a1cb01d3f6f99f81f10b2a26e1b65d5e3411` |
+-| `V2_1_0_REPAIR_REPORT.md` | 1053 | `9a2a37925efaf9d5ce82cf2db49851952b5cf8e04a88419acc9cd8c2dd18b3ca` |
+-| `V2_1_1_FINAL_REAUDIT_REPORT.md` | 1006 | `1d3b67314f4d17e3ae6379c050da80b5f936d5b9550b90c652449327dd00687b` |
+-| `V2_1_1_HARDENING_REPORT.md` | 909 | `512d6240c9770abcacc8c4b837073bb407d1c344c662b071c42a73c55153984e` |
+-| `V2_1_1_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 1815 | `d0c05e812c7c4dc29b9cc19912dac197e3242d3c66a6628ba90a5937fd81bc89` |
+-| `V2_2_0_ADVERSARIAL_REAUDIT_REPORT.md` | 1172 | `f57260eba56412a92bb7f3cbc7cea0be9f1d5fd8ff35578f9bcd9f14cca81ff1` |
+-| `V2_2_0_FINAL_REAUDIT_REPORT.md` | 770 | `6d579c7d22216e38094ee1ac2effc23284b18749f94abcb00b79a80eb5f39aa7` |
+-| `V2_2_0_HARDENING_REPORT.md` | 1577 | `da4b50735147f3e6b0f5b4f0c59675e0f285d93d6432c280ece0c282b474c9af` |
+-| `V2_2_0_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 483 | `f7e76bafcd97daaae2701afad1ebb2b4e639dc932d4c8e4310a4d080e8e8273d` |
+-| `V2_2_1_ADVERSARIAL_REAUDIT_REPORT.md` | 1378 | `9819044bf6511d3a5d43f0e6adcfc47e529eeb49723791ab2fde23f1593e6651` |
+-| `V2_2_1_HARDENING_REPORT.md` | 2621 | `16d4b4e4a49fb3fa5f63f148337614d250520b1a27314ec8d25ec60d62c4c175` |
+-| `V2_2_1_PROSE_CODE_ENFORCEMENT_AUDIT.md` | 2079 | `1af7313ff7cb64f396f99bf8157ae7a1e9e8e7efbbef6ce342509f57e8f3416f` |
+-| `V2_3_0_RELEASE_AUDIT.md` | 726 | `85f76a4d4968974a3dbffcf310996deaaab5dd8104f06789710fedbaf7c9e7f0` |
+-| `VERSION` | 6 | `a42caf4a54bbbe27aa45b6efbc6356c5e299b19763e728b6cdb7201b02ebbe36` |
+-| `VERSIONING_DECISION.md` | 631 | `fe18f8b1e5cf1dd33da1ac9d35442475fa653d5f3a98653dfc02819ba60ff2c3` |
+-| `VERSIONING_DECISION_v2.1.0.md` | 783 | `a20d9006b4145dccfde10b9b9566a55c41dfd1b5d4ba370c0a99d19d97fed558` |
+-| `VERSIONING_DECISION_v2.2.0.md` | 631 | `fe18f8b1e5cf1dd33da1ac9d35442475fa653d5f3a98653dfc02819ba60ff2c3` |
+-| `VERSIONING_DECISION_v2.2.1.md` | 639 | `7c7416c4c3c14b6a8db60779463ef91e0a0e33a930be394bc25bc7e4c034242f` |
+-| `VERSIONING_DECISION_v2.3.0.md` | 543 | `6e4c85e19344941b179ec416c9d57f34ba3c24668b0d541998b53fdd258576e6` |
+diff --git a/evidence-locked-clinical-pptx-builder/PACKAGE_TREE.md b/evidence-locked-clinical-pptx-builder/PACKAGE_TREE.md
+index eb849ed..0c0578e 100644
+--- a/evidence-locked-clinical-pptx-builder/PACKAGE_TREE.md
++++ b/evidence-locked-clinical-pptx-builder/PACKAGE_TREE.md
+@@ -1,8 +1,19 @@
+-# Package Tree — v2.3.0
++# Package Tree — v2.4.0
+ 
+ The complete file inventory, byte sizes, and SHA-256 values are authoritative
+ in `PACKAGE_MANIFEST.md`. This release adds:
+ 
++- `scripts/visual_polish/__init__.py`, `polish.py`, `style.py`, `verify.py`
++- `docs/visual_polish_protocol.md`
++- `fixtures/visual_polish/make_fixture.py` and `case_reveal_mini.pptx` (synthetic)
++- `tests/test_v2_4_visual_polish.py`
++- `VERSIONING_DECISION_v2.4.0.md`, `MIGRATION_NOTES_v2.3.0_to_v2.4.0.md`
++- updated `SKILL.md`, `scripts/semantic_promotion_gate.py`, `scripts/validate_project.py`,
++  `scripts/mode_router.py`, `scripts/case_reveal_layout_gate.py`, `templates/project_state.yaml`
++
++Previous release (v2.3.0) additions:
++
++
+ - `docs/decide_prompt_contract.md`
+ - `docs/dys_2026_v1_5_design_reference.md`
+ - `scripts/case_reveal_layout_gate.py`
+diff --git a/evidence-locked-clinical-pptx-builder/README.md b/evidence-locked-clinical-pptx-builder/README.md
+index edf9d1e..a0ec086 100644
+--- a/evidence-locked-clinical-pptx-builder/README.md
++++ b/evidence-locked-clinical-pptx-builder/README.md
+@@ -1,4 +1,10 @@
+-# Evidence-Locked Clinical PPTX Builder v2.3.0
++# Evidence-Locked Clinical PPTX Builder v2.4.0
++
++v2.4.0 adds an optional, content-locked `VISUAL_POLISH` stage
++(`scripts/visual_polish/`): a rule-based restyle of a built deck with its own
++blocking `VISUAL_POLISH_CONTENT_LOCK` gate. Slides that cannot be restyled
++safely are left as built (`SKIPPED` / `SPLIT_REQUIRED`). See
++`docs/visual_polish_protocol.md`.
+ 
+ v2.3.0 adds a source-derived scenario-to-DECIDE-prompt contract, stricter
+ prompt leakage and fragment checks, and an advisory case/reveal geometry
+@@ -18,7 +24,7 @@ v2.1.1 is a focused hardening patch: package manifests no longer self-reference,
+ 
+ ## Operating modes
+ 
+-`INSPECT`, `PATCH`, `BUILD_STANDARD`, `BUILD_CASE_BASED`, `CORPUS_BUILD`, `DERIVATIVE_BUILD`, `VISUAL_QA`, `FINAL_RELEASE`, `MAINTENANCE`.
++`INSPECT`, `PATCH`, `BUILD_STANDARD`, `BUILD_CASE_BASED`, `CORPUS_BUILD`, `DERIVATIVE_BUILD`, `VISUAL_QA`, `VISUAL_POLISH`, `FINAL_RELEASE`, `MAINTENANCE`.
+ 
+ The assistant should state the selected mode and reason before execution.
+ 
+@@ -28,7 +34,7 @@ The assistant should state the selected mode and reason before execution.
+ locked sources -> independent source-structure/recommendation census -> source-recommendation inventory -> SOURCE_INVENTORY_CERTIFICATION -> exhaustive decision nodes -> SOURCE_EXTRACTION_COMPLETENESS -> extraction audit -> reconciliation -> candidate cases -> case audit/deduplication/coverage -> frozen Master Case Library -> audience architecture -> storyboard/case mapping.
+ 
+ **Pipeline B — Presentation / Artifact**  
+-approved storyboard -> slide spec -> source-binding/prompt/repair semantic QA -> visual/notes plan -> PPTX -> clinical audit -> mechanical preflight -> 100% render -> 100% visual/projector QA -> repair -> full rerender/re-audit -> independent promotion.
++approved storyboard -> slide spec -> source-binding/prompt/repair semantic QA -> visual/notes plan -> PPTX -> clinical audit -> [optional content-locked visual polish] -> mechanical preflight -> 100% render -> 100% visual/projector QA -> repair -> full rerender/re-audit -> independent promotion.
+ 
+ ## Installation
+ 
+diff --git a/evidence-locked-clinical-pptx-builder/SKILL.md b/evidence-locked-clinical-pptx-builder/SKILL.md
+index 36f1d47..8f5f2f2 100644
+--- a/evidence-locked-clinical-pptx-builder/SKILL.md
++++ b/evidence-locked-clinical-pptx-builder/SKILL.md
+@@ -1,8 +1,8 @@
+ ---
+ name: evidence-locked-clinical-pptx-builder
+-description: Evidence-locked clinical presentation system with source/correction control, exhaustive decision-node and case-corpus workflows, standard/case-based/derivative modes, slide specification, speaker-note provenance, full-render visual QA, independent promotion, modular indexing, closure, and maintenance governance.
++description: Evidence-locked clinical presentation system with source/correction control, exhaustive decision-node and case-corpus workflows, standard/case-based/derivative modes, slide specification, speaker-note provenance, content-locked visual polish, full-render visual QA, independent promotion, modular indexing, closure, and maintenance governance.
+ metadata:
+-  version: 2.3.0
++  version: 2.4.0
+   schema_version: 3
+ ---
+ 
+@@ -21,6 +21,7 @@ At the beginning of every task, select and state one mode and the reason:
+ - `CORPUS_BUILD` — approved sources -> decision nodes -> audited/frozen Master Case Library.
+ - `DERIVATIVE_BUILD` — create a duration-, audience-, module-, or resource-specific product from frozen canonical artifacts.
+ - `VISUAL_QA` — render and visually audit an existing deck without changing clinical evidence.
++- `VISUAL_POLISH` — restyle an already-built, clinically audited deck (presentation only) under the content-lock gate; see section 17A.
+ - `FINAL_RELEASE` — run all final acceptance gates and decide canonical promotion.
+ - `MAINTENANCE` — closed-project defect repair, source update, new derivative, accessibility change, or archive/export task.
+ 
+@@ -48,7 +49,7 @@ Never reconstruct project state only from conversational memory when project art
+ 
+ ### Pipeline B — Presentation / Artifact
+ 
+-`approved storyboard -> slide-level content specification -> semantic source-binding QA -> prompt semantic QA -> repair-fidelity QA -> visuals/source-figure plan -> speaker-note schema -> PPTX build -> clinical/provenance audit -> mechanical preflight -> 100% rendering -> 100% visual/projector/UI audit -> repair -> 100% rerender -> automated preflight again -> visual re-audit -> independent promotion decision`
++`approved storyboard -> slide-level content specification -> semantic source-binding QA -> prompt semantic QA -> repair-fidelity QA -> visuals/source-figure plan -> speaker-note schema -> PPTX build -> clinical/provenance audit -> [optional VISUAL_POLISH + content lock] -> mechanical preflight -> 100% rendering -> 100% visual/projector/UI audit -> repair -> 100% rerender -> automated preflight again -> visual re-audit -> independent promotion decision`
+ 
+ Keep the pipelines separated so design work cannot mutate frozen clinical evidence and derivative decks can reuse the frozen corpus without restarting research.
+ 
+@@ -364,6 +365,40 @@ Do not solve overflow by blindly shrinking fonts. Preferred repair order:
+ 5. enlarge/reposition visual;
+ 6. only then reconsider typography without violating the floor.
+ 
++## 17A. VISUAL_POLISH — Content-Locked Presentation Restyle
++
++Use when the user wants a built deck to look better without changing content or
++layout logic ("beautify", "polish", "improve the visual"). It runs after
++`clinical_provenance_audit` and before `automated_preflight`. It is presentation
++work only, so section 21 still governs every clinical claim.
++
++1. **Inspect and diagnose first.** Render the built deck, read every contact sheet,
++   open one slide per role at full size, and list concrete defects. Every design
++   change must map to a defect.
++2. **Confirm with the deck owner:** scope (6-slide sample first), profile, COR
++   colour coding and phase colours. Record them in `release_policy.visual_polish`.
++3. **Profiles.** `projector_default` keeps the section 17 floors (body ≥24 pt,
++   source ≥16 pt). `dense_case_reveal` (body 24/20/18 pt for 1/2/3 cards) mirrors the
++   DYS_2026 v1.5 reference and **requires recorded owner approval**. No profile
++   lowers the 16 pt source floor.
++4. **Sample, then roll out by rule:**
++   `python -m scripts.visual_polish.polish BUILT.pptx POLISHED.pptx --profile <p> [--profile-approved-by <name>] [--only ...] --report polish_report.json`.
++   Text is copied run by run. Slide ids/order, layouts/masters and notes are untouched.
++5. **Fail closed.** `SKIPPED` (unrecognised structure) and `SPLIT_REQUIRED` (cannot
++   fit at the floor) slides are left exactly as built. Route `SPLIT_REQUIRED`
++   upstream using the section 17 repair order. Never shrink below the floor and never trim text.
++6. **Gate:** `python -m scripts.visual_polish.verify BUILT.pptx POLISHED.pptx --polish-report polish_report.json --render <dir>`
++   must exit 0 (`VISUAL_POLISH_CONTENT_LOCK`: identity, verbatim text, no
++   additions beyond whitelisted design tokens, notes, chrome, floors, fit, repo
++   preflight). It also writes the render manifest and a blank per-slide visual-review ledger.
++7. **Then continue normally:** sections 18–20 (100% individual review, independent
++   QA). Any repair is a rule change followed by a full re-polish, re-verify and rerender.
++8. **Promotion:** set `visual_polish_applied: true` and `visual_polish_content_lock: PASS`
++   in the gates JSON. `scripts/semantic_promotion_gate.py` blocks a polished deck
++   without that PASS, and it cannot be waived.
++
++Full contract, design system and limits: `docs/visual_polish_protocol.md`.
++
+ ## 18. Automated Mechanical / Structural QA
+ 
+ Run automated checks over 100% of slides where technically possible:
+@@ -629,6 +664,7 @@ Do not report a clinical deck or skill package as complete unless the relevant g
+ - `STRUCTURAL PASS`
+ - `CLINICAL/PROVENANCE PASS`
+ - `RENDER-UNCERTIFIED`
++- `VISUAL_POLISH_CONTENT_LOCK PASS` (only when polish was applied)
+ - `VISUAL PASS — 100% REVIEWED`
+ - `INDEPENDENT VISUAL QA PASS` or documented waiver
+ - `CANONICAL`
+diff --git a/evidence-locked-clinical-pptx-builder/VERSION b/evidence-locked-clinical-pptx-builder/VERSION
+index 276cbf9..197c4d5 100644
+--- a/evidence-locked-clinical-pptx-builder/VERSION
++++ b/evidence-locked-clinical-pptx-builder/VERSION
+@@ -1 +1 @@
+-2.3.0
++2.4.0
+diff --git a/evidence-locked-clinical-pptx-builder/VERSIONING_DECISION_v2.4.0.md b/evidence-locked-clinical-pptx-builder/VERSIONING_DECISION_v2.4.0.md
+new file mode 100644
+index 0000000..9771d9d
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/VERSIONING_DECISION_v2.4.0.md
+@@ -0,0 +1,13 @@
++# Versioning Decision - v2.4.0
++
++Release: `evidence-locked-clinical-pptx-builder v2.4.0`
++
++Immediate predecessor: `2.3.0`; schema version: `3`; breaking change: `false`.
++
++Minor release: adds an optional presentation-only `VISUAL_POLISH` mode with
++its own blocking content-lock gate. Existing projects are unaffected unless
++they set `release_policy.visual_polish.enabled: true` or declare
++`visual_polish_applied` in the promotion gates. The new pipeline state
++`visual_polish` sits between `clinical_provenance_audit` and
++`automated_preflight`; projects that do not polish mark it `waived` or
++`complete` with a note. No gate was relaxed.
+diff --git a/evidence-locked-clinical-pptx-builder/agents/openai.yaml b/evidence-locked-clinical-pptx-builder/agents/openai.yaml
+index a38829f..75b8a2f 100644
+--- a/evidence-locked-clinical-pptx-builder/agents/openai.yaml
++++ b/evidence-locked-clinical-pptx-builder/agents/openai.yaml
+@@ -1,6 +1,6 @@
+ name: evidence-locked-clinical-pptx-builder
+-version: 2.3.0
++version: 2.4.0
+ description: Evidence-locked clinical presentation system with independent source-to-inventory
+   certification, extraction completeness, semantic boundary/footnote/source-hierarchy/prompt/normalization/repair
+-  controls, fail-closed CRITICAL/HIGH promotion blocking, full-render visual QA and
++  controls, fail-closed CRITICAL/HIGH promotion blocking, content-locked visual polish, full-render visual QA and
+   independent promotion.
+diff --git a/evidence-locked-clinical-pptx-builder/docs/architecture.md b/evidence-locked-clinical-pptx-builder/docs/architecture.md
+index 30d2b01..1dd6ac5 100644
+--- a/evidence-locked-clinical-pptx-builder/docs/architecture.md
++++ b/evidence-locked-clinical-pptx-builder/docs/architecture.md
+@@ -29,6 +29,7 @@
+ 6. speaker-note schema
+ 7. PPTX build
+ 8. clinical/provenance audit
++8a. optional VISUAL_POLISH (content-locked restyle) + `VISUAL_POLISH_CONTENT_LOCK`
+ 9. automated structural/mechanical preflight
+ 10. full render
+ 11. 100% visual/projector/UI review ledger
+diff --git a/evidence-locked-clinical-pptx-builder/docs/audit_gates.md b/evidence-locked-clinical-pptx-builder/docs/audit_gates.md
+index e15f20a..49560ae 100644
+--- a/evidence-locked-clinical-pptx-builder/docs/audit_gates.md
++++ b/evidence-locked-clinical-pptx-builder/docs/audit_gates.md
+@@ -20,6 +20,12 @@
+ - speaker notes complete and evidence-locked;
+ - slide/source/case mapping complete.
+ 
++## Visual polish gate (only when VISUAL_POLISH was applied)
++- `VISUAL_POLISH_CONTENT_LOCK` PASS (`scripts/visual_polish/verify.py`): identity, verbatim text, no non-token additions, notes, layout/master chrome, floors, fit, repo preflight;
++- every `SPLIT_REQUIRED` slide routed upstream and every `SKIPPED` slide accepted as built;
++- dense profile only with recorded owner approval;
++- not waivable; the promotion gate requires PASS when `visual_polish_applied` is true.
++
+ ## Final visual gate
+ - 100% slides rendered;
+ - 100% slides individually reviewed;
+diff --git a/evidence-locked-clinical-pptx-builder/docs/dys_2026_v1_5_design_reference.md b/evidence-locked-clinical-pptx-builder/docs/dys_2026_v1_5_design_reference.md
+index 7166c28..737b30d 100644
+--- a/evidence-locked-clinical-pptx-builder/docs/dys_2026_v1_5_design_reference.md
++++ b/evidence-locked-clinical-pptx-builder/docs/dys_2026_v1_5_design_reference.md
+@@ -27,6 +27,9 @@ projector rule in `SKILL.md` still applies unless a project approves and
+ visually validates a denser profile. A visually attractive reference can
+ still contain defects; validate every generated slide.
+ 
++v2.4.0 encodes this density as the opt-in `dense_case_reveal` profile of
++`scripts/visual_polish/` (approval required; see `visual_polish_protocol.md`).
++
+ Run `scripts/case_reveal_layout_gate.py` as an early warning screen, then
+ render and inspect each final slide. Record renderer identity/version and
+ distinguish an alternate-renderer review from native PowerPoint confirmation.
+diff --git a/evidence-locked-clinical-pptx-builder/docs/mode_router.md b/evidence-locked-clinical-pptx-builder/docs/mode_router.md
+index 71ceef8..dbf6643 100644
+--- a/evidence-locked-clinical-pptx-builder/docs/mode_router.md
++++ b/evidence-locked-clinical-pptx-builder/docs/mode_router.md
+@@ -11,6 +11,7 @@ Select exactly one primary mode per task and state why.
+ | CORPUS_BUILD | user needs guideline/source -> complete case library | Pipeline A through Master Case Library/architecture as requested |
+ | DERIVATIVE_BUILD | frozen master/canonical parent exists | reuse frozen corpus/spec; no independent re-research |
+ | VISUAL_QA | presentation visual review only | render/mechanical/UI review; evidence immutable |
++| VISUAL_POLISH | “beautify/polish/improve the visual” of a built deck | content-locked restyle + `VISUAL_POLISH_CONTENT_LOCK`; then normal render/visual QA |
+ | FINAL_RELEASE | canonical/final release requested | all clinical/mechanical/render/visual/promotion gates |
+ | MAINTENANCE | closed project reopened | classify defect/source update/new derivative/accessibility/archive |
+ 
+diff --git a/evidence-locked-clinical-pptx-builder/docs/visual_polish_protocol.md b/evidence-locked-clinical-pptx-builder/docs/visual_polish_protocol.md
+new file mode 100644
+index 0000000..cc8c709
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/docs/visual_polish_protocol.md
+@@ -0,0 +1,103 @@
++# VISUAL_POLISH protocol (v2.4.0)
++
++`VISUAL_POLISH` is a presentation-only stage. It restyles a deck that the
++evidence-locked pipeline has already built and clinically audited. It changes
++how the deck looks and never what it says. It certifies nothing: the existing
++preflight, 100% render, 100% individual visual review, independent QA and
++promotion gates (SKILL.md sections 18–25) still decide release.
++
++```
++pptx_build -> clinical_provenance_audit -> VISUAL_POLISH -> automated_preflight -> full_render_visual_qa -> ...
++                                            polish.py + verify.py (VISUAL_POLISH_CONTENT_LOCK)
++```
++
++## 1. Non-negotiables
++
++1. **Text is frozen.** Every text run is copied from the built slide with its
++   bold, italic, underline and super/subscript. Nothing is retyped, shortened,
++   merged, split across meaning, or paraphrased.
++2. **Identity is frozen.** Slide count, slide ids, order, layout assignment,
++   layout/master/theme parts and speaker notes stay byte-identical (verified).
++3. **Fail closed, never fail creative.**
++   - `SKIPPED`: role or text structure not recognised, so the slide is left exactly as built.
++   - `SPLIT_REQUIRED`: the locked text cannot fit at the profile's body floor,
++     so the slide is left as built and routed upstream. Repair follows the
++     section 17 order (move detail to evidence-locked notes, split the slide,
++     restructure). It is **never** blind font shrinking and never text trimming.
++4. **Design tokens only.** The polish stage may add only: the phase icon (`?` / `✓`),
++   the `REVEAL •` label, step numbers, `→`, and the case-number watermark.
++   `verify.py` whitelists exactly these and rejects anything else as `ADDED`.
++5. **Colour is never the only cue.** Phase also uses an icon and the eyebrow
++   text; COR colour always sits behind the printed class code.
++
++## 2. Profiles and font floors
++
++| Profile | Body floor (1 / 2 / 3 cards) | Labels / source | Approval |
++|---|---|---|---|
++| `projector_default` | 24 / 24 / 24 pt | 16 pt | none: SKILL.md section 17 defaults |
++| `dense_case_reveal` | 24 / 20 / 18 pt | 16 pt | **required**: `--profile-approved-by` and `release_policy.visual_polish.profile_approved_by` |
++
++`dense_case_reveal` mirrors the observed density of the DYS_2026 v1.5 design
++reference (`docs/dys_2026_v1_5_design_reference.md`). It is an explicit project
++choice, never a default, and it never lowers the 16 pt source/label floor.
++Case-id / phase / COR-LOE pills may step down to 14 pt (`BADGE_MIN`) only when a
++compound COR/LOE code would otherwise wrap. They are identifiers, not citations;
++the source line stays at 16 pt.
++
++Title size is measured per slide (40 → 24 pt, one line). Body size is measured
++per slide and is **identical across all cards on that slide**.
++
++Measurement uses the real Aptos font when installed, otherwise the font the
++renderer substitutes (`fc-match Aptos`), with a 3% width safety margin.
++Override with `POLISH_METRIC_FONT` / `POLISH_METRIC_FONT_BOLD`.
++
++## 3. Design system
++
++- **Base:** navy `#0B1F33`, ink `#17212B`, light background `#F5F7FA`, blue `#175CD3` (kept from the builder).
++- **Phase semantics:** DECIDE = amber `#E39A12` with a `?` icon; SOURCE REVEAL = green `#1E9E73` with a `✓` icon.
++  Applied to the phase bar, progress fill, card stripe, header tint, eyebrow and badge.
++- **COR (ACC/AHA convention):** 1 green · 2a yellow · 2b orange · 3 red. A compound code
++  (`3: No Benefit/A; 1/C-LD`) becomes one pill per code, and the header wraps to a second row instead of clipping.
++- **Single-case slides:** body anchored at the top, plus a faint case-number watermark (dropped automatically
++  if keeping it would push the body below the floor).
++- **Cover / divider / contract / closure:** role-specific layouts; a red closure check (harm/restriction) stays red.
++- **Chrome:** the layout/master footer is never redrawn or duplicated. The slide's own source line sits above it.
++
++## 4. Agent workflow
++
++| Step | Action | Rationale |
++|---|---|---|
++| 1. Inspect | Render the built deck; read every contact sheet; open one slide of each role at full size. | Most decks are a handful of repeating layouts. Diagnose before prescribing. |
++| 2. Diagnose | List concrete defects (mixed autofit sizes, wrapping/shrunken badges, DECIDE ≈ REVEAL, empty single-case cards, cramped cover, duplicated footer). | Every design change must map to a defect. |
++| 3. Confirm | Ask the deck owner: scope (sample first or full), profile (`projector_default` or approved `dense_case_reveal`), COR colour coding, phase colours. | Design and density are owner decisions. Record them in project state. |
++| 4. Sample | `polish ... --only <cover> <contract> <divider> <3-card DECIDE> <3-card REVEAL> <single-case>`, then render and show it. | Approve the system on 6 slides before applying it to the whole deck. |
++| 5. Roll out | `python -m scripts.visual_polish.polish BUILT.pptx POLISHED.pptx --profile ... --report polish_report.json` | Rules, not hand edits: consistent output and zero retyping. |
++| 6. Route | Send every `SPLIT_REQUIRED` slide upstream (slide spec / notes / split). Fix the parser for every `SKIPPED` slide, never the slide itself. | Fail-closed outcomes are work items, not noise. |
++| 7. Gate | `python -m scripts.visual_polish.verify BUILT.pptx POLISHED.pptx --polish-report polish_report.json --render render/ --json visual_polish_verify.json`. It must exit 0. | Content lock, floors, fit, repo preflight, layout screen and render manifest in one call. |
++| 8. Review | Fill `render/visual_review_ledger.csv` slide by slide (all domain columns), then run `render_qa_gate.py --require-ledger`. | SKILL.md section 19: contact sheets triage, they never certify. |
++| 9. Repair | Fix the **rule** in `polish.py`/`style.py`, then re-run steps 5–8 on the whole deck. | One fix repairs every slide of that role, and a material repair means a full rerender. |
++| 10. Record | Set `gates.visual_polish_applied = true` and `gates.visual_polish_content_lock = PASS` for the promotion gate. Report coverage honestly (which slides were reviewed individually). | The promotion gate blocks a polished deck without the content-lock PASS. It is not waivable. |
++
++## 5. VISUAL_POLISH_CONTENT_LOCK checks
++
++| Check | Blocking | Detail |
++|---|---|---|
++| identity | yes | slide count, slide id order, layout per slide |
++| text lock | yes | every original atom present verbatim on the same slide (multiset) |
++| no addition | yes | every polished text box is original text or a whitelisted token |
++| notes | yes | speaker-notes text identical per slide |
++| chrome | yes | `slideLayouts/`, `slideMasters/`, `theme/` parts byte-identical |
++| floors | yes | label/source ≥ 16 pt (badges ≥ 14 pt); body ≥ profile floor |
++| fit | yes | each rebuilt body box re-measured independently |
++| repo preflight | yes | `scripts/pptx_preflight.py` must pass |
++| layout screen | advisory | `scripts/case_reveal_layout_gate.py` issue codes reported |
++| render | evidence | LibreOffice → PNG, `render_manifest.json` with slide-set SHA-256, blank per-slide ledger |
++
++## 6. Known limits
++
++- LibreOffice substitutes Aptos, so line breaks can differ slightly from PowerPoint. Where native fidelity matters, keep
++  `POWERPOINT-RENDER-PENDING` until the deck has been reviewed in PowerPoint (section 19).
++- Parsers match the builder's current conventions (eyebrow strings, cards > 200 pt tall, progress bars < 8 pt tall,
++  `CASE nnn` ids, `REVEAL • <COR/LOE>` badges, one `SOURCE…` line). New layouts are `SKIPPED` until a parser is added.
++- `dense_case_reveal` is a density choice the deck owner must approve. `projector_default` will route many dense
++  three-card slides to `SPLIT_REQUIRED`. That is intended: it surfaces slides that break the section 17 floor.
+diff --git a/evidence-locked-clinical-pptx-builder/docs/visual_qa_protocol.md b/evidence-locked-clinical-pptx-builder/docs/visual_qa_protocol.md
+index cb2647b..ebaa63e 100644
+--- a/evidence-locked-clinical-pptx-builder/docs/visual_qa_protocol.md
++++ b/evidence-locked-clinical-pptx-builder/docs/visual_qa_protocol.md
+@@ -26,4 +26,8 @@ For each slide review:
+ - case -> decision -> reveal visual rhythm;
+ - misleading visual emphasis.
+ 
++If the deck went through `VISUAL_POLISH`, review the polished artifact and use the
++ledger skeleton written by `scripts/visual_polish/verify.py --render`; see
++`visual_polish_protocol.md`.
++
+ Record outcome in `visual_review_ledger.csv`. Any repaired final deck must be fully rerendered and re-reviewed.
+diff --git a/evidence-locked-clinical-pptx-builder/fixtures/visual_polish/case_reveal_mini.pptx b/evidence-locked-clinical-pptx-builder/fixtures/visual_polish/case_reveal_mini.pptx
+new file mode 100644
+index 0000000000000000000000000000000000000000..ddf268a829f996825c2f203013a434caf3728366
+GIT binary patch
+literal 45771
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/evidence-locked-clinical-pptx-builder/fixtures/visual_polish/make_fixture.py b/evidence-locked-clinical-pptx-builder/fixtures/visual_polish/make_fixture.py
+new file mode 100644
+index 0000000..27e31f5
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/fixtures/visual_polish/make_fixture.py
+@@ -0,0 +1,83 @@
++"""Generate fixtures/visual_polish/case_reveal_mini.pptx.
++
++A synthetic 6-slide deck that mirrors the builder's case/reveal geometry
++conventions (eyebrow, title, progress bar, 1-3 cards with case id + badge +
++body, source line, speaker notes). Clinical-looking text is placeholder only
++("FIXTURE ...") so the fixture can never be mistaken for evidence.
++
++    python fixtures/visual_polish/make_fixture.py
++"""
++from pathlib import Path
++
++from pptx import Presentation
++from pptx.dml.color import RGBColor
++from pptx.enum.shapes import MSO_SHAPE
++from pptx.util import Emu, Pt
++
++PX = 9525  # 1280 x 720 px canvas, as the builder emits
++OUT = Path(__file__).with_name('case_reveal_mini.pptx')
++
++
++def box(slide, x, y, w, h, fill=None, text=None, size=16, bold=False):
++    sp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Emu(x * PX), Emu(y * PX), Emu(w * PX), Emu(h * PX))
++    if fill:
++        sp.fill.solid(); sp.fill.fore_color.rgb = RGBColor.from_string(fill)
++    else:
++        sp.fill.background()
++    sp.line.fill.background()
++    if text is not None:
++        tf = sp.text_frame
++        tf.text = text
++        for p in tf.paragraphs:
++            for r in p.runs:
++                r.font.size = Pt(size); r.font.bold = bold
++                r.font.color.rgb = RGBColor.from_string('17212B')
++    return sp
++
++
++def case_slide(prs, eyebrow, title, cases, ratio):
++    s = prs.slides.add_slide(prs.slide_layouts[6])
++    box(s, 53, 34, 595, 27, text=eyebrow, size=18, bold=True)
++    box(s, 53, 69, 1138, 58, text=title, size=36, bold=True)
++    box(s, 56, 140, 1166, 7, 'DDE5ED'); box(s, 56, 140, int(1166 * ratio), 7, '175CD3')
++    k = len(cases); cw = {1: 1166, 2: 572, 3: 373}[k]; gap = (1166 - k * cw) / max(1, k - 1) if k > 1 else 0
++    for i, (cid, badge, body) in enumerate(cases):
++        x = int(56 + i * (cw + gap))
++        box(s, x, 165, cw, 440, 'FFFFFF'); box(s, x, 165, 9, 440, '175CD3')
++        box(s, x + 21, 182, 117, 36, 'EAF2FF'); box(s, x + 28, 185, 102, 27, text=cid, size=17, bold=True)
++        box(s, x + cw - 119, 182, 96, 36, 'FFF5E6'); box(s, x + cw - 111, 185, 81, 27, text=badge, size=17, bold=True)
++        box(s, x + 13, 236, cw - 26, 357, text=body, size=24)
++    box(s, 56, 621, 1166, 24, text='SOURCE A: FIXTURE GUIDELINE', size=16.5)
++    s.notes_slide.notes_text_frame.text = f'FIXTURE NOTES for {title}'
++    return s
++
++
++def main():
++    prs = Presentation()
++    prs.slide_width, prs.slide_height = Emu(1280 * PX), Emu(720 * PX)
++    case_slide(prs, 'CASE / DECIDE', 'DECIDE — Fixture Module',
++               [('CASE 001', 'DECIDE', 'FIXTURE scenario one. Which decision applies?'),
++                ('CASE 002', 'DECIDE', 'FIXTURE scenario two with x\u2082 subscript. Which decision applies?'),
++                ('CASE 003', 'DECIDE', 'FIXTURE scenario three. Which decision applies?')], 0.1)
++    case_slide(prs, 'GUIDELINE / SOURCE REVEAL', 'SOURCE REVEAL — Fixture Module',
++               [('CASE 001', 'REVEAL • 1/B-NR', 'FIXTURE reveal one is recommended.'),
++                ('CASE 002', 'REVEAL • 2a/B-R', 'FIXTURE reveal two is reasonable.'),
++                ('CASE 003', 'REVEAL • 3: No Benefit/A; 1/C-LD', 'FIXTURE reveal three.')], 0.1)
++    case_slide(prs, 'GUIDELINE / SOURCE REVEAL', 'SOURCE REVEAL — Fixture Single',
++               [('CASE 004', 'REVEAL • 2b/C-LD', 'FIXTURE single reveal body text.')], 0.2)
++    case_slide(prs, 'CASE / DECIDE', 'DECIDE — Fixture Overflow',
++               [('CASE 005', 'DECIDE', ' '.join(['FIXTURE overflow sentence that is deliberately very long.'] * 14)),
++                ('CASE 006', 'DECIDE', 'FIXTURE short.'),
++                ('CASE 007', 'DECIDE', 'FIXTURE short.')], 0.3)
++    s = prs.slides.add_slide(prs.slide_layouts[6])  # unknown role -> must be SKIPPED
++    box(s, 53, 69, 1138, 58, text='FIXTURE free-form slide', size=36, bold=True)
++    box(s, 53, 200, 1138, 300, text='FIXTURE body', size=24)
++    # case slide with an extra unknown text box -> must be SKIPPED
++    sl = case_slide(prs, 'CASE / DECIDE', 'DECIDE — Fixture Extra', [('CASE 008', 'DECIDE', 'FIXTURE body.')], 0.4)
++    box(sl, 900, 30, 300, 30, text='FIXTURE stray label', size=16)
++    prs.save(OUT)
++    print(OUT)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/evidence-locked-clinical-pptx-builder/requirements.txt b/evidence-locked-clinical-pptx-builder/requirements.txt
+index 6ba6ed5..d13350b 100644
+--- a/evidence-locked-clinical-pptx-builder/requirements.txt
++++ b/evidence-locked-clinical-pptx-builder/requirements.txt
+@@ -2,3 +2,4 @@ python-pptx>=1.0.0
+ PyYAML>=6.0
+ Pillow>=10.0
+ pytest>=8.0
++pymupdf>=1.24  # optional: VISUAL_POLISH --render (also needs LibreOffice on PATH)
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/case_reveal_layout_gate.py b/evidence-locked-clinical-pptx-builder/scripts/case_reveal_layout_gate.py
+index 894b6f2..70111bc 100644
+--- a/evidence-locked-clinical-pptx-builder/scripts/case_reveal_layout_gate.py
++++ b/evidence-locked-clinical-pptx-builder/scripts/case_reveal_layout_gate.py
+@@ -12,7 +12,25 @@ from pathlib import Path
+ from PIL import ImageFont
+ from pptx import Presentation
+ 
+-FONT = Path('C:/Windows/Fonts/arialbd.ttf')
++def _metric_font():
++    """Portable bold sans metric font (was hard-coded to C:/Windows/Fonts/arialbd.ttf)."""
++    import os, shutil, subprocess
++    cands = [os.environ.get('LAYOUT_GATE_FONT', ''),
++             os.path.join(os.environ.get('WINDIR', 'C:/Windows'), 'Fonts', 'arialbd.ttf'),
++             '/Library/Fonts/Arial Bold.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
++             '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
++             '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf']
++    for c in cands:
++        if c and Path(c).exists():
++            return Path(c)
++    if shutil.which('fc-match'):
++        out = subprocess.run(['fc-match', '-f', '%{file}', 'Arial:bold'], capture_output=True, text=True).stdout.strip()
++        if out and Path(out).exists():
++            return Path(out)
++    raise FileNotFoundError('no bold sans-serif metric font found; set LAYOUT_GATE_FONT')
++
++
++FONT = _metric_font()
+ EMU_PER_INCH = 914400
+ PX_PER_INCH = 96
+ 
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/mode_router.py b/evidence-locked-clinical-pptx-builder/scripts/mode_router.py
+index b027f77..5fdc1df 100644
+--- a/evidence-locked-clinical-pptx-builder/scripts/mode_router.py
++++ b/evidence-locked-clinical-pptx-builder/scripts/mode_router.py
+@@ -1,7 +1,7 @@
+ from __future__ import annotations
+ import argparse, json, re
+ 
+-MODES=['INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','FINAL_RELEASE','MAINTENANCE']
++MODES=['INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','VISUAL_POLISH','FINAL_RELEASE','MAINTENANCE']
+ 
+ def route(text:str, project_status='active'):
+     t=text.lower()
+@@ -9,6 +9,7 @@ def route(text:str, project_status='active'):
+         return {'mode':'MAINTENANCE','reason':'project is closed; new request must be classified as maintenance'}
+     rules=[
+         ('FINAL_RELEASE', r'canonical|final release|promot'),
++        ('VISUAL_POLISH', r'beauti|polish|restyle|improve (the )?(visual|look|design)|visual repair|make (it|the deck) look'),
+         ('VISUAL_QA', r'visual qa|projector|render.*audit|visual review'),
+         ('DERIVATIVE_BUILD', r'derivative|30.?min|45.?min|60.?min|90.?min|audience-specific|local-resource'),
+         ('CORPUS_BUILD', r'master case library|case corpus|decision node|exhaustive.*cases'),
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/semantic_promotion_gate.py b/evidence-locked-clinical-pptx-builder/scripts/semantic_promotion_gate.py
+index 1504069..8c5e1f0 100644
+--- a/evidence-locked-clinical-pptx-builder/scripts/semantic_promotion_gate.py
++++ b/evidence-locked-clinical-pptx-builder/scripts/semantic_promotion_gate.py
+@@ -71,6 +71,15 @@ def evaluate(defects_csv, gates_json):
+         elif status not in GOOD:
+             failed.append(g)
+ 
++    # v2.4.0: a deck that went through VISUAL_POLISH must also pass the polish
++    # content-lock gate. Declared via gates['visual_polish_applied']; never waivable.
++    if str(gates.get('visual_polish_applied','')).strip().lower() in {'yes','true','1'}:
++        status=str(gates.get('visual_polish_content_lock','NOT_RUN')).strip().upper()
++        if status in {'NOT_RUN','MISSING','PENDING',''}:
++            missing.append('visual_polish_content_lock')
++        elif status not in GOOD:
++            failed.append('visual_polish_content_lock')
++
+     iq_status=_normalize_iq_status(gates.get('independent_visual_qa','NOT_RUN'))
+     iq_waived=_independent_qa_waiver_is_valid(gates)
+     if iq_status in {'NOT_RUN','MISSING','PENDING',''}:
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/validate_project.py b/evidence-locked-clinical-pptx-builder/scripts/validate_project.py
+index 4e8fff6..f3bb5e3 100644
+--- a/evidence-locked-clinical-pptx-builder/scripts/validate_project.py
++++ b/evidence-locked-clinical-pptx-builder/scripts/validate_project.py
+@@ -7,7 +7,7 @@ try:
+ except ModuleNotFoundError:
+     from state_manager import validate
+ 
+-VALID_MODES={'INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','FINAL_RELEASE','MAINTENANCE'}
++VALID_MODES={'INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','VISUAL_POLISH','FINAL_RELEASE','MAINTENANCE'}
+ VALID_INDEPENDENT_QA_POLICIES={'required','required_unless_explicit_user_waiver','optional'}
+ def validate_project(path):
+     s=yaml.safe_load(Path(path).read_text()) or {}; errs=validate(s); p=s.get('project',{}); e=s.get('evidence_contract',{}); rp=s.get('release_policy',{})
+@@ -17,6 +17,18 @@ def validate_project(path):
+     if rp.get('require_visual_review_100_percent') and rp.get('contact_sheet_certifies_slides'): errs.append('contact sheet cannot certify slides')
+     policy=rp.get('independent_visual_qa_policy')
+     if policy not in VALID_INDEPENDENT_QA_POLICIES: errs.append('release_policy.independent_visual_qa_policy missing or invalid')
++    vp=rp.get('visual_polish') or {}
++    if vp.get('enabled'):
++        try:
++            from scripts.visual_polish.style import PROFILES
++        except ModuleNotFoundError:
++            from visual_polish.style import PROFILES
++        prof=vp.get('profile','projector_default')
++        if prof not in PROFILES: errs.append(f'release_policy.visual_polish.profile invalid: {prof}')
++        elif PROFILES[prof]['requires_approval'] and not str(vp.get('profile_approved_by','')).strip():
++            errs.append(f'visual_polish profile {prof} lowers body floors and requires profile_approved_by')
++        if vp.get('content_lock_required_when_enabled') is False:
++            errs.append('visual_polish content lock cannot be disabled')
+     return errs
+ 
+ def main():
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/visual_polish/__init__.py b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/visual_polish/polish.py b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/polish.py
+new file mode 100644
+index 0000000..ee42b0d
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/polish.py
+@@ -0,0 +1,573 @@
++#!/usr/bin/env python3
++"""VISUAL_POLISH engine: presentation-only restyle of a built evidence-locked deck.
++
++    python -m scripts.visual_polish.polish BUILT.pptx OUT.pptx \
++        [--profile projector_default|dense_case_reveal] [--profile-approved-by NAME] \
++        [--only 1 2 3 ...] [--report polish_report.json]
++
++Contract (see docs/visual_polish_protocol.md):
++  * Text is copied run by run from the built slide (bold/italic/super/subscript
++    kept). Nothing is retyped, shortened, merged or paraphrased.
++  * Slide order, slide ids, layouts, layout/master chrome and speaker notes are
++    never touched. Only the slide's own shape tree is rebuilt.
++  * Fail closed:
++      SKIPPED         - slide role or text structure not recognised -> left as built
++      SPLIT_REQUIRED  - text cannot fit at the profile's font floor -> left as
++                        built; route upstream (SKILL.md section 17 repair order:
++                        notes / split / restructure; never blind shrinking)
++  * This script never certifies anything. Run verify.py, then the existing
++    render + 100% visual review + promotion gates.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import re
++import sys
++
++from pptx import Presentation
++from pptx.dml.color import RGBColor
++from pptx.enum.shapes import MSO_SHAPE
++from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
++from pptx.util import Pt
++
++try:
++    from scripts.visual_polish import style as S
++except ModuleNotFoundError:  # direct execution from the folder
++    import style as S
++
++_ALIGN = {'l': PP_ALIGN.LEFT, 'c': PP_ALIGN.CENTER, 'r': PP_ALIGN.RIGHT}
++_ANCH = {'t': MSO_ANCHOR.TOP, 'm': MSO_ANCHOR.MIDDLE, 'b': MSO_ANCHOR.BOTTOM}
++E = S.emu
++
++
++class Skip(Exception):
++    """Structure not recognised: leave slide exactly as built."""
++
++
++class SplitRequired(Exception):
++    """Locked text cannot fit at the profile floor: leave slide as built."""
++
++
++# ====================================================================== drawing
++def _rgb(h):
++    return RGBColor.from_string(h)
++
++
++def shape(slide, x, y, w, h, fill=None, line=None, lw=0.75, radius=0, oval=False, name=None):
++    kind = MSO_SHAPE.OVAL if oval else (MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE)
++    sp = slide.shapes.add_shape(kind, E(x), E(y), E(w), E(h))
++    if radius and not oval:
++        sp.adjustments[0] = min(0.5, radius / max(1e-6, min(w, h)))
++    if fill:
++        sp.fill.solid(); sp.fill.fore_color.rgb = _rgb(fill)
++    else:
++        sp.fill.background()
++    if line:
++        sp.line.color.rgb = _rgb(line); sp.line.width = E(lw)
++    else:
++        sp.line.fill.background()
++    sp.shadow.inherit = False
++    if name:
++        sp.name = name
++    return sp
++
++
++def gradient(sp, c1, c2, angle):
++    sp.fill.gradient(); sp.fill.gradient_angle = angle
++    st = sp.fill.gradient_stops
++    st[0].color.rgb = _rgb(c1); st[0].position = 0
++    st[1].color.rgb = _rgb(c2); st[1].position = 1.0
++
++
++def text(slide, x, y, w, h, content, size, color, bold=False, font=S.FONT, align='l', anchor='t',
++         pitch=None, spacing=0.0, fill=None, line=None, radius=0, inset=0.0, wrap=True, name=None,
++         src_paragraphs=None):
++    """Exact-pitch text box. `src_paragraphs` copies python-pptx paragraphs run by
++    run so emphasis and super/subscript survive."""
++    if fill or line:
++        sp = shape(slide, x, y, w, h, fill, line, radius=radius)
++    else:
++        sp = slide.shapes.add_textbox(E(x), E(y), E(w), E(h))
++    if name:
++        sp.name = name
++    tf = sp.text_frame
++    tf.word_wrap = wrap
++    tf.auto_size = MSO_AUTO_SIZE.NONE
++    tf.margin_left = tf.margin_right = E(inset)
++    tf.margin_top = tf.margin_bottom = 0
++    tf.vertical_anchor = _ANCH[anchor]
++    paras = src_paragraphs if src_paragraphs is not None else content.split('\n')
++    for i, src in enumerate(paras):
++        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
++        p.alignment = _ALIGN[align]
++        p.line_spacing = Pt(S.fpt(size * (pitch or 1.2)))
++        p.space_before = p.space_after = 0
++        runs = list(src.runs) if src_paragraphs is not None else [None]
++        for sr in runs:
++            r = p.add_run()
++            r.text = sr.text if sr is not None else src
++            f = r.font
++            f.size = Pt(S.fpt(size)); f.name = font; f.color.rgb = _rgb(color)
++            f.bold = bool(sr.font.bold) if (sr is not None and sr.font.bold is not None) else bold
++            if sr is not None and sr.font.italic:
++                f.italic = True
++            if sr is not None and sr.font.underline:
++                f.underline = True
++            rpr = r._r.get_or_add_rPr()
++            if sr is not None and sr._r.rPr is not None and sr._r.rPr.get('baseline'):
++                rpr.set('baseline', sr._r.rPr.get('baseline'))
++            if spacing:
++                rpr.set('spc', str(int(round(S.fpt(spacing) * 100))))
++    return sp
++
++
++def pill_w(label, size=16, padx=8, spacing=0.0):
++    return S.text_width(label, size, True) + 2 * padx + spacing * len(label) + 2
++
++
++def pill(slide, x, y, label, fg, bg, border, size=16, h=24, radius=12, padx=8, spacing=0.0, name='Pill'):
++    w = pill_w(label, size, padx, spacing)
++    text(slide, x, y, w, h, label, size, fg, bold=True, align='c', anchor='m', fill=bg, line=border,
++         radius=radius, spacing=spacing, wrap=False, name=name)
++    return w
++
++
++def clear(slide):
++    """Remove the slide's own shapes. Layout/master chrome and notes untouched."""
++    tree = slide.shapes._spTree
++    for sp in list(slide.shapes):
++        tree.remove(sp._element)
++
++
++def background(slide, color):
++    f = slide.background.fill
++    f.solid(); f.fore_color.rgb = _rgb(color)
++
++
++# ====================================================================== parsing
++def T(sp):
++    return sp.text_frame.text if getattr(sp, 'has_text_frame', False) else ''
++
++
++def G(prs, sp):
++    """Shape geometry in design points."""
++    k = S.DESIGN_W / (prs.slide_width / 12700)
++    return dict(x=sp.left / 12700 * k, y=sp.top / 12700 * k, w=sp.width / 12700 * k, h=sp.height / 12700 * k)
++
++
++def classify(index, slide):
++    texts = [T(s).strip() for s in slide.shapes if T(s).strip()]
++    if not texts:
++        return 'unknown'
++    t0 = texts[0]
++    if t0 == 'CASE / DECIDE':
++        return 'decide'
++    if t0 == 'GUIDELINE / SOURCE REVEAL':
++        return 'reveal'
++    if t0 == 'TEACHING CONTRACT':
++        return 'contract'
++    if re.fullmatch(r'M\d{2}', t0):
++        return 'divider'
++    if t0 == 'CLOSURE':
++        return 'closure'
++    if index == 0 and any('\u2192' in t for t in texts):
++        return 'cover'
++    return 'unknown'
++
++
++def parse_case(prs, slide):
++    shapes = list(slide.shapes)
++    geo = {id(s): G(prs, s) for s in shapes}
++    texts = [s for s in shapes if T(s).strip()]
++    eyebrow, title = texts[0], texts[1]
++    used = {id(eyebrow), id(title)}
++    thin = sorted((geo[id(s)]['w'] for s in shapes if not T(s).strip() and geo[id(s)]['h'] < 8 and geo[id(s)]['w'] > 10))
++    ratio = thin[0] / thin[-1] if len(thin) >= 2 and thin[-1] else 0
++    cards = sorted((s for s in shapes if not T(s).strip() and geo[id(s)]['h'] > 200 and geo[id(s)]['w'] > 100),
++                   key=lambda s: geo[id(s)]['x'])
++    if not cards:
++        raise Skip('no case cards found')
++    cases = []
++    for c in cards:
++        g = geo[id(c)]
++        inside = [s for s in texts if g['x'] - 2 <= geo[id(s)]['x'] < g['x'] + g['w'] and g['y'] - 2 <= geo[id(s)]['y'] < g['y'] + g['h']]
++        ids = [s for s in inside if re.fullmatch(r'CASE \d+', T(s).strip())]
++        badges = [s for s in inside if T(s).strip().startswith('REVEAL') or T(s).strip() == 'DECIDE']
++        bodies = [s for s in inside if s not in ids and s not in badges]
++        if len(ids) != 1 or len(badges) > 1 or len(bodies) != 1:
++            raise Skip(f'unrecognised card structure ({len(ids)} ids, {len(badges)} badges, {len(bodies)} bodies)')
++        used.update(id(s) for s in ids + badges + bodies)
++        cases.append(dict(id=T(ids[0]).strip(), badge=T(badges[0]).strip() if badges else '',
++                          body=T(bodies[0]), paragraphs=list(bodies[0].text_frame.paragraphs)))
++    sources = [s for s in texts if id(s) not in used and T(s).strip().upper().startswith('SOURCE')]
++    used.update(id(s) for s in sources)
++    leftover = [T(s) for s in texts if id(s) not in used]
++    if leftover:
++        raise Skip(f'unrecognised text elements: {leftover[:2]}')
++    if len(sources) > 1:
++        raise Skip('more than one source line')
++    return dict(eyebrow=T(eyebrow).strip(), title=T(title).strip(), ratio=ratio, cases=cases,
++                source=T(sources[0]).strip() if sources else '')
++
++
++def rows_by_y(prs, slide, start):
++    texts = [s for s in slide.shapes if T(s).strip()][start:]
++    rows = []
++    for s in sorted(texts, key=lambda s: G(prs, s)['y']):
++        y = G(prs, s)['y']
++        if rows and abs(rows[-1][0] - y) < 12:
++            rows[-1][1].append(s)
++        else:
++            rows.append([y, [s]])
++    return [sorted(r[1], key=lambda s: G(prs, s)['x']) for r in rows]
++
++
++def badge_parts(badge):
++    """'REVEAL • 3: No Benefit/A; 1/C-LD' -> ('REVEAL •', ['3: No Benefit/A', '1/C-LD'])."""
++    m = re.match(r'^(REVEAL\s*•?)\s*(.*)$', badge)
++    if not m:
++        return badge, []
++    label, code = m.group(1).strip(), m.group(2).strip()
++    return label, [p.strip() for p in code.split(';') if p.strip()]
++
++
++def cor_colors(code):
++    m = re.match(r'(1|2a|2b|3)\b', code)
++    return S.COR[m.group(1)] if m else (S.PHASE['reveal']['text'], S.PHASE['reveal']['tint'], S.PHASE['reveal']['border'])
++
++
++# ====================================================================== case slides
++L = dict(margin=32, phase_y=9, eyebrow_y=20, title_y=41, title_h=50, prog_y=93, card_top=106,
++         card_bottom=474, source_y=480, gap=14, pad=12, stripe=5)
++
++
++def fit_title(title, profile):
++    w = (S.DESIGN_W - 2 * L['margin']) * 0.96  # margin for renderer metric differences
++    for s in range(profile['title_max'], 23, -1):
++        if S.text_width(title, s, True) <= w:
++            return s
++    return None
++
++
++def plan_header(case, inner_w, size=None):
++    """Lay out case pill + phase/COR badges; wrap to a second row if needed."""
++    if size is None:  # 16 pt when it fits on one row, else 14 pt (S.BADGE_MIN)
++        one = plan_header(case, inner_w, 16)
++        return one if one['rows'] == 1 else plan_header(case, inner_w, S.BADGE_MIN)
++    items = []
++    if case['badge'] == 'DECIDE':
++        items = [('phase', 'DECIDE', pill_w('DECIDE', size, spacing=1.0))]
++    elif case['badge']:
++        label, codes = badge_parts(case['badge'])
++        if codes:
++            items = [('label', label, S.text_width(label, size, True) + 2 * len(label) * 0.5 + 4)]
++            items += [('cor', c, pill_w(c, size)) for c in codes]
++        else:
++            items = [('phase', case['badge'], pill_w(case['badge'], size, spacing=1.0))]
++    case_w = pill_w(case['id'], size, spacing=0.5)
++    group_w = sum(w for _, _, w in items) + 6 * max(0, len(items) - 1)
++    if case_w + 10 + group_w <= inner_w:
++        return dict(rows=1, case_w=case_w, rows_items=[items], align='r', size=size)
++    rows, cur, cw = [], [], 0
++    for it in items:
++        add = it[2] + (6 if cur else 0)
++        if cur and cw + add > inner_w:
++            rows.append(cur); cur, cw = [], 0; add = it[2]
++        if it[2] > inner_w:
++            raise SplitRequired(f'badge {it[1]!r} wider than card')
++        cur.append(it); cw += add
++    if cur:
++        rows.append(cur)
++    return dict(rows=1 + len(rows), case_w=case_w, rows_items=rows, align='l', size=size)
++
++
++def build_case(prs, slide, d, profile, rep):
++    phase = 'reveal' if d['eyebrow'].startswith('GUIDELINE') else 'decide'
++    P = S.PHASE[phase]
++    k = len(d['cases'])
++    if k > 3:
++        raise Skip(f'{k} cards (max 3 supported)')
++    floor, top = profile['body_floor'][k], profile['body_max'][k]
++    tsize = fit_title(d['title'], profile)
++    if tsize is None:
++        raise SplitRequired('title does not fit on one line at 24 pt')
++    cw = (S.DESIGN_W - 2 * L['margin'] - L['gap'] * (k - 1)) / k
++    inner_w = cw - L['stripe'] - 2 * L['pad']
++    ch = L['card_bottom'] - L['card_top']
++
++    # ---------- plan every card first (all-or-nothing: no partial rebuilds)
++    plans = []
++    for c in d['cases']:
++        hp = plan_header(c, inner_w)
++        header_h = 12 + 24 * hp['rows'] + 6 * (hp['rows'] - 1) + 12
++        body_h = ch - header_h - 12 - 12
++        plans.append(dict(case=c, header=hp, header_h=header_h, body_h=body_h))
++    body_h = min(p['body_h'] for p in plans)
++    watermark = k == 1
++    width = inner_w - (210 if watermark else 0)
++    size = S.fit_size([p['case']['body'] for p in plans], width, body_h, top, floor)
++    if size is None and watermark:
++        watermark, width = False, inner_w
++        size = S.fit_size([p['case']['body'] for p in plans], width, body_h, top, floor)
++    if size is None:
++        need = max(S.text_height(p['case']['body'], width, floor) for p in plans)
++        raise SplitRequired(f'body needs {need:.0f} pt at {floor} pt floor; {body_h:.0f} pt available')
++
++    # ---------- rebuild
++    clear(slide)
++    background(slide, S.BG)
++    shape(slide, 0, L['phase_y'], S.DESIGN_W, 3, P['bar'], name='Phase bar')
++    text(slide, L['margin'], L['eyebrow_y'], 20, 20, P['icon'], 13, 'FFFFFF', bold=True, align='c', anchor='m',
++         fill=P['bar'], radius=10, wrap=False, name='Phase icon')
++    text(slide, L['margin'] + 28, L['eyebrow_y'], 600, 20, d['eyebrow'], 16, P['text'], bold=True, anchor='m',
++         spacing=1.5, wrap=False, name='Eyebrow')
++    text(slide, L['margin'], L['title_y'], S.DESIGN_W - 2 * L['margin'], L['title_h'], d['title'], tsize, S.NAVY,
++         bold=True, font=S.FONT_D, anchor='m', wrap=False, name='Title')
++    shape(slide, L['margin'], L['prog_y'], S.DESIGN_W - 2 * L['margin'], 4, S.LINE, radius=2, name='Progress track')
++    if d['ratio']:
++        shape(slide, L['margin'], L['prog_y'], max(8, (S.DESIGN_W - 2 * L['margin']) * d['ratio']), 4, P['bar'],
++              radius=2, name='Progress fill')
++    for i, p in enumerate(plans):
++        c, hp = p['case'], p['header']
++        x = L['margin'] + i * (cw + L['gap']); y0 = L['card_top']
++        shape(slide, x, y0, cw, ch, 'FFFFFF', S.CARD_BORDER, radius=6, name=f'Card {c["id"]}')
++        shape(slide, x + L['stripe'], y0 + 0.75, cw - L['stripe'] - 0.75, p['header_h'] - 0.75,
++              S.blend(P['tint'], 'FFFFFF', 0.6), name='Card header tint')
++        shape(slide, x, y0, L['stripe'], ch, P['bar'], name='Card phase stripe')
++        ix = x + L['stripe'] + L['pad']; ry = y0 + 12
++        bs = hp['size']
++        pill(slide, ix, ry, c['id'], S.BLUE, 'FFFFFF', S.BLUE_BORDER, size=bs, radius=4, spacing=0.5, name='Case id')
++        for r, items in enumerate(hp['rows_items']):
++            if hp['align'] == 'r':
++                cx = ix + inner_w - (sum(w for _, _, w in items) + 6 * (len(items) - 1)); yy = ry
++            else:
++                cx = ix; yy = ry + 30 * (r + 1)
++            for kind, lab, w in items:
++                if kind == 'phase':
++                    fg, bg, bd = (P['text'], P['tint'], P['border'])
++                    pill(slide, cx, yy, lab, fg, bg, bd, size=bs, spacing=1.0, name='Phase badge')
++                elif kind == 'cor':
++                    fg, bg, bd = cor_colors(lab)
++                    pill(slide, cx, yy, lab, fg, bg, bd, size=bs, name='COR/LOE badge')
++                else:
++                    text(slide, cx, yy, w, 24, lab, bs, P['text'], bold=True, anchor='m', align='l',
++                         spacing=0.5, wrap=False, name='Reveal label')
++                cx += w + 6
++        if watermark:
++            num = c['id'].split()[-1]
++            text(slide, x + cw - 250, L['card_bottom'] - 150, 236, 140, num, 120, S.blend(P['bar'], 'FFFFFF', 0.10),
++                 bold=True, font=S.FONT_D, align='r', anchor='b', pitch=1.0, wrap=False, name='Case watermark')
++        text(slide, ix, y0 + p['header_h'] + 12, width, body_h, c['body'], size, S.INK, pitch=S.LINE_PITCH,
++             src_paragraphs=c['paragraphs'], name=f'Body {c["id"]}')
++    if d['source']:
++        text(slide, L['margin'], L['source_y'], S.DESIGN_W - 2 * L['margin'], 22, d['source'], 16, S.MUTED,
++             anchor='m', wrap=False, name='Source line')
++    rep.update(cards=k, body_pt=size, title_pt=tsize, header_rows=max(p['header']['rows'] for p in plans),
++               watermark=watermark)
++
++
++# ====================================================================== other roles
++def build_cover(prs, slide, rep):
++    texts = [s for s in slide.shapes if T(s).strip()]
++    flow = [s for s in texts if '\u2192' in T(s)]
++    rest = [s for s in texts if s not in flow]
++    if len(flow) != 1 or len(rest) != 5:
++        raise Skip('cover structure not recognised')
++    title, sub, aud, b1, b2 = [T(s) for s in rest]
++    steps = [re.sub(r'\s+', ' ', p).strip() for p in T(flow[0]).split('\u2192') if p.strip()]
++    tl = title.split('\n')
++    if len(tl) != 2 or len(steps) != 3:
++        raise Skip('cover title/flow shape not recognised')
++    ssize = S.fit_size([sub], 560, 2 * 24 * 1.2, 24, 20, pitch=1.2, bold=True)
++    if ssize is None:
++        raise SplitRequired('cover subtitle')
++    clear(slide); background(slide, S.NAVY)
++    g = shape(slide, 0, 0, S.DESIGN_W, S.DESIGN_H, S.NAVY, name='Cover background'); gradient(g, '0E2A47', S.NAVY, 45)
++    for i, col in enumerate((S.BLUE_BRIGHT, S.PHASE['decide']['bar'], S.PHASE['reveal']['bar'])):
++        shape(slide, 45, 60 + i * 137, 7, 136, col, name='Phase rail')
++    text(slide, 75, 66, 560, 40, tl[0], 32, '7CB8FF', bold=True, font=S.FONT_D, anchor='b', wrap=False, name='Cover kicker')
++    text(slide, 75, 108, 560, 70, tl[1], 58, 'FFFFFF', bold=True, font=S.FONT_D, anchor='t', pitch=1.1, wrap=False, name='Cover title')
++    sh = len(S.wrap_lines(sub, 560, ssize, True)) * ssize * 1.2
++    text(slide, 75, 205, 560, sh + 4, sub, ssize, 'E3ECF7', bold=True, pitch=1.2, name='Cover subtitle')
++    ay = 205 + sh + 18
++    al = aud.split('\n')
++    text(slide, 75, ay, 560, 26, al[0], 20, 'B7C6D8', pitch=1.2, name='Audience')
++    if len(al) > 1:
++        text(slide, 75, ay + 28, 560, 22, '\n'.join(al[1:]), 16, '8FA3B8', pitch=1.2, name='Audience note')
++    shape(slide, 640, 75, 288, 235, S.blend('FFFFFF', S.NAVY, 0.05), S.blend('7CB8FF', S.NAVY, 0.35), lw=1,
++          radius=10, name='Flow panel')
++    shape(slide, 679, 120, 2, 145, S.blend('FFFFFF', S.NAVY, 0.25), name='Flow connector')
++    cols = (S.BLUE_BRIGHT, S.PHASE['decide']['bar'], S.PHASE['reveal']['bar'])
++    for i, lab in enumerate(steps):
++        y = 105 + i * 70
++        text(slide, 664, y, 32, 32, str(i + 1), 16, 'FFFFFF', bold=True, align='c', anchor='m', fill=cols[i],
++             radius=16, wrap=False, name='Flow step number')
++        text(slide, 708, y - 4, 212, 40, ('\u2192 ' if i else '') + lab, 19, 'FFFFFF', bold=True, anchor='m',
++             wrap=False, spacing=0.5, name='Flow step label')
++    shape(slide, 75, 400, 830, 1, '1D3550', name='Cover rule')
++    text(slide, 75, 412, 830, 24, b1, 18, 'E3ECF7', bold=True, pitch=1.2, name='Boundary')
++    text(slide, 75, 440, 830, 48, b2.replace('\n', ' '), 18, 'B7C6D8', pitch=1.25, name='Boundary detail')
++
++
++def build_divider(prs, slide, rep):
++    texts = [T(s).strip() for s in slide.shapes if T(s).strip()]
++    if len(texts) != 5 or '\u2192' not in texts[3]:
++        raise Skip('divider structure not recognised')
++    code, name, meta, flow, lock = texts
++    nsize = S.fit_size([name], 750, 2 * 46 * 1.15, 46, 36, pitch=1.15, bold=True)
++    if nsize is None:
++        raise SplitRequired('module name')
++    clear(slide); background(slide, S.NAVY)
++    g = shape(slide, 0, 0, S.DESIGN_W, S.DESIGN_H, S.NAVY, name='Divider background'); gradient(g, S.NAVY, '10325A', 315)
++    text(slide, 500, 130, 440, 390, code[1:], 300, S.blend(S.BLUE_BRIGHT, S.NAVY, 0.10), bold=True, font=S.FONT_D,
++         align='r', anchor='b', pitch=1.0, wrap=False, name='Module watermark')
++    text(slide, 52, 70, 350, 90, code, 75, S.BLUE_BRIGHT, bold=True, font=S.FONT_D, anchor='m', wrap=False, name='Module code')
++    nh = len(S.wrap_lines(name, 750, nsize, True)) * nsize * 1.15
++    text(slide, 52, 165, 750, nh + 4, name, nsize, 'FFFFFF', bold=True, font=S.FONT_D, pitch=1.15, name='Module name')
++    y = 165 + nh + 26
++    text(slide, 52, y, 750, 26, meta, 20, 'B7C6D8', name='Module meta')
++    y += 54
++    shape(slide, 52, y, 600, 1, '24476E', name='Divider rule')
++    a, b = [p.strip() for p in flow.split('\u2192', 1)]
++    w1 = pill(slide, 52, y + 20, a, 'F7C063', S.blend(S.PHASE['decide']['bar'], S.NAVY, 0.15), S.PHASE['decide']['bar'],
++              size=16, h=30, radius=15, padx=11, spacing=1.0, name='Phase pill')
++    text(slide, 52 + w1 + 4, y + 20, 26, 30, '\u2192', 16, '8FA3B8', bold=True, align='c', anchor='m', wrap=False, name='Arrow')
++    pill(slide, 52 + w1 + 34, y + 20, b, '6FD3AE', S.blend(S.PHASE['reveal']['bar'], S.NAVY, 0.15), S.PHASE['reveal']['bar'],
++         size=16, h=30, radius=15, padx=11, spacing=1.0, name='Phase pill')
++    text(slide, 52, y + 66, 750, 22, lock, 16, '8FA3B8', name='Lock note')
++
++
++def build_list(prs, slide, rep, kind):
++    shapes = list(slide.shapes)
++    texts = [s for s in shapes if T(s).strip()]
++    eyebrow, title = T(texts[0]).strip(), T(texts[1]).strip()
++    rows = rows_by_y(prs, slide, 2)
++    items, note = [], None
++    for r in rows:
++        ts = [T(s).strip() for s in r]
++        if kind == 'contract' and len(ts) == 3 and re.fullmatch(r'\d+', ts[0]):
++            items.append(ts)
++        elif kind == 'closure' and len(ts) == 2 and ts[0] == '\u2713':
++            y = G(prs, r[0])['y']
++            red = False
++            for c in shapes:
++                if not T(c).strip() and abs(G(prs, c)['y'] - y) < 8:
++                    try:
++                        red = red or str(c.fill.fore_color.rgb) == S.HARM_RED
++                    except Exception:
++                        pass
++            items.append(ts + [red])
++        elif len(ts) == 1 and r is rows[-1]:
++            note = ts[0]
++        else:
++            raise Skip(f'unrecognised {kind} row: {ts}')
++    n = len(items)
++    if not n:
++        raise Skip(f'no {kind} rows')
++    top, bottom = 108, 500
++    note_h = 0
++    if note:
++        nsize = S.fit_size([note], 860, 2 * 18 * 1.2, 18, 16, pitch=1.2, bold=True)
++        if nsize is None:
++            raise SplitRequired('note')
++        note_h = len(S.wrap_lines(note, 860, nsize, True)) * nsize * 1.2 + 16
++    step = min(84, (bottom - top - (note_h + 12 if note else 0)) / n)
++    rh = step - 10
++    tx = 330 if kind == 'contract' else 94
++    tw = S.DESIGN_W - 32 - tx - 14
++    tsize = S.fit_size([it[2] if kind == 'contract' else it[1] for it in items], tw, rh - 8, 24, 20, pitch=1.15)
++    if tsize is None:
++        raise SplitRequired(f'{kind} row text')
++    clear(slide); background(slide, S.BG)
++    text(slide, 32, 22, 600, 20, eyebrow, 16, S.BLUE, bold=True, anchor='m', spacing=1.5, wrap=False, name='Eyebrow')
++    text(slide, 32, 48, 896, 46, title, 36, S.NAVY, bold=True, font=S.FONT_D, anchor='m', wrap=False, name='Title')
++    cols = [S.BLUE_BRIGHT, S.PHASE['decide']['bar'], S.PHASE['reveal']['bar'], '6B7A8C']
++    for i, it in enumerate(items):
++        y = top + i * step
++        shape(slide, 32, y, 896, rh, 'FFFFFF', S.CARD_BORDER, radius=6, name='Row card')
++        if kind == 'contract':
++            col = cols[i % len(cols)]
++            shape(slide, 32, y, 5, rh, col, name='Row stripe')
++            dd = min(36, rh - 14)
++            text(slide, 54, y + (rh - dd) / 2, dd, dd, it[0], 18, 'FFFFFF', bold=True, align='c', anchor='m',
++                 fill=col, radius=dd / 2, wrap=False, name='Row number')
++            text(slide, 106, y, 216, rh, it[1], 20, S.NAVY, bold=True, anchor='m', spacing=0.5, wrap=False, name='Row label')
++            text(slide, tx, y, tw, rh, it[2], tsize, S.INK, anchor='m', pitch=1.15, name='Row text')
++        else:
++            col = S.HARM_RED if it[2] else S.PHASE['reveal']['bar']
++            dd = min(30, rh - 14)
++            text(slide, 50, y + (rh - dd) / 2, dd, dd, '\u2713', 16, 'FFFFFF', bold=True, align='c', anchor='m',
++                 fill=col, radius=dd / 2, wrap=False, name='Check')
++            text(slide, tx, y, tw, rh, it[1], tsize, S.INK, anchor='m', pitch=1.15, name='Row text')
++    if note:
++        tone = (S.BLUE, S.BLUE_T, S.BLUE_BORDER) if kind == 'contract' else \
++            (S.PHASE['reveal']['text'], S.PHASE['reveal']['tint'], S.PHASE['reveal']['border'])
++        y = top + n * step + 2
++        text(slide, 32, y, 896, note_h, note, nsize, tone[0], bold=True, anchor='m', pitch=1.2, fill=tone[1],
++             line=tone[2], radius=6, inset=18, name='Note')
++    rep.update(row_pt=tsize)
++
++
++# ====================================================================== driver
++def polish(src, dst, profile_name='projector_default', approved_by='', only=None, report_path=None):
++    if profile_name not in S.PROFILES:
++        raise SystemExit(f'unknown profile {profile_name!r}; choose from {sorted(S.PROFILES)}')
++    profile = S.PROFILES[profile_name]
++    if profile['requires_approval'] and not approved_by.strip():
++        raise SystemExit(f'profile {profile_name!r} lowers body floors and needs --profile-approved-by '
++                         '(record the approval in project_state.yaml release_policy.visual_polish)')
++    prs = Presentation(src)
++    S.set_canvas(prs)
++    report = []
++    for i, slide in enumerate(prs.slides):
++        n = i + 1
++        if only and n not in only:
++            continue
++        kind = classify(i, slide)
++        r = dict(slide=n, kind=kind, status='POLISHED')
++        try:
++            if kind in ('decide', 'reveal'):
++                build_case(prs, slide, parse_case(prs, slide), profile, r)
++            elif kind == 'cover':
++                build_cover(prs, slide, r)
++            elif kind == 'divider':
++                build_divider(prs, slide, r)
++            elif kind in ('contract', 'closure'):
++                build_list(prs, slide, r, kind)
++            else:
++                raise Skip('unknown slide role')
++        except Skip as e:
++            r.update(status='SKIPPED', reason=str(e))
++        except SplitRequired as e:
++            r.update(status='SPLIT_REQUIRED', reason=str(e))
++        report.append(r)
++    prs.save(dst)
++    summary = {s: sum(1 for r in report if r['status'] == s) for s in ('POLISHED', 'SKIPPED', 'SPLIT_REQUIRED')}
++    out = dict(gate='VISUAL_POLISH', source=str(src), output=str(dst), profile=profile_name,
++               profile_approved_by=approved_by or None, metric_font=S.metric_font(False)[0],
++               slides=len(prs.slides), summary=summary, slides_report=report, certifies_anything=False)
++    if report_path:
++        with open(report_path, 'w', encoding='utf-8') as f:
++            json.dump(out, f, indent=2)
++    return out
++
++
++def main(argv=None):
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument('src'); ap.add_argument('dst')
++    ap.add_argument('--profile', default='projector_default', choices=sorted(S.PROFILES))
++    ap.add_argument('--profile-approved-by', default='')
++    ap.add_argument('--only', nargs='*', type=int, help='1-based slide numbers (sample run)')
++    ap.add_argument('--report', default=None)
++    a = ap.parse_args(argv)
++    res = polish(a.src, a.dst, a.profile, a.profile_approved_by, set(a.only) if a.only else None, a.report)
++    print(json.dumps(res['summary']))
++    for r in res['slides_report']:
++        if r['status'] != 'POLISHED':
++            print(f"  slide {r['slide']:>3} {r['status']}: {r.get('reason', '')}")
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/visual_polish/style.py b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/style.py
+new file mode 100644
+index 0000000..bf007c2
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/style.py
+@@ -0,0 +1,182 @@
++"""Design tokens, density profiles and measured text fitting for VISUAL_POLISH.
++
++Units: every coordinate and font size in this package is in POINTS on a
++960 x 540 pt design canvas (13.333 x 7.5 in). `set_canvas()` scales to the
++real slide width, so 10 in wide 16:9 decks also work.
++
++Font floors follow SKILL.md section 17 (body >= 24 pt, source/citation labels
++>= 16 pt). The denser profile mirrors the observed DYS_2026 v1.5 design
++reference (docs/dys_2026_v1_5_design_reference.md). It is a project-level
++choice: it must be approved and recorded in project state, and it never lowers
++the 16 pt source-label floor.
++"""
++from __future__ import annotations
++
++import os
++import shutil
++import subprocess
++from functools import lru_cache
++
++# ------------------------------------------------------------------ palette
++NAVY = '0B1F33'      # deck base (kept from the builder)
++INK = '17212B'       # body text
++MUTED = '536273'     # chrome text (contrast >= 4.5:1 on BG)
++BG = 'F5F7FA'
++LINE = 'DDE5ED'
++CARD_BORDER = 'D5DEE8'
++BLUE = '175CD3'; BLUE_T = 'EAF2FF'; BLUE_BORDER = 'B9CFF5'; BLUE_BRIGHT = '2E90FA'
++HARM_RED = 'B42318'
++
++# Teaching-phase semantics. Colour is never the only cue: each phase also has
++# an icon and its own eyebrow text (SKILL.md section 17, "no reliance on colour alone").
++PHASE = {
++    'decide': dict(bar='E39A12', text='8A5300', tint='FFF5E6', border='F3C77A', icon='?'),
++    'reveal': dict(bar='1E9E73', text='0F6B4E', tint='EAF7F1', border='9FD8BF', icon='\u2713'),
++}
++
++# ACC/AHA Class of Recommendation colour convention: (text, fill, border).
++# The class code text is always printed inside the pill.
++COR = {
++    '1':  ('0E6B4E', 'DDF3E8', '9FD8BF'),
++    '2a': ('6B4B00', 'FFF3C4', 'F2D675'),
++    '2b': ('8A3605', 'FFE6D2', 'F6B98A'),
++    '3':  ('A11A12', 'FDE2DF', 'F3A9A2'),
++}
++
++FONT = 'Aptos'
++FONT_D = 'Aptos Display'
++
++# ------------------------------------------------------------------ profiles
++PROFILES = {
++    # Default: SKILL.md section 17 floors. Slides that cannot fit are NOT shrunk;
++    # they are left as built and reported SPLIT_REQUIRED for upstream repair.
++    'projector_default': dict(
++        title_max=40, title_min=32,
++        body_floor={1: 24, 2: 24, 3: 24},
++        body_max={1: 32, 2: 28, 3: 26},
++        label=16, source=16, requires_approval=False),
++    # Observed DYS_2026 v1.5 density. Opt-in only, approval must be recorded.
++    'dense_case_reveal': dict(
++        title_max=40, title_min=30,
++        body_floor={1: 24, 2: 20, 3: 18},
++        body_max={1: 32, 2: 28, 3: 24},
++        label=16, source=16, requires_approval=True),
++}
++
++BADGE_MIN = 14      # case-id / phase / COR-LOE pills (not citations; see protocol doc)
++LINE_PITCH = 1.25      # body line pitch (exact spacing, renderer-independent)
++TITLE_PITCH = 1.10
++WIDTH_SAFETY = 1.03    # extra margin for PowerPoint vs. LibreOffice line breaking
++
++# ------------------------------------------------------------------ canvas
++DESIGN_W, DESIGN_H = 960.0, 540.0
++_K = 1.0  # real-slide scale factor
++
++
++def set_canvas(prs):
++    global _K
++    _K = prs.slide_width / (DESIGN_W * 12700)
++
++
++def emu(v):
++    return int(round(v * 12700 * _K))
++
++
++def fpt(v):
++    """Design font size (pt) -> real font size (pt)."""
++    return v * _K
++
++
++def blend(fg, bg, a):
++    f = [int(fg[i:i + 2], 16) for i in (0, 2, 4)]
++    b = [int(bg[i:i + 2], 16) for i in (0, 2, 4)]
++    return ''.join(f'{round(f[i] * a + b[i] * (1 - a)):02X}' for i in range(3))
++
++
++# ------------------------------------------------------------------ metrics
++def _fc(name, bold):
++    if not shutil.which('fc-match'):
++        return None
++    try:
++        out = subprocess.run(['fc-match', '-f', '%{file}', f'{name}:{"bold" if bold else "regular"}'],
++                             capture_output=True, text=True, timeout=5).stdout.strip()
++        return out or None
++    except Exception:
++        return None
++
++
++def _candidates(bold):
++    env = os.environ.get('POLISH_METRIC_FONT_BOLD' if bold else 'POLISH_METRIC_FONT')
++    win = os.path.join(os.environ.get('WINDIR', 'C:/Windows'), 'Fonts')
++    names = (['Aptos-Bold.ttf', 'aptos-bold.ttf'] if bold else ['Aptos.ttf', 'aptos.ttf'])
++    c = [(env, 1.0)] if env else []
++    c += [(os.path.join(win, n), 1.0) for n in names]
++    c += [(os.path.expanduser(f'~/Library/Fonts/{n}'), 1.0) for n in names]
++    # What the renderer substitutes for Aptos (LibreOffice usually: Noto Sans)
++    c.append((_fc('Aptos', bold), 1.0))
++    c += [('/usr/share/fonts/truetype/noto/NotoSans-%s.ttf' % ('Bold' if bold else 'Regular'), 1.0),
++          ('/usr/share/fonts/truetype/liberation/LiberationSans-%s.ttf' % ('Bold' if bold else 'Regular'), 1.06),
++          (os.path.join(win, 'arialbd.ttf' if bold else 'arial.ttf'), 1.06),
++          ('/Library/Fonts/Arial%s.ttf' % (' Bold' if bold else ''), 1.06),
++          ('/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf' % ('-Bold' if bold else ''), 1.0)]
++    return c
++
++
++@lru_cache(maxsize=None)
++def metric_font(bold):
++    for path, fudge in _candidates(bold):
++        if path and os.path.exists(path):
++            return path, fudge
++    return None, 1.0
++
++
++@lru_cache(maxsize=None)
++def _font(size10, bold):
++    path, fudge = metric_font(bold)
++    if path is None:
++        return None, fudge
++    from PIL import ImageFont
++    return ImageFont.truetype(path, max(1, size10)), fudge
++
++
++def text_width(s, size, bold=False):
++    # measure at 10x resolution in points for sub-point accuracy
++    f, fudge = _font(int(round(size * 10)), bold)
++    if f is None:
++        return len(s) * size * 0.58 * WIDTH_SAFETY
++    return f.getlength(s) / 10.0 * fudge * WIDTH_SAFETY
++
++
++def wrap_lines(text, width, size, bold=False):
++    lines = []
++    for para in text.replace('\v', '\n').split('\n'):
++        cur = ''
++        for word in para.split(' '):
++            trial = f'{cur} {word}' if cur else word
++            if not cur or text_width(trial, size, bold) <= width:
++                cur = trial
++            else:
++                lines.append(cur)
++                cur = word
++        lines.append(cur)
++    return lines
++
++
++def text_height(text, width, size, pitch=LINE_PITCH, bold=False):
++    return len(wrap_lines(text, width, size, bold)) * size * pitch
++
++
++def longest_word_fits(text, width, size, bold=False):
++    return all(text_width(w, size, bold) <= width for w in text.split())
++
++
++def fit_size(texts, width, height, hi, lo, pitch=LINE_PITCH, bold=False, step=1):
++    """Largest size in [lo, hi] at which EVERY text fits (uniform type).
++    Returns None when even `lo` does not fit -> caller must not shrink."""
++    s = hi
++    while s >= lo - 1e-6:
++        if all(text_height(t, width, s, pitch, bold) <= height and longest_word_fits(t, width, s, bold)
++               for t in texts):
++            return s
++        s -= step
++    return None
+diff --git a/evidence-locked-clinical-pptx-builder/scripts/visual_polish/verify.py b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/verify.py
+new file mode 100644
+index 0000000..fc55913
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/scripts/visual_polish/verify.py
+@@ -0,0 +1,256 @@
++#!/usr/bin/env python3
++"""VISUAL_POLISH_CONTENT_LOCK gate: proves a polished deck says exactly what the built deck said.
++
++    python -m scripts.visual_polish.verify BUILT.pptx POLISHED.pptx \
++        [--polish-report polish_report.json] [--render OUTDIR] [--json visual_polish_verify.json]
++
++Blocking checks (exit 1 on any failure):
++  1. identity    - same slide count, same slide ids in the same order, same layout per slide
++  2. text lock   - every original text atom is present verbatim on the same slide
++                   (whitespace-normalised); multiset-checked so nothing is dropped
++  3. no addition - every polished text box is original text or a whitelisted design token
++  4. notes       - speaker-notes text byte-identical per slide
++  5. chrome      - slide layouts / masters byte-identical (footer, brand, chrome untouched)
++  6. floors      - no polished run below the source-label floor (16 pt); body runs not
++                   below the profile floor recorded in the polish report
++  7. fit         - each rebuilt body box re-measured independently, must fit
++Then it runs the repo's own gates on the polished deck:
++  scripts/pptx_preflight.py and scripts/case_reveal_layout_gate.py (advisory)
++Optional --render: LibreOffice -> PNG per slide + render manifest (via
++scripts/render_qa_gate.py) + a blank per-slide visual_review_ledger.csv with
++the required domain columns, ready for the mandatory 100% individual review.
++
++This gate never certifies visual quality and never replaces SKILL.md sections 18-20.
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import glob
++import hashlib
++import json
++import os
++import re
++import shutil
++import subprocess
++import sys
++import tempfile
++import zipfile
++from collections import Counter
++
++from pptx import Presentation
++
++try:
++    from scripts.visual_polish import style as S
++    from scripts import pptx_preflight, case_reveal_layout_gate
++    from scripts.visual_review_ledger import DOMAIN_COLUMNS
++except ModuleNotFoundError:  # direct execution
++    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
++    from scripts.visual_polish import style as S
++    from scripts import pptx_preflight, case_reveal_layout_gate
++    from scripts.visual_review_ledger import DOMAIN_COLUMNS
++
++# Exactly the non-source text the polish stage may introduce.
++TOKEN_RE = [r'\?', '\u2713', r'REVEAL\s*•', '\u2192', r'\d{1,3}']
++SOURCE_FLOOR = 16.0
++BADGE_SHAPES = {'Case id', 'Phase badge', 'COR/LOE badge', 'Reveal label'}
++
++
++def norm(s):
++    return re.sub(r'\s+', ' ', (s or '').replace('\v', ' ')).strip()
++
++
++def slide_texts(slide):
++    return [sp.text_frame.text for sp in slide.shapes
++            if getattr(sp, 'has_text_frame', False) and sp.text_frame.text.strip()]
++
++
++def notes_text(slide):
++    if not slide.has_notes_slide or slide.notes_slide.notes_text_frame is None:
++        return ''
++    return slide.notes_slide.notes_text_frame.text
++
++
++def atoms(t):
++    """Split an original element into the units the polish stage may lay out separately."""
++    t = t.strip()
++    if t.startswith('REVEAL'):
++        code = re.sub(r'^REVEAL\s*•?\s*', '', t)
++        return [norm(p) for p in code.split(';') if p.strip()] or ['REVEAL']
++    if '\u2192' in t:
++        return [norm(p) for p in re.split(r'[\u2192\n]', t) if p.strip()]
++    if '\n' in t or '\v' in t:
++        return [norm(p) for p in re.split(r'[\n\v]', t) if p.strip()]
++    return [norm(t)]
++
++
++def is_token(s):
++    s = norm(s)
++    for tok in TOKEN_RE:
++        s = re.sub(rf'(?<!\w){tok}(?!\w)', ' ', s)
++    return not norm(s)
++
++
++def chrome_parts(path):
++    with zipfile.ZipFile(path) as z:
++        return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()
++                if re.match(r'ppt/(slideLayouts|slideMasters|theme)/[^/]+\.xml$', n)}
++
++
++def check_content(orig_path, pol_path):
++    o, p = Presentation(orig_path), Presentation(pol_path)
++    errs = []
++    if len(o.slides) != len(p.slides):
++        return [f'slide count changed {len(o.slides)} -> {len(p.slides)}']
++    for i, (a, b) in enumerate(zip(o.slides, p.slides), 1):
++        if a.slide_id != b.slide_id:
++            errs.append(f'slide {i}: slide id/order changed ({a.slide_id} -> {b.slide_id})')
++        if a.slide_layout.name != b.slide_layout.name:
++            errs.append(f'slide {i}: layout changed')
++        ta, tb = slide_texts(a), slide_texts(b)
++        want = Counter(x for t in ta for x in atoms(t))
++        have_boxes = [norm(t) for t in tb]
++        have_join = ' \u241e '.join(have_boxes)
++        for atom, n in want.items():
++            if have_join.count(atom) < n:
++                errs.append(f'slide {i}: MISSING original text (x{n - have_join.count(atom)}): {atom[:90]!r}')
++        orig_join = ' \u241e '.join(norm(t) for t in ta)
++        for t in tb:
++            nt = norm(t)
++            if nt in orig_join or is_token(nt):
++                continue
++            # a polished box may hold a sub-part of an original element (split badge/flow/title)
++            if any(nt in want_atom or want_atom in nt for want_atom in want) and all(w in orig_join for w in nt.split()):
++                continue
++            errs.append(f'slide {i}: ADDED text not in built slide: {nt[:90]!r}')
++        if notes_text(a) != notes_text(b):
++            errs.append(f'slide {i}: speaker notes changed')
++    oc, pc = chrome_parts(orig_path), chrome_parts(pol_path)
++    if oc != pc:
++        changed = sorted(k for k in set(oc) | set(pc) if oc.get(k) != pc.get(k))
++        errs.append(f'layout/master/theme chrome changed: {changed[:5]}')
++    return errs
++
++
++def check_floors_and_fit(pol_path, polish_report):
++    p = Presentation(pol_path)
++    S.set_canvas(p)
++    k = S.DESIGN_W / (p.slide_width / 12700)
++    by_slide = {r['slide']: r for r in (polish_report or {}).get('slides_report', [])}
++    prof = S.PROFILES.get((polish_report or {}).get('profile', 'projector_default'), S.PROFILES['projector_default'])
++    errs = []
++    for i, sl in enumerate(p.slides, 1):
++        r = by_slide.get(i)
++        if r is not None and r.get('status') != 'POLISHED':
++            continue  # left as built; judged by the repo's normal preflight
++        for sp in sl.shapes:
++            if not getattr(sp, 'has_text_frame', False) or not sp.text_frame.text.strip():
++                continue
++            # real pt -> design pt (k == 1.0 on 13.333 in decks)
++            sizes = [run.font.size.pt * k for para in sp.text_frame.paragraphs
++                     for run in para.runs if run.font.size]
++            if not sizes:
++                continue
++            mn = min(sizes)
++            body = sp.name.startswith('Body ')
++            badge = sp.name in BADGE_SHAPES
++            floor_lbl = S.BADGE_MIN if badge else SOURCE_FLOOR
++            if not body and mn < floor_lbl - 0.05 and not is_token(sp.text_frame.text):
++                errs.append(f'slide {i}: {sp.name!r} {mn:.1f} pt below {floor_lbl:g} pt floor')
++            if body:
++                cards = (r or {}).get('cards', 3)
++                floor = prof['body_floor'].get(cards, 24)
++                if mn < floor - 0.05:
++                    errs.append(f'slide {i}: {sp.name!r} {mn:.1f} pt below {floor} pt body floor')
++                w, h = sp.width / 12700 * k, sp.height / 12700 * k
++                need = S.text_height(sp.text_frame.text, w, mn)
++                if need > h + 1:
++                    errs.append(f'slide {i}: {sp.name} needs {need:.0f} pt, box {h:.0f} pt')
++    return errs
++
++
++def render(pptx, outdir):
++    os.makedirs(outdir, exist_ok=True)
++    soffice = shutil.which('soffice') or shutil.which('libreoffice')
++    if not soffice:
++        return dict(status='RENDER-UNCERTIFIED', reason='LibreOffice not found')
++    ver = subprocess.run([soffice, '--version'], capture_output=True, text=True).stdout.strip()
++    tmp = tempfile.mkdtemp()
++    subprocess.run([soffice, '--headless', '--convert-to', 'pdf', '--outdir', tmp, pptx],
++                   check=True, capture_output=True, timeout=1200)
++    pdf = glob.glob(os.path.join(tmp, '*.pdf'))[0]
++    try:
++        import pymupdf as fitz
++    except ImportError:
++        try:
++            import fitz
++        except ImportError:
++            return dict(status='RENDER-UNCERTIFIED', reason='pymupdf not installed', pdf=pdf, renderer=ver)
++    doc = fitz.open(pdf)
++    for n, page in enumerate(doc, 1):
++        page.get_pixmap(dpi=144).save(os.path.join(outdir, f'slide_{n:03d}.png'))
++    try:
++        from scripts.render_qa_gate import gate
++    except ModuleNotFoundError:
++        from render_qa_gate import gate
++    rg = gate(pptx, outdir, manifest_out=os.path.join(outdir, 'render_manifest.json'))
++    ledger = os.path.join(outdir, 'visual_review_ledger.csv')
++    if not os.path.exists(ledger):
++        with open(ledger, 'w', newline='', encoding='utf-8') as f:
++            w = csv.writer(f)
++            w.writerow(['slide', 'render_version', 'reviewer', 'final_status', *DOMAIN_COLUMNS, 'issues', 'repair_action'])
++            for n in range(1, len(doc) + 1):
++                w.writerow([n, ver, '', '', *[''] * len(DOMAIN_COLUMNS), '', ''])
++    return dict(status='RENDERED_REVIEW_PENDING', renderer=ver, slides=len(doc), dir=outdir,
++                rendered_slide_set_sha256=rg.get('rendered_slide_set_sha256'),
++                ledger=ledger, note='Fill the ledger slide by slide; render_qa_gate --require-ledger certifies.')
++
++
++def verify(orig, pol, polish_report=None, render_dir=None):
++    content = check_content(orig, pol)
++    floors = check_floors_and_fit(pol, polish_report)
++    pre = pptx_preflight.audit(pol)
++    try:
++        layout = case_reveal_layout_gate.audit(pol)
++    except Exception as e:  # advisory only
++        layout = dict(issues=[], error=str(e))
++    rend = render(pol, render_dir) if render_dir else dict(status='NOT_REQUESTED')
++    passed = not content and not floors and pre['pass']
++    return dict(gate='VISUAL_POLISH_CONTENT_LOCK', original=str(orig), polished=str(pol),
++                content_lock=dict(passed=not content, errors=content),
++                floors_and_fit=dict(passed=not floors, errors=floors),
++                repo_preflight=dict(passed=pre['pass'], issues=pre['issues'],
++                                    warning_counts={w['issue']: len(w.get('items', w.get('slides', []))) for w in pre['warnings']}),
++                case_reveal_layout_advisory=dict(issue_count=len(layout.get('issues', [])),
++                                                 codes=dict(Counter(i['code'] for i in layout.get('issues', []))),
++                                                 error=layout.get('error')),
++                render=rend, pass_=passed, certifies_visual_quality=False)
++
++
++def main(argv=None):
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument('original'); ap.add_argument('polished')
++    ap.add_argument('--polish-report')
++    ap.add_argument('--render', help='output dir for PNG renders, render manifest and review ledger')
++    ap.add_argument('--json', default=None)
++    a = ap.parse_args(argv)
++    rep = json.load(open(a.polish_report, encoding='utf-8')) if a.polish_report else None
++    r = verify(a.original, a.polished, rep, a.render)
++    r['pass'] = r.pop('pass_')
++    if a.json:
++        with open(a.json, 'w', encoding='utf-8') as f:
++            json.dump(r, f, indent=2)
++    print(f"CONTENT LOCK   : {'PASS' if r['content_lock']['passed'] else 'FAIL'} ({len(r['content_lock']['errors'])})")
++    print(f"FLOORS & FIT   : {'PASS' if r['floors_and_fit']['passed'] else 'FAIL'} ({len(r['floors_and_fit']['errors'])})")
++    print(f"REPO PREFLIGHT : {'PASS' if r['repo_preflight']['passed'] else 'FAIL'} warnings={r['repo_preflight']['warning_counts']}")
++    print(f"LAYOUT SCREEN  : {r['case_reveal_layout_advisory']['issue_count']} advisory issues {r['case_reveal_layout_advisory']['codes']}")
++    print(f"RENDER         : {r['render']['status']}")
++    for e in (r['content_lock']['errors'] + r['floors_and_fit']['errors'])[:40]:
++        print('  -', e)
++    for iss in r['repo_preflight']['issues'][:5]:
++        print('  - preflight:', iss.get('issue'), str(iss.get('items', ''))[:200])
++    return 0 if r['pass'] else 1
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/evidence-locked-clinical-pptx-builder/templates/project_state.yaml b/evidence-locked-clinical-pptx-builder/templates/project_state.yaml
+index 88d5926..d380763 100644
+--- a/evidence-locked-clinical-pptx-builder/templates/project_state.yaml
++++ b/evidence-locked-clinical-pptx-builder/templates/project_state.yaml
+@@ -1,7 +1,7 @@
+ schema_version: 3
+ skill:
+   name: evidence-locked-clinical-pptx-builder
+-  version: 2.3.0
++  version: 2.4.0
+ project:
+   id: ''
+   title: ''
+@@ -30,6 +30,12 @@ release_policy:
+   block_unresolved_critical_high_semantic_defects: true
+   semantic_uncertified_status: SEMANTIC-AUDIT-UNCERTIFIED
+   require_source_inventory_certification: true
++  visual_polish:
++    enabled: false
++    profile: projector_default
++    profile_approved_by: ''
++    sample_approved_by: ''
++    content_lock_required_when_enabled: true
+ correction_policy:
+   enabled: false
+   require_explicit_scope: true
+@@ -120,10 +126,14 @@ pipelines:
+       status: pending
+       depends_on:
+       - pptx_build
+-    - id: automated_preflight
++    - id: visual_polish
+       status: pending
+       depends_on:
+       - clinical_provenance_audit
++    - id: automated_preflight
++      status: pending
++      depends_on:
++      - visual_polish
+     - id: full_render_visual_qa
+       status: pending
+       depends_on:
+diff --git a/evidence-locked-clinical-pptx-builder/tests/test_release_metadata_policy.py b/evidence-locked-clinical-pptx-builder/tests/test_release_metadata_policy.py
+index 4b01da7..a687308 100644
+--- a/evidence-locked-clinical-pptx-builder/tests/test_release_metadata_policy.py
++++ b/evidence-locked-clinical-pptx-builder/tests/test_release_metadata_policy.py
+@@ -6,10 +6,10 @@ from scripts.validate_project import validate_project
+ ROOT = Path(__file__).parents[1]
+ 
+ 
+-def test_v2_3_metadata_identifies_immediate_predecessor_correctly():
++def test_v2_4_metadata_identifies_immediate_predecessor_correctly():
+     m = json.loads((ROOT/'MANIFEST.json').read_text())
+-    assert m['version'] == '2.3.0'
+-    assert m['immediate_predecessor'] == '2.2.1'
++    assert m['version'] == '2.4.0'
++    assert m['immediate_predecessor'] == '2.3.0'
+     assert m['breaking_change'] is False
+     assert m['lineage_origin'] == '1.0.0'
+     assert m['major_predecessor'] == '2.0.0'
+diff --git a/evidence-locked-clinical-pptx-builder/tests/test_v2_4_visual_polish.py b/evidence-locked-clinical-pptx-builder/tests/test_v2_4_visual_polish.py
+new file mode 100644
+index 0000000..f966917
+--- /dev/null
++++ b/evidence-locked-clinical-pptx-builder/tests/test_v2_4_visual_polish.py
+@@ -0,0 +1,209 @@
++"""v2.4.0 VISUAL_POLISH regression tests.
++
++The polish stage may change presentation only. These tests prove the fail-closed
++contract: verbatim text, notes and chrome preserved; unknown structure skipped;
++floors never violated; tampering detected; promotion blocked without the gate.
++"""
++import copy
++import json
++from pathlib import Path
++
++import pytest
++import yaml
++from pptx import Presentation
++from pptx.util import Pt
++
++from scripts.visual_polish import style as S
++from scripts.visual_polish.polish import polish, badge_parts, plan_header
++from scripts.visual_polish.verify import check_content, check_floors_and_fit, verify
++from scripts.semantic_promotion_gate import evaluate
++from scripts.mode_router import route
++from scripts.validate_project import validate_project
++from scripts.state_manager import validate as validate_state, next_state
++
++ROOT = Path(__file__).parents[1]
++MINI = ROOT / 'fixtures/visual_polish/case_reveal_mini.pptx'
++GATES = ROOT / 'fixtures/dyslipidemia_regression/gates_all_pass.json'
++DEFECTS_CLOSED = ROOT / 'fixtures/dyslipidemia_regression/defects_closed.csv'
++
++
++@pytest.fixture()
++def polished(tmp_path):
++    out = tmp_path / 'polished.pptx'
++    rep = polish(MINI, out, report_path=tmp_path / 'r.json')
++    return out, rep
++
++
++def _status(rep):
++    return {r['slide']: r['status'] for r in rep['slides_report']}
++
++
++def test_roles_and_fail_closed_statuses(polished):
++    _, rep = polished
++    st = _status(rep)
++    assert st[1] == st[2] == st[3] == 'POLISHED'
++    assert st[4] == 'SPLIT_REQUIRED'          # cannot fit at 24 pt floor -> not shrunk
++    assert st[5] == 'SKIPPED'                 # unknown role
++    assert st[6] == 'SKIPPED'                 # unrecognised extra text element
++    assert rep['certifies_anything'] is False
++
++
++def test_content_lock_passes_on_polished_deck(polished):
++    out, _ = polished
++    assert check_content(MINI, out) == []
++
++
++def test_skipped_and_split_slides_are_byte_identical_shape_trees(polished):
++    out, _ = polished
++    a, b = Presentation(MINI), Presentation(out)
++    for n in (4, 5, 6):
++        assert a.slides[n - 1].shapes._spTree.xml == b.slides[n - 1].shapes._spTree.xml
++
++
++def test_notes_ids_order_and_layout_chrome_preserved(polished):
++    out, _ = polished
++    a, b = Presentation(MINI), Presentation(out)
++    assert [s.slide_id for s in a.slides] == [s.slide_id for s in b.slides]
++    assert [s.notes_slide.notes_text_frame.text for s in a.slides] == \
++           [s.notes_slide.notes_text_frame.text for s in b.slides]
++
++
++def test_subscript_and_compound_cor_badges_survive(polished):
++    out, _ = polished
++    b = Presentation(out)
++    texts2 = [sp.text_frame.text for sp in b.slides[1].shapes if sp.has_text_frame]
++    assert '3: No Benefit/A' in texts2 and '1/C-LD' in texts2
++    texts1 = ' '.join(sp.text_frame.text for sp in b.slides[0].shapes if sp.has_text_frame)
++    assert 'x\u2082 subscript' in texts1
++
++
++def test_dropped_text_is_detected(polished, tmp_path):
++    out, _ = polished
++    prs = Presentation(out)
++    body = next(sp for sp in prs.slides[0].shapes if sp.name.startswith('Body '))
++    body.text_frame.paragraphs[0].runs[0].text = body.text_frame.paragraphs[0].runs[0].text[:-12]
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    assert any('MISSING' in e for e in check_content(MINI, bad))
++
++
++def test_mutated_threshold_is_detected(tmp_path, polished):
++    out, _ = polished
++    prs = Presentation(out)
++    body = next(sp for sp in prs.slides[1].shapes if sp.name.startswith('Body '))
++    r = body.text_frame.paragraphs[0].runs[0]
++    r.text = r.text.replace('recommended', 'not recommended')
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    errs = check_content(MINI, bad)
++    assert any('MISSING' in e for e in errs) or any('ADDED' in e for e in errs)
++
++
++def test_added_clinical_text_is_detected(polished, tmp_path):
++    out, _ = polished
++    prs = Presentation(out)
++    prs.slides[0].shapes.add_textbox(0, 0, 100000, 100000).text_frame.text = 'FIXTURE invented dose 40 mg'
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    assert any('ADDED' in e for e in check_content(MINI, bad))
++
++
++def test_changed_notes_are_detected(polished, tmp_path):
++    out, _ = polished
++    prs = Presentation(out)
++    prs.slides[2].notes_slide.notes_text_frame.text = 'edited'
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    assert any('notes' in e for e in check_content(MINI, bad))
++
++
++def test_reordered_slides_are_detected(polished, tmp_path):
++    out, _ = polished
++    prs = Presentation(out)
++    lst = prs.slides._sldIdLst
++    first = lst[0]; lst.remove(first); lst.append(first)
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    assert any('order' in e for e in check_content(MINI, bad))
++
++
++def test_body_below_profile_floor_is_detected(polished, tmp_path):
++    out, rep = polished
++    prs = Presentation(out)
++    body = next(sp for sp in prs.slides[0].shapes if sp.name.startswith('Body '))
++    for p in body.text_frame.paragraphs:
++        for r in p.runs:
++            r.font.size = Pt(18)
++    bad = tmp_path / 'bad.pptx'; prs.save(bad)
++    assert any('body floor' in e for e in check_floors_and_fit(bad, rep))
++
++
++def test_dense_profile_requires_recorded_approval(tmp_path):
++    with pytest.raises(SystemExit):
++        polish(MINI, tmp_path / 'x.pptx', profile_name='dense_case_reveal')
++    rep = polish(MINI, tmp_path / 'x.pptx', profile_name='dense_case_reveal', approved_by='deck owner')
++    assert rep['profile_approved_by'] == 'deck owner'
++
++
++def test_profiles_never_lower_source_floor_below_16():
++    for prof in S.PROFILES.values():
++        assert prof['source'] >= 16 and prof['label'] >= 16
++        assert min(prof['body_floor'].values()) >= 18
++    assert S.PROFILES['projector_default']['body_floor'] == {1: 24, 2: 24, 3: 24}
++
++
++def test_fit_size_returns_none_instead_of_shrinking():
++    long = ' '.join(['word'] * 400)
++    assert S.fit_size([long], 200, 100, 24, 24) is None
++
++
++def test_badge_parsing_and_header_wrap():
++    assert badge_parts('REVEAL • 3: No Benefit/A; 1/C-LD') == ('REVEAL •', ['3: No Benefit/A', '1/C-LD'])
++    one = plan_header(dict(id='CASE 001', badge='REVEAL • 1/B-NR'), 800)
++    assert one['rows'] == 1 and one['size'] == 16
++    tight = plan_header(dict(id='CASE 001', badge='REVEAL • 3: No Benefit/B-NR'), 230)
++    assert tight['rows'] >= 2 and tight['size'] >= S.BADGE_MIN
++
++
++def test_verify_end_to_end_without_render(polished):
++    out, rep = polished
++    r = verify(MINI, out, rep)
++    assert r['content_lock']['passed'] and r['floors_and_fit']['passed']
++    assert r['certifies_visual_quality'] is False
++
++
++def test_promotion_blocks_when_polish_applied_but_gate_missing(tmp_path):
++    g = json.loads(GATES.read_text())
++    g['visual_polish_applied'] = True
++    p = tmp_path / 'g.json'; p.write_text(json.dumps(g))
++    r = evaluate(DEFECTS_CLOSED, p)
++    assert not r['pass'] and 'visual_polish_content_lock' in r['missing_gates']
++    g['visual_polish_content_lock'] = 'WAIVED'; p.write_text(json.dumps(g))
++    assert 'visual_polish_content_lock' in evaluate(DEFECTS_CLOSED, p)['failed_gates']
++    g['visual_polish_content_lock'] = 'PASS'; p.write_text(json.dumps(g))
++    assert evaluate(DEFECTS_CLOSED, p)['pass']
++
++
++def test_promotion_unchanged_when_polish_not_applied():
++    assert evaluate(DEFECTS_CLOSED, GATES)['pass']
++
++
++def test_state_template_has_visual_polish_between_audit_and_preflight():
++    s = yaml.safe_load((ROOT / 'templates/project_state.yaml').read_text())
++    assert validate_state(s) == []
++    st = {x['id']: x for x in s['pipelines']['presentation_artifact']['states']}
++    assert st['visual_polish']['depends_on'] == ['clinical_provenance_audit']
++    assert st['automated_preflight']['depends_on'] == ['visual_polish']
++    assert next_state(s)['id'] == 'evidence_lock'
++
++
++def test_project_validator_requires_approval_for_dense_profile(tmp_path):
++    s = yaml.safe_load((ROOT / 'templates/project_state.yaml').read_text())
++    s['project']['id'] = 't'; s['project']['mode'] = 'VISUAL_POLISH'
++    s['release_policy']['visual_polish'].update(enabled=True, profile='dense_case_reveal', profile_approved_by='')
++    p = tmp_path / 's.yaml'; p.write_text(yaml.safe_dump(s, sort_keys=False))
++    assert any('profile_approved_by' in e for e in validate_project(p))
++    s['release_policy']['visual_polish']['profile_approved_by'] = 'owner'
++    p.write_text(yaml.safe_dump(s, sort_keys=False))
++    assert validate_project(p) == []
++
++
++def test_mode_router_routes_beautify_requests():
++    assert route('beautify this deck without changing content')['mode'] == 'VISUAL_POLISH'
++    assert route('improve the visual of the pptx')['mode'] == 'VISUAL_POLISH'
++    assert route('run visual qa on the deck')['mode'] == 'VISUAL_QA'
