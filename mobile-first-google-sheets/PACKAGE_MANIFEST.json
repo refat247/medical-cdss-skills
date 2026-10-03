@@ -1,0 +1,62 @@
+{
+  "skill": "mobile-first-google-sheets",
+  "version": "1.2.1",
+  "release_date": "2026-09-28",
+  "files": [
+    {
+      "path": "ACTIVATION_SMOKE_TEST.md",
+      "sha256": "d8a2baa381cd9354099db8cfe26409fa5f8f2e0993388b41a74f4eb4c5d5604b",
+      "bytes": 1092
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "2da8cc60d6479e6379d58bb0f60c647954bae95b855d98559b9733570e471549",
+      "bytes": 2662
+    },
+    {
+      "path": "MANUAL_ACTIVATION.md",
+      "sha256": "6f69efdb94f15172da8c849539ac23a9777a270ebe4b2f2df6c795ec0aefa92f",
+      "bytes": 597
+    },
+    {
+      "path": "README.md",
+      "sha256": "642cb9aa8fbd164e165dccf12e9ccc996ee73b0fec437b5d51edcf617849c923",
+      "bytes": 1724
+    },
+    {
+      "path": "SKILL.md",
+      "sha256": "048af95f6b6e2c89244f0a569e6dd11979a8b6879a06a3403ee9522c6f562b26",
+      "bytes": 14859
+    },
+    {
+      "path": "agents/openai.yaml",
+      "sha256": "7a7661864353a238dc2bb12162d4da5f22104a3fb31cdec07b4c0d2ef36b7ff5",
+      "bytes": 480
+    },
+    {
+      "path": "references/audit-rubric.md",
+      "sha256": "f30e9e4dd6aab71c4f617bc9993fb92fa77b831fe1542c4aa14a8b51e1caaf43",
+      "bytes": 887
+    },
+    {
+      "path": "references/google-sheets-mobile-capabilities.md",
+      "sha256": "8c3243e78f47e14730d2cebe9940e89732591514569c6a7eadb4760ae64ed740",
+      "bytes": 2276
+    },
+    {
+      "path": "references/qa-checklist.md",
+      "sha256": "e8ed04b07b18d23a40da52788e1f8808086780ba33b0b722e1dae5e900fb8969",
+      "bytes": 2685
+    },
+    {
+      "path": "scripts/bump_version.py",
+      "sha256": "82e914ba348d17472f16faa8d849cdfcf6d68414465a98ced627b43d1e7acd58",
+      "bytes": 1797
+    },
+    {
+      "path": "tests/test_package.py",
+      "sha256": "ad2188906693f430fb6d04ea67184ae85554a8c1d324f2c486a1669156fafba2",
+      "bytes": 3129
+    }
+  ]
+}
