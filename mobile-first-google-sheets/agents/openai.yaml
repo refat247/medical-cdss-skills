@@ -1,0 +1,3 @@
+name: mobile-first-google-sheets
+version: 1.2.1
+description: Classify BUILD/AUDIT/AUDIT_REPAIR_REAUDIT and MOBILE-PRIMARY/MOBILE-SECONDARY/DESKTOP-PRIMARY, then Design, audit, repair, and QA Google Sheets workflows for phone-first use with low-friction entry, mobile navigation, validation, performance, protection, and native conversion gates including timezone, merged ranges, freeze/protection, stale conditional formatting, navigation, and post-mutation re-read verification.
