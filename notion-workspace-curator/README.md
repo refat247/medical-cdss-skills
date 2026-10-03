@@ -39,6 +39,26 @@ Install the ZIP/folder as a ChatGPT/Work custom skill using the normal manual sk
 
 ## Package structure
 
+```text
+notion-workspace-curator/
+├── SKILL.md
+├── README.md
+├── CHANGELOG.md
+├── ACTIVATION_SMOKE_TEST.md
+├── agents/
+│   └── openai.yaml
+├── assets/
+│   └── icon.svg
+└── references/
+    ├── evidence-archive-routing.md
+    ├── artifact-routing.md
+    ├── notion-information-quality-standard.md
+    ├── notion-ux-patterns.md
+    └── zero-guesswork-execution-standard.md
+```
+
+These 11 files are the declared required package surfaces in `agents/openai.yaml`.
+
 ## NIQS v1.0
 
 This release adopts the shared `references/notion-information-quality-standard.md` contract. It covers page roles, three reading depths, evidence/claim states, freshness classes, verification metadata, decision readiness, confidence×consequence escalation, source authority, update impact, supersession/current truth, information density, audience/language modes, staleness, evidence debt, maintenance cost, decision value, change deltas, monitoring, AI handoffs, contradiction states and uncertainty budgets.
