@@ -20,6 +20,12 @@
 - speaker notes complete and evidence-locked;
 - slide/source/case mapping complete.
 
+## Visual polish gate (only when VISUAL_POLISH was applied)
+- `VISUAL_POLISH_CONTENT_LOCK` PASS (`scripts/visual_polish/verify.py`): identity, verbatim text, no non-token additions, notes, layout/master chrome, floors, fit, repo preflight;
+- every `SPLIT_REQUIRED` slide routed upstream and every `SKIPPED` slide accepted as built;
+- dense profile only with recorded owner approval;
+- not waivable; the promotion gate requires PASS when `visual_polish_applied` is true.
+
 ## Final visual gate
 - 100% slides rendered;
 - 100% slides individually reviewed;

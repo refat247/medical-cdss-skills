@@ -71,6 +71,15 @@ def evaluate(defects_csv, gates_json):
         elif status not in GOOD:
             failed.append(g)
 
+    # v2.4.0: a deck that went through VISUAL_POLISH must also pass the polish
+    # content-lock gate. Declared via gates['visual_polish_applied']; never waivable.
+    if str(gates.get('visual_polish_applied','')).strip().lower() in {'yes','true','1'}:
+        status=str(gates.get('visual_polish_content_lock','NOT_RUN')).strip().upper()
+        if status in {'NOT_RUN','MISSING','PENDING',''}:
+            missing.append('visual_polish_content_lock')
+        elif status not in GOOD:
+            failed.append('visual_polish_content_lock')
+
     iq_status=_normalize_iq_status(gates.get('independent_visual_qa','NOT_RUN'))
     iq_waived=_independent_qa_waiver_is_valid(gates)
     if iq_status in {'NOT_RUN','MISSING','PENDING',''}:

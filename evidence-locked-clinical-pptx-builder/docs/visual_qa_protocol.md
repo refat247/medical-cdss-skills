@@ -26,4 +26,8 @@ For each slide review:
 - case -> decision -> reveal visual rhythm;
 - misleading visual emphasis.
 
+If the deck went through `VISUAL_POLISH`, review the polished artifact and use the
+ledger skeleton written by `scripts/visual_polish/verify.py --render`; see
+`visual_polish_protocol.md`.
+
 Record outcome in `visual_review_ledger.csv`. Any repaired final deck must be fully rerendered and re-reviewed.

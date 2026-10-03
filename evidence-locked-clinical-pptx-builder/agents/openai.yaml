@@ -1,6 +1,6 @@
 name: evidence-locked-clinical-pptx-builder
-version: 2.3.0
+version: 2.4.0
 description: Evidence-locked clinical presentation system with independent source-to-inventory
   certification, extraction completeness, semantic boundary/footnote/source-hierarchy/prompt/normalization/repair
-  controls, fail-closed CRITICAL/HIGH promotion blocking, full-render visual QA and
+  controls, fail-closed CRITICAL/HIGH promotion blocking, content-locked visual polish, full-render visual QA and
   independent promotion.

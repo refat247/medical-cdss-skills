@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.4.0 - 2026-10-02
+
+- Added `VISUAL_POLISH` mode and `scripts/visual_polish/` (`polish.py`, `style.py`,
+  `verify.py`): a content-locked, rule-based restyle of an already-built deck,
+  run after `clinical_provenance_audit` and before `automated_preflight`.
+- Added the `VISUAL_POLISH_CONTENT_LOCK` gate: slide identity/order/layout,
+  verbatim text (multiset), no non-token additions, speaker notes, byte-identical
+  layout/master/theme parts, font floors, independent fit re-measurement, and
+  the repo's own `pptx_preflight`. It also writes the render manifest and a blank per-slide visual-review ledger.
+- Fail-closed outcomes: `SKIPPED` (unrecognised structure) and `SPLIT_REQUIRED`
+  (cannot fit at the floor). Both leave the slide byte-identical to the build.
+- Profiles: `projector_default` (section 17 floors) and opt-in `dense_case_reveal`
+  (DYS_2026 v1.5 density; owner approval required and validated in project state).
+- Design semantics: amber DECIDE / green SOURCE REVEAL with icon cues; ACC/AHA
+  COR colour pills; compound COR/LOE codes split into separate pills; uniform body size per slide.
+- `semantic_promotion_gate.py` now requires `visual_polish_content_lock = PASS`
+  whenever `visual_polish_applied` is true. It cannot be waived.
+- `project_state.yaml`: new `visual_polish` state and `release_policy.visual_polish`
+  block. `validate_project.py` enforces the profile approval.
+- `mode_router.py` routes beautify/polish/restyle requests to `VISUAL_POLISH`.
+- `case_reveal_layout_gate.py`: the hard-coded `C:/Windows/Fonts/arialbd.ttf` was replaced
+  with a portable metric-font lookup (it previously crashed off Windows).
+- Added a synthetic fixture deck and 21 regression tests (110 total).
+- No clinical source, frozen artifact or design-reference deck changed. Backward compatible.
+
 ## 2.3.0 - 2026-10-02
 
 - Added a source-derived scenario and neutral DECIDE question contract, with

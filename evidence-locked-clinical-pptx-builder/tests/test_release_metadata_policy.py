@@ -6,10 +6,10 @@ from scripts.validate_project import validate_project
 ROOT = Path(__file__).parents[1]
 
 
-def test_v2_3_metadata_identifies_immediate_predecessor_correctly():
+def test_v2_4_metadata_identifies_immediate_predecessor_correctly():
     m = json.loads((ROOT/'MANIFEST.json').read_text())
-    assert m['version'] == '2.3.0'
-    assert m['immediate_predecessor'] == '2.2.1'
+    assert m['version'] == '2.4.0'
+    assert m['immediate_predecessor'] == '2.3.0'
     assert m['breaking_change'] is False
     assert m['lineage_origin'] == '1.0.0'
     assert m['major_predecessor'] == '2.0.0'
