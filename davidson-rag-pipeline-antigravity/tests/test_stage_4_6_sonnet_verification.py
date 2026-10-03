@@ -138,32 +138,23 @@ def test_apply_manual_corrections_changes_matching_chunk():
     assert meta["verification_method"] == "manual"
 
 
-def test_apply_manual_corrections_ignores_chunk_id_with_no_matching_chunk():
-    """Documents ACTUAL current behavior (not a v2.6.2 change): the loop
-    only ever visits chunk_ids that exist in chunks_data, so a corrections
-    key with no matching chunk is silently never applied and never
-    reported in unparsed_chunk_ids either -- it simply isn't iterated over.
-    This is a real gap in the legacy module (a truly bogus key is neither
-    applied nor flagged), documented here as existing control flow, not
-    fixed here (out of this stabilization release's narrow scope)."""
+def test_apply_manual_corrections_reports_chunk_id_with_no_matching_chunk():
+    """Second-sweep 1.9 (supersedes the old 'silently ignored' behaviour): a corrections key with no
+    matching chunk is stale/bogus and must be reported in unparsed_chunk_ids, never counted as a review."""
     chunks = _chunk("L2-01", "clinical_feature", "X", "body")
     new_text, meta = s46.apply_manual_corrections(chunks, {"L2-99-does-not-exist": "drug_info"})
     assert meta["chunks_corrected"] == 0
-    assert meta["unparsed_chunk_ids"] == []  # silently ignored, not reported
+    assert meta["unparsed_chunk_ids"] == ["L2-99-does-not-exist"]
     assert new_text == chunks  # unchanged
 
 
-def test_apply_manual_corrections_invalid_semantic_type_is_a_silent_noop():
-    """Also documents actual current behavior: an existing chunk_id paired
-    with a NEW type outside SEMANTIC_TYPES is treated as a no-op (same
-    code path as 'already correct'), NOT added to unparsed_chunk_ids --
-    `unparsed` is only ever populated by the (hard to trigger under normal
-    conditions) case where _get_semantic_type()'s regex-derived current
-    type doesn't literally appear as 'semantic_type: X' in the chunk text."""
+def test_apply_manual_corrections_reports_invalid_semantic_type():
+    """Second-sweep 1.9: an existing chunk_id paired with a type outside SEMANTIC_TYPES is a typo,
+    not a review; it is reported in unparsed_chunk_ids."""
     chunks = _chunk("L2-01", "clinical_feature", "X", "body")
     new_text, meta = s46.apply_manual_corrections(chunks, {"L2-01": "not_a_real_type"})
     assert meta["chunks_corrected"] == 0
-    assert meta["unparsed_chunk_ids"] == []
+    assert meta["unparsed_chunk_ids"] == ["L2-01"]
     assert new_text == chunks
 
 
@@ -270,3 +261,60 @@ def test_stage_4_6_sonnet_verification_all_no_targets_returns_unchanged():
         )
     assert meta["chunks_corrected"] == 0
     assert new_text == chunks
+
+
+# --- 1.28 / B14: batching, stop_reason, dict-shaped replies --------------------------------------
+
+def _reply(text, stop_reason="end_turn"):
+    r = MagicMock()
+    r.content = [MagicMock(text=text)]
+    r.stop_reason = stop_reason
+    r.usage.input_tokens = 10
+    r.usage.output_tokens = 5
+    return r
+
+
+def _run_all(chunks, replies):
+    client = MagicMock()
+    client.messages.create.side_effect = replies
+    mod = MagicMock()
+    mod.Anthropic.return_value = client
+    with patch.dict(sys.modules, {"anthropic": mod}):
+        out = s46._stage_4_6_sonnet_verification_all(chunks, "src", levels=(2,), max_output_tokens=1000)
+    return out, client
+
+
+def test_b14_requests_are_batched_not_one_giant_call(monkeypatch):
+    monkeypatch.setattr(s46, "VERIFIER_BATCH_SIZE", 2)
+    chunks = "".join(_chunk(f"L2-0{i}", "clinical_feature", "Generic", "the dosing regimen has a half-life")
+                     for i in range(5))
+    replies = [_reply("[]")] * 3
+    (_, meta), client = _run_all(chunks, replies)
+    assert client.messages.create.call_count == 3          # 5 chunks / batch of 2
+    assert meta["sonnet_tokens_used"] == 45
+
+
+def test_b14_truncated_reply_is_not_trusted(monkeypatch):
+    chunks = _chunk("L2-01", "clinical_feature", "Generic", "the dosing regimen has a half-life")
+    truncated = _reply('[{"chunk_id": "L2-01", "semantic_type": "drug_info"}]', stop_reason="max_tokens")
+    (new_text, meta), _ = _run_all(chunks, [truncated])
+    assert "semantic_type: drug_info" not in new_text and "semantic_type: clinical_feature" in new_text
+    assert meta["needs_manual_verification"] is True and meta["truncated_batches"] == 1
+
+
+def test_b14_dict_shaped_and_garbage_replies_do_not_crash():
+    ids = ["L2-01"]
+    c, u = s46._parse_sonnet_verification('{"corrections": [{"chunk_id": "L2-01", "semantic_type": "drug_info"}]}', ids)
+    assert c == {"L2-01": "drug_info"} and u == []
+    c, u = s46._parse_sonnet_verification('{"chunk_id": "L2-01", "semantic_type": "drug_info"}', ids)
+    assert c == {"L2-01": "drug_info"}
+    for junk in ('"just text"', "[1, 2, null]", '{"note": "x"}', "42"):
+        assert s46._parse_sonnet_verification(junk, ids) == ({}, ids)
+
+
+def test_b14_model_id_is_overridable_by_env(monkeypatch):
+    import importlib
+    monkeypatch.setenv("CDSS_VERIFIER_MODEL", "my-model")
+    assert importlib.reload(s46).VERIFIER_MODEL == "my-model"
+    monkeypatch.delenv("CDSS_VERIFIER_MODEL")
+    importlib.reload(s46)

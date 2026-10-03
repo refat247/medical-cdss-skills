@@ -78,10 +78,28 @@ def prevent_row_split(row):
     trPr = row._tr.get_or_add_trPr()
     trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
 
+def restart_numbering(doc, paragraph):
+    """Give `paragraph` (and the list items that follow it) a fresh w:num that restarts at 1. 'List Number' alone
+    shares one numId, so a second separate list would carry on from the first (e.g. start at 4)."""
+    numbering = doc.part.numbering_part.numbering_definitions._numbering
+    style_num_id = paragraph.style.element.pPr.numPr.numId.val
+    abstract_id = numbering.num_having_numId(style_num_id).abstractNumId.val
+    num = numbering.add_num(abstract_id)
+    num.add_lvlOverride(ilvl=0).add_startOverride(1)
+    paragraph._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = num.numId
+
+
 def add_formatted_runs(paragraph, text: str, default_font="Calibri", default_size=11, default_color=COLOR_TEXT_DARK):
     if not text:
         return
-    pattern = re.compile(r'(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))')
+    br_parts = re.split(r'<br\s*/?>', text, flags=re.IGNORECASE)
+    if len(br_parts) > 1:                      # table cells use <br> as a line break; it must not print literally
+        for n, part in enumerate(br_parts):
+            if n:
+                paragraph.add_run().add_break()
+            add_formatted_runs(paragraph, part.strip(), default_font, default_size, default_color)
+        return
+    pattern = re.compile(r'(\*\*\*(?=\S).*?(?<=\S)\*\*\*|\*\*(?=\S).*?(?<=\S)\*\*|\*(?=[^\s*]).*?(?<=[^\s*])\*|`.*?`|\[.*?\]\(.*?\))')
     tokens = pattern.split(text)
     for token in tokens:
         if not token:
@@ -268,6 +286,46 @@ def create_callout_box(doc, text_content: str, box_type: str = "cov"):
     p_post.paragraph_format.space_before = Pt(2)
     p_post.paragraph_format.space_after = Pt(6)
 
+
+def _split_table_row(line: str):
+    """Cells of a markdown table row, honouring escaped pipes (\\|). Returns the cells between the outer pipes."""
+    s = line.strip()
+    cells = re.split(r"(?<!\\)\|", s)
+    if s.startswith("|"):
+        cells = cells[1:]
+    if s.endswith("|") and not s.endswith("\\|"):
+        cells = cells[:-1]
+    return [c.replace("\\|", "|").strip() for c in cells]
+
+
+def _resolve_publication_image(base_dir: Path, rel_path: str, basename_counts: dict) -> Path:
+    """Resolve an enhanced figure without basename-collision aliasing.
+
+    Prefer a mirrored enhanced path that preserves the markdown-relative
+    hierarchy. The legacy flat enhanced directory remains supported only
+    when this basename occurs exactly once in the note. If two referenced
+    source paths share a basename, a flat enhanced copy is ambiguous and
+    each original source image is used instead.
+    """
+    img_file = (base_dir / rel_path).resolve()
+    enhanced_root = (base_dir / "figures_enhanced").resolve()
+    rel = Path(rel_path)
+    mirrored = (enhanced_root / rel).resolve()
+
+    try:
+        mirrored.relative_to(enhanced_root)
+    except ValueError:
+        mirrored = enhanced_root / "__invalid__"
+
+    if mirrored.exists():
+        return mirrored
+
+    flat = enhanced_root / img_file.name
+    if basename_counts.get(img_file.name, 0) == 1 and flat.exists():
+        return flat
+    return img_file
+
+
 def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_missing_images=False):
     text = md_path.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -290,7 +348,9 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
     tp = doc.add_paragraph()
     tp.paragraph_format.space_before = Pt(12)
     tp.paragraph_format.space_after = Pt(2)
-    tr = tp.add_run("Cardiac Auscultation & Pathological Murmurs")
+    h1 = next((re.match(r"^#\s+(.*\S)\s*$", l).group(1) for l in lines if re.match(r"^#\s+\S", l)), None)
+    note_title = re.sub(r"[*_`]+", "", h1) if h1 else md_path.stem.replace("_", " ")
+    tr = tp.add_run(note_title)           # was hard-coded "Cardiac Auscultation & Pathological Murmurs" for every note
     tr.font.name = "Arial"
     tr.font.size = Pt(24)
     tr.font.bold = True
@@ -307,6 +367,17 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
     base_dir = Path(base_dir) if base_dir else md_path.parent
     missing_images = []
+
+    # Count image basenames across this note once. A legacy flat enhanced
+    # folder cannot safely disambiguate two different source paths called,
+    # for example, "figure1.png".
+    image_basename_counts = {}
+    for source_line in lines:
+        m = re.match(r'^!\[(.*?)\]\((.*?)\)', source_line.strip())
+        if m:
+            name = Path(m.group(2).strip()).name
+            image_basename_counts[name] = image_basename_counts.get(name, 0) + 1
+
     i = 0
     total_lines = len(lines)
 
@@ -356,27 +427,7 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
             code_text = "\n".join(code_lines)
 
-            if "7-ATTRIBUTE AUSCULTATION FRAMEWORK" in code_text or ("1. TIMING" in code_text and "7. DYNAMIC" in code_text):
-                r1 = [
-                    ("1. TIMING", ["Systolic (Early, Mid, Late, Pan)", "Diastolic (Early, Mid-diastolic)", "Continuous (extends past S2)"]),
-                    ("2. ACOUSTIC SHAPE", ["Crescendo-Decrescendo (Ejection)", "Plateau (Holosystolic)", "Decrescendo (Early diastolic)"]),
-                    ("3. PRECORDIAL SITE", ["Aortic: 2nd RICS", "Pulmonic: 2nd LICS", "Left Sternal Border (3rd-4th)", "Apex: 5th LMCL"]),
-                    ("4. RADIATION", ["Carotids (Aortic Stenosis)", "Left Axilla (Mitral Regurgitation)", "Base / Sternum (Ant Leaflet MR)", "Precordium (VSD)"])
-                ]
-                r2 = [
-                    ("5. INTENSITY", ["Levine Scale Grade I - VI", "Grade I-II: Soft / Faint", "Grade III: Loud (no thrill)", "Grade IV-VI: THRILL PALPABLE"]),
-                    ("6. PITCH & QUALITY", ["High-pitched / Blowing (MR, AR)", "Low-pitched / Rumbling (MS, TS)", "Harsh / Rasping (AS, PS)"]),
-                    ("7. DYNAMIC MANEUVERS", [
-                        "Respiration: Carvallo sign (Right-sided ↑ with inspiration)",
-                        "Valsalva Strain / Standing: Softens most; HOCM/MVP LOUDENS",
-                        "Squatting / Passive Leg Raise: Preload ↑ (AS/MR louder; HOCM softer)",
-                        "Handgrip: SVR ↑ (MR/AR/VSD louder; AS/HOCM softer)",
-                        "Post-PVC: Brock-Braunwald (HOCM pulse drops; AS pulse rises)"
-                    ])
-                ]
-                create_card_grid_table(doc, "THE SYSTEMATIC 7-ATTRIBUTE AUSCULTATION FRAMEWORK (DAVIDSON BOX 16.10)", r1, r2)
-                continue
-            elif "COVERAGE DECLARATION" in code_text:
+            if "COVERAGE DECLARATION" in code_text:
                 create_callout_box(doc, code_text, box_type="cov")
                 continue
             elif "QB AWARENESS" in code_text:
@@ -400,8 +451,7 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
             alt_text = img_match.group(1).strip()
             rel_path = img_match.group(2).strip()
             img_file = (base_dir / rel_path).resolve()
-            enhanced_file = base_dir / "figures_enhanced" / img_file.name
-            target_img = enhanced_file if enhanced_file.exists() else img_file
+            target_img = _resolve_publication_image(base_dir, rel_path, image_basename_counts)
 
             if not target_img.exists():
                 missing_images.append(rel_path)
@@ -440,6 +490,8 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
         # 7-Attribute Card Grid Table Interceptor (Markdown dual tables)
         if stripped.startswith("|") and "1. TIMING" in stripped:
+            print("[PUBLISH-DOCX] WARNING: table recognised as the 7-attribute auscultation framework; the BUILT-IN card grid "
+                  "(not the note's own cells) is rendered.", file=sys.stderr)
             t1_lines = []
             while i < total_lines and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
                 t1_lines.append(lines[i].strip())
@@ -454,8 +506,8 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
             def parse_card_table(t_lines):
                 if len(t_lines) < 3:
                     return []
-                headers = [c.strip() for c in t_lines[0].split("|")[1:-1]]
-                content_row = [c.strip() for c in t_lines[2].split("|")[1:-1]]
+                headers = _split_table_row(t_lines[0])
+                content_row = _split_table_row(t_lines[2])
                 cards = []
                 for h, c in zip(headers, content_row):
                     raw_items = [item.strip() for item in re.split(r'<br\s*/?>', c) if item.strip()]
@@ -500,7 +552,11 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
                     k = j + 1
                     while k < total_lines and not lines[k].strip():
                         k += 1
-                    if k < total_lines and lines[k].strip().startswith("|") and lines[k].strip().endswith("|"):
+                    starts_table = k < total_lines and lines[k].strip().startswith("|") and lines[k].strip().endswith("|")
+                    # a header row followed by a |---| separator opens a NEW table: stop here instead of merging
+                    # (merging made the 2nd table's header a data row and dropped its extra columns)
+                    new_table = starts_table and k + 1 < total_lines and re.match(r'^\|[\s\:\-\|]+\|$', lines[k + 1].strip())
+                    if starts_table and not new_table:
                         j = k
                     else:
                         break
@@ -508,13 +564,13 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
                     break
 
             if len(table_lines) >= 2:
-                raw_header = [c.strip() for c in table_lines[0].split("|")[1:-1]]
+                raw_header = _split_table_row(table_lines[0])
                 num_cols = len(raw_header)
                 data_rows = []
                 for row_line in table_lines[1:]:
                     if re.match(r'^\|[\s\:\-\|]+\|$', row_line):
                         continue
-                    cols = [c.strip() for c in row_line.split("|")[1:-1]]
+                    cols = _split_table_row(row_line)
                     if len(cols) < num_cols:
                         cols += [""] * (num_cols - len(cols))
                     data_rows.append(cols[:num_cols])
@@ -608,7 +664,14 @@ def compile_executive_docx(md_path: Path, docx_path: Path, base_dir=None, allow_
 
         num_m = re.match(r'^(\s*)(\d+)\.\s+(.*)$', line)
         if num_m:
+            prev = doc.paragraphs[-1] if doc.paragraphs else None
             np_p = doc.add_paragraph(style='List Number')
+            if prev is None or prev.style.name != 'List Number':
+                restart_numbering(doc, np_p)          # otherwise every list continues the previous list's count
+            else:
+                prev_pPr = prev._p.pPr
+                if prev_pPr is not None and prev_pPr.numPr is not None:
+                    np_p._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = prev_pPr.numPr.numId.val
             np_p.paragraph_format.space_before = Pt(1)
             np_p.paragraph_format.space_after = Pt(2)
             np_p.paragraph_format.line_spacing = 1.1

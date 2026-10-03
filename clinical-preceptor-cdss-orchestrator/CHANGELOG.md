@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-10-01
+
+### Changed
+- generator: whole-word tiering (Graves is not Tier 3, Hypertensive is not Tier 1), real case count, links follow the workspace, TABLES dir created.
+
+## [1.2.0] - 2026-10-01
+
+### Changed
+- Bare modality flags (--never-events, --sbar, --anki-deck, --causal-graph, --patient-leaflet) now show everything instead of substring-matching 'all' (the toxic-drug matrix showed a fraction); --workspace is forwarded to the navigator via CDSS_HABIJABI_ROOT and child exit codes propagate; pipeline tools run as subprocesses with a per-stage status table (missing/failed stages are reported, no false 'completed successfully'); POSIX default workspace no longer a literal 'D:' directory; --clinician-name/--series-name recorded.
+
 ## [1.1.0] - 2026-09-26
 
 ### Added

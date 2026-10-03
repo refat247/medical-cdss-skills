@@ -1,6 +1,6 @@
 ---
 name: hurst-cdss-navigator
-version: 1.0.2
+version: 1.0.3
 description: |
   Autonomous Clinical Decision Support System (CDSS) and zero-token precision index retrieval navigator for
   Fuster & Hurst's The Heart (15th Edition). Use when querying Hurst as a single standalone book
@@ -8,7 +8,7 @@ description: |
   Provides multi-turn clinical QA, case vignette decomposition, and 150-word span compression across 5,258 chunks.
 ---
 
-# Hurst CDSS Navigator (v1.0.2)
+# Hurst CDSS Navigator (v1.0.3)
 
 Production-grade Clinical Decision Support System and Index Retrieval Engine grounded directly in the 15th Edition of *Fuster & Hurst's The Heart* (4,006 pages, 12 clinical sections, 541 tables, 2,166 figures, and 5,258 L2 micro-chunks).
 

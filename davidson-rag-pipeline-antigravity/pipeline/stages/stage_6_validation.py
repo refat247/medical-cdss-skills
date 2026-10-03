@@ -68,6 +68,14 @@ def _split_blocks(rag_text):
     return blocks, malformed
 
 
+def _frontmatter(block):
+    """Return only the YAML-ish frontmatter of one chunk slice (opening '---' through its closing
+    '---'). Field checks must read this, never the body, or a body line such as
+    'disease_focus: x' would satisfy a missing frontmatter field."""
+    m = _FRONTMATTER_CLOSE_RE.match(block)
+    return m.group(0) if m else block
+
+
 def check_6_1_6_2(rag_text):
     """disease_focus / coverage_status presence+validity, and partial/gap
     chunks must carry a non-empty gap_note. Block-splitting hardened in
@@ -82,21 +90,26 @@ def check_6_1_6_2(rag_text):
     fields."""
     blocks, malformed = _split_blocks(rag_text)
     failures = list(malformed)
+    if not blocks:
+        # An empty, truncated or wrongly-encoded RAG file has nothing to fail, which used to read as PASS.
+        failures.append("no chunk blocks found -- RAG file is empty, truncated or not in chunk format "
+                        "(zero chunks can never pass Stage 6)")
     for b in blocks:
-        cid = re.search(r'chunk_id:\s*(.+)', b)
+        fm = _frontmatter(b)
+        cid = re.search(r'chunk_id:\s*(.+)', fm)
         cid = cid.group(1).strip() if cid else '?'
 
-        dfm = re.search(r'disease_focus:\s*(.*)', b)
+        dfm = re.search(r'disease_focus:\s*(.*)', fm)
         if not dfm or not dfm.group(1).strip():
             failures.append(f"{cid}: missing disease_focus")
 
-        csm = re.search(r'coverage_status:\s*(.+)', b)
+        csm = re.search(r'coverage_status:\s*(.+)', fm)
         status = csm.group(1).strip() if csm else None
         if status not in ('complete', 'partial', 'gap'):
             failures.append(f"{cid}: missing/invalid coverage_status ({status!r})")
 
         if status in ('partial', 'gap'):
-            gnm = re.search(r'gap_note:\s*"(.*)"', b)
+            gnm = re.search(r'gap_note:\s*"(.*)"', fm)
             if not gnm or not gnm.group(1).strip():
                 failures.append(f"{cid}: coverage_status={status} but gap_note is empty")
 
@@ -108,7 +121,7 @@ def check_6_4(coverage_gaps_text_or_none):
     failure, not a pass-by-default (unchanged rule)."""
     if coverage_gaps_text_or_none is None:
         return ["Stage 4.5c did not run — L1L2_CoverageGaps.md is missing"]
-    if 'BLOCKING FAIL' in coverage_gaps_text_or_none:
+    if 'BLOCKING FAIL' in coverage_gaps_text_or_none.upper():
         n_gaps = coverage_gaps_text_or_none.count('\n|') - 1
         return [f"Stage 4.5c reported {max(n_gaps, 1)} unresolved L1/L2 coverage gap(s) "
                 f"— see L1L2_CoverageGaps.md"]
@@ -132,6 +145,9 @@ def check_6_4b(clinical_fidelity_gate_or_none):
     if gate.get("unresolved_corruptions", -1) != 0:
         failures.append(f"Stage 4.5d has {gate.get('unresolved_corruptions')} unresolved "
                          f"confirmed corruption(s)")
+    not_run = [d for d in REQUIRED_DETECTORS if d not in (gate.get("detectors_run") or [])]
+    if not_run:
+        failures.append(f"Stage 4.5d required detector(s) not run (absent from detectors_run): {not_run}")
     not_tested = gate.get("detectors_not_tested", REQUIRED_DETECTORS)
     if not_tested:
         failures.append(f"Stage 4.5d required detector(s) not tested: {not_tested}")

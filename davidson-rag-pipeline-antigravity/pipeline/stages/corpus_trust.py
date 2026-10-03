@@ -247,8 +247,39 @@ def classify_trust(checkpoint, clinical_fidelity_gate=None,
             "Rerun from Stage 4.5d forward through Stage 6.",
         )
 
+    # L7: STALE is an explicit statement that this evidence was produced
+    # before an earlier stage was re-completed. Old evidence files may still
+    # look clean on disk, so trust must follow the checkpoint lifecycle and
+    # fail closed until every stale stage is genuinely revalidated.
+    stale_stages = [
+        stage for stage in checkpoint_utils.STAGE_ORDER
+        if isinstance(sc.get(stage), dict) and sc[stage].get("status") == "STALE"
+    ]
+    if stale_stages:
+        return result(
+            "CORPUS_REVIEW_PENDING", False,
+            ["Checkpoint contains stale downstream evidence after an earlier-stage re-run: "
+             + ", ".join(stale_stages) + "."],
+            f"Resume from Stage {stale_stages[0]} and re-run every required downstream stage "
+            "through Stage 8; then re-run finalize_trusted_chapter.py and "
+            "verify_trusted_corpus_invariants.py before trusted use.",
+        )
+
     corpus_completed = bool(ps.get("corpus_pipeline_completed", False))
     gate_pass = bool(clinical_fidelity_gate) and clinical_fidelity_gate.get("verdict") == "PASS"
+
+    # `corpus_pipeline_completed` is a monotonic milestone flag: marking a later stage BLOCKED/FAILED
+    # (e.g. after a forced re-run) never cleared it. A gating stage that is present but not COMPLETED
+    # must withdraw trust no matter what the flag says.
+    open_gates = {k: sc[k].get("status") for k in ("4.5", "4.5c", "4.5d", "6")
+                  if k in sc and isinstance(sc[k], dict) and sc[k].get("status") != "COMPLETED"}
+    if corpus_completed and open_gates:
+        return result(
+            "CORPUS_REVIEW_PENDING", False,
+            [f'stage_completions["{k}"]["status"] = {v!r}, not "COMPLETED" -- a gating stage is open, so '
+             f'the corpus_pipeline_completed milestone no longer holds.' for k, v in sorted(open_gates.items())],
+            "Re-run the open gating stage(s) to COMPLETED (and every stage after them) before certification.",
+        )
 
     if corpus_completed and gate_pass:
         # v2.6.6 (Fail-Closed Finalization): every evidence field checked in

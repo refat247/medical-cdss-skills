@@ -34,6 +34,7 @@ described above applies to the __main__ CLI entry point only, which is the
 actual "direct runner against a real chapter" risk this release addresses.
 """
 import sys
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 import io
 import os
 import re
@@ -46,7 +47,7 @@ from pipeline.checkpoint_utils import PIPELINE_VERSION
 
 
 def _parse_chunks(chunks_text):
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
     parsed = []
     for i, b in enumerate(blocks):
         cid = re.search(r'chunk_id:\s*(\S+)', b)
@@ -143,7 +144,8 @@ def run_stage_4_5d(out_dir, prefix, write_dir=None):
     write_dir = write_dir or out_dir
     rep_path = os.path.join(out_dir, f"{prefix}_REPAIRED_S2.md")
     chunk_path = os.path.join(out_dir, f"{prefix}_chunks.md")
-    repaired = open(rep_path, encoding='utf-8').read()
+    from pipeline.stages.stage_4_parse import sanitize_chunk_text
+    repaired = sanitize_chunk_text(open(rep_path, encoding='utf-8').read())   # chunks are sanitized by 4B
     chunks_text = open(chunk_path, encoding='utf-8').read()
 
     parsed = _parse_chunks(chunks_text)
@@ -190,9 +192,11 @@ def run_stage_4_5d(out_dir, prefix, write_dir=None):
             # v2.6.2: pass repaired_s2_text so detect_boundary_loss can
             # actually reach INTENTIONAL_SECTION_SPLIT from real heading
             # evidence, not just AMBIGUOUS/SAFE/CRITICAL.
-            cands, _scanned = s45d.detect_boundary_loss(l1["body"], children, repaired_s2_text=repaired)
+            cands, _scanned = s45d.detect_boundary_loss(l1["body"], children, repaired_s2_text=repaired, scope=l1["chunk_id"])
             all_candidates.extend(cands)
     detectors_run.add("boundary_loss")
+    # one global uniqueness pass: ids are (check, chunk_id, ordinal, hash); duplicates across sections used to collide
+    s45d.assign_candidate_ids(all_candidates)
 
     gate = s45d.build_clinical_fidelity_gate(
         all_candidates, sorted(detectors_run), PIPELINE_VERSION, prefix,

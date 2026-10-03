@@ -11,25 +11,40 @@ not a rewrite.
 import re
 import difflib
 
+from pipeline.stages.ocr_cleanup_rules import (RUNNING_HEADER_RE, has_piracy_trigger, has_strong_trigger, is_structural,
+                                               normalize_bare_page_lines, strip_toc_preamble)
+
+
+SHORT_DOC_LINES = 50
+
+
+def _preservation_ratio(orig_lines, rep_lines):
+    """Line-level similarity, except for short documents, where losing one 3-character stray line must not look
+    like losing 14% of the chapter: those are weighted by characters instead of counted as whole lines."""
+    sm = difflib.SequenceMatcher(None, orig_lines, rep_lines)
+    if sum(1 for l in orig_lines if l.strip()) >= SHORT_DOC_LINES:
+        return sm.ratio()
+    total = sum(len(l) + 1 for l in orig_lines) + sum(len(l) + 1 for l in rep_lines)
+    if not total:
+        return 1.0
+    matched = sum(sum(len(l) + 1 for l in orig_lines[b.a:b.a + b.size]) for b in sm.get_matching_blocks())
+    return 2.0 * matched / total
+
 
 def compute_reaudit(orig_text, rep_text):
     """Same logic as the original SKILL.md Stage 3 inline block. Returns a
     dict: {preservation_percent, h1_count, issues, verdict}."""
     orig_s = re.sub(r'<!--[\s\S]*?-->\n?', '', orig_text)
     orig_s = re.sub(r'!\[img-\d+\.jpeg\]\(img-\d+\.jpeg\)\n?', '', orig_s)
-    orig_s = re.sub(r'^\d{1,3}\s*\n', '', orig_s, flags=re.MULTILINE)
-    orig_s = re.sub(r'^[0-9]+ [·•] [A-Z\s\-]+\n?', '', orig_s, flags=re.MULTILINE)
-    first_h2 = re.search(r'^##\s', orig_s, re.MULTILINE)
-    if first_h2:
-        toc_block = orig_s[:first_h2.start()]
-        cleaned_toc = re.sub(r'^.+\d{1,3}\s*$\n?', '', toc_block, flags=re.MULTILINE)
-        orig_s = cleaned_toc + orig_s[first_h2.start():]
+    orig_s, _ = normalize_bare_page_lines(orig_s, marker=False)
+    orig_s = RUNNING_HEADER_RE.sub('', orig_s)
+    orig_s, _ = strip_toc_preamble(orig_s)
     orig_s = re.sub(r'\n{3,}', '\n\n', orig_s)
 
     rep_s = re.sub(r'<!--[\s\S]*?-->\n?', '', rep_text)
     rep_s = re.sub(r'\n{3,}', '\n\n', rep_s)
 
-    ratio = difflib.SequenceMatcher(None, orig_s.splitlines(), rep_s.splitlines()).ratio()
+    ratio = _preservation_ratio(orig_s.splitlines(), rep_s.splitlines())
     issues = []
     if ratio < 0.95:
         issues.append(f"Low preservation: {ratio*100:.1f}%")
@@ -46,7 +61,8 @@ def compute_reaudit(orig_text, rep_text):
         l for i, l in enumerate(rep_lines)
         if i not in protected and (re.search(r'[ঀ-৿]{5,}', l) or not is_clinical(l) and re.search(r'[ঀ-৿]{2,}', l))
     ]
-    if any(re.search(p, rep_text) for p in [r't\.me/', r'apps?\.apple\.com']) or bool(unprotected_piracy):
+    shared_trigger_left = any(has_strong_trigger(l) or (has_piracy_trigger(l) and not is_structural(l)) for l in rep_lines)
+    if shared_trigger_left or bool(unprotected_piracy):
         issues.append("Piracy content still present [CRITICAL]")
     h1s = [l for l in rep_text.splitlines() if re.match(r'^# [^#]', l)]
     if len(h1s) > 1:

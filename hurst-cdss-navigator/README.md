@@ -1,4 +1,4 @@
-# Hurst CDSS Navigator (v1.0.2)
+# Hurst CDSS Navigator (v1.0.3)
 
 Production-grade Clinical Decision Support System (CDSS) and index retrieval navigator for *Fuster & Hurst's The Heart (15th Edition)*.
 

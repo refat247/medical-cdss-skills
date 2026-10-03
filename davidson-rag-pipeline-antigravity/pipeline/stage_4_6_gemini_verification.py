@@ -638,15 +638,21 @@ def export_for_manual_review(chunks_data, levels=(2,), batch_size=35, body_chars
 def apply_manual_corrections(chunks_data, corrections):
     preamble, c_parts = _split_chunks(chunks_data)
     changed, unparsed, out_parts = 0, [], [preamble]
+    seen_ids = set()
     for part in c_parts:
         cid_m = re.search(r'chunk_id:\s*(\S+)', part)
         cid = cid_m.group(1) if cid_m else None
+        seen_ids.add(cid)
         if cid not in corrections:
             out_parts.append(part)
             continue
         current_type = _get_semantic_type(part)
         new_type = corrections[cid]
-        if new_type not in SEMANTIC_TYPES or new_type == current_type:
+        if new_type not in SEMANTIC_TYPES:
+            unparsed.append(cid)          # typo / unknown type: not a valid review
+            out_parts.append(part)
+            continue
+        if new_type == current_type:      # explicit confirmation of the existing type is a valid review
             out_parts.append(part)
             continue
         expected_line = f'semantic_type: {current_type}'
@@ -657,6 +663,7 @@ def apply_manual_corrections(chunks_data, corrections):
         out_parts.append(part.replace(expected_line, f'semantic_type: {new_type}', 1))
         changed += 1
 
+    unparsed.extend(sorted(set(corrections) - seen_ids))   # stale / unknown chunk ids fail loudly
     new_text = ''.join(out_parts)
     metadata = _build_metadata(
         new_text, gemini_used=True, gemini_failed_fallback=False,
@@ -709,17 +716,11 @@ def offline_adjudicate_all(chunks_data, levels=(2,)):
             else:
                 rec_type = "management_step"
                 
-        # 3. Strong body rule
-        body_type = None
-        if _is_pure_epidemiology(body):
-            body_type = "epidemiology_concept"
-        else:
-            for nt, pats in BODY_RULES:
-                if any(re.search(p, body, re.I) for p in pats):
-                    body_type = nt
-                    break
-                    
-        adjudicated = title_type or rec_type or body_type or current
+        # 3. Body-regex relabelling is intentionally NOT applied here. The module's own history shows
+        #    BODY_RULES re-labelling introduced 76 new errors on 312 previously-correct chunks, and an
+        #    offline pass cannot tell a correct type from a wrong one. Body cues stay in the *flagging*
+        #    baseline (candidates for human/LLM review) and never overwrite an existing type.
+        adjudicated = title_type or rec_type or current
         if adjudicated in SEMANTIC_TYPES and adjudicated != current:
             out_parts.append(part.replace(f'semantic_type: {current}', f'semantic_type: {adjudicated}', 1))
             changed += 1
@@ -734,6 +735,8 @@ def offline_adjudicate_all(chunks_data, levels=(2,)):
         tokens_used=0, chunks_reviewed=targets_count,
     )
     meta["verification_method"] = "offline_deterministic_clinical_rules"
+    # Title/recommendation-number rules only: types are NOT independently verified by an LLM or a human.
+    meta["independent_verification"] = False
     meta["needs_manual_verification"] = False
     meta["corrections_applied"] = corrections
     meta["review_priority"] = []

@@ -515,6 +515,15 @@ def main(argv=None):
     parser.add_argument("corpus_root", help="Root directory containing chapter subdirectories.")
     args = parser.parse_args(argv)
 
+    # A verifier that checked nothing must not say "all invariants hold" (exit 0).
+    if not os.path.isdir(args.corpus_root):
+        print(f"ERROR: corpus root does not exist or is not a directory: {args.corpus_root}")
+        return 2
+    if not os.path.exists(os.path.join(args.corpus_root, "CORPUS_TRUST_STATUS.md")):
+        print(f"ERROR: no CORPUS_TRUST_STATUS.md in {args.corpus_root} -- nothing to verify against "
+              f"(generate the ledger first).")
+        return 2
+
     declared = _committed_classifications(args.corpus_root)
     trusted_declared = {k: v for k, v in declared.items() if v == "CORPUS_TESTING_READY"}
 

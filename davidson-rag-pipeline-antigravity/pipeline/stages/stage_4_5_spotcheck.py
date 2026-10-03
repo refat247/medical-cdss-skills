@@ -5,6 +5,7 @@ and ensures no figure references are dropped or hallucinated.
 """
 import io
 import os
+from pipeline.stages.chunk_blocks import block_body, split_chunk_blocks
 import re
 import sys
 
@@ -26,33 +27,65 @@ def run_stage_4_5(rep_path: str, chunk_path: str, out_dir: str, prefix: str) -> 
     repaired = open(rep_path, encoding="utf-8").read()
     chunks = open(chunk_path, encoding="utf-8").read()
 
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", chunks, re.DOTALL)
+    blocks = split_chunk_blocks(chunks)
     l2 = []
     for block in blocks:
         if not re.search(r"chunk_level:\s*2", block):
             continue
         cid = re.search(r"chunk_id:\s*(.+)", block)
-        parts = block.split("---\n")
-        body = parts[2].strip() if len(parts) >= 3 else block
+        body = block_body(block)
         l2.append({"id": cid.group(1).strip() if cid else "?", "body": body})
+
+    from pipeline.stages.stage_4_parse import sanitize_chunk_text
+
+    def norm(s):
+        # Chunks are written through sanitize_chunk_text (ligatures, soft hyphens...); compare like with like.
+        s = sanitize_chunk_text(s)
+        s = re.sub(r"^\s*#+\s*", "", s)
+        s = re.sub(r"[*_`]+", "", s)
+        return re.sub(r"\s+", " ", s).strip()
+
+    # Keep blank lines in the joined source so paragraph boundaries remain explicit.
+    rep_line_list = [norm(l) for l in repaired.splitlines()]
+    rep_lines = {l for l in rep_line_list if l}
+    rep_joined = "\n".join(rep_line_list)
+
+    def line_in_source(line):
+        if line in rep_lines:
+            return True
+        # Wrapped matching contract:
+        # - may join one or more consecutive non-blank source lines within the same paragraph;
+        # - each joined source-line boundary corresponds to a space in the normalized chunk line;
+        # - the match must begin and end on source-line boundaries;
+        # - blank-line paragraph boundaries are never bridged.
+        # rep_joined preserves blank lines as "\n\n"; the pattern below admits only single "\n" boundaries.
+        pat = r"(?:(?<=\n)|^)" + r"[ \n]".join(re.escape(t) for t in line.split(" ")) + r"(?=\n|$)"
+        return re.search(pat, rep_joined) is not None
+
+    # Stage 4B synthesises these two lines when it pairs an MCQ with its answer; they are not in the source.
+    synthetic = re.compile(r"^(?:Answer & Explanation|Answers?: .*)$")
 
     passed, failed, skipped = 0, [], 0
     for chunk in l2:
-        body = chunk["body"].strip()
-        if not body or len(body) < 40:
+        # Whole-body check (the old version tested ONE 100-char window and passed on a single hit, so a
+        # changed dose elsewhere in the chunk -- "4 g" -> "40 g" -- was never seen).
+        lines = [norm(l) for l in chunk["body"].splitlines() if norm(l)]
+        lines = [l for l in lines if not synthetic.match(l)]
+        if not lines:
             skipped += 1
             continue
-        found = False
-        for offset in [len(body) // 2, 0, len(body) // 4, len(body) * 3 // 4]:
-            sl = body[offset:offset + 100].strip()
-            sl_clean = re.sub(r"\*+|_+|`+|^#+\s", "", sl, flags=re.MULTILINE).strip()
-            if sl_clean and len(sl_clean) >= 30 and (sl_clean in repaired or sl in repaired):
-                found = True
-                break
-        if found:
-            passed += 1
-        else:
+        numeric = [l for l in lines if re.search(r"\d", l)]
+        prose = [l for l in lines if not re.search(r"\d", l) and len(l) >= 12]
+        bad_numeric = [l for l in numeric if not line_in_source(l)]
+        bad_prose = [l for l in prose if not line_in_source(l)]
+        # numbers/doses must match exactly; free text tolerates up to 5% non-verbatim lines
+        if bad_numeric or (prose and len(bad_prose) / len(prose) > 0.05):
             failed.append(chunk["id"])
+        else:
+            passed += 1
+
+    if not l2:
+        failed.append("<no L2 chunks found -- nothing was verified>")
 
     src_figs = sorted(set(re.findall(r"\*\*Fig\.?\s*[\d.]+\*\*[^\n]+", repaired)))
     chunk_figs = sorted(set(re.findall(r"\*\*Fig\.?\s*[\d.]+\*\*[^\n]+", chunks)))

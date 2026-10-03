@@ -1,4 +1,4 @@
-# Version Manager (v1.1.1)
+# Version Manager (v1.2.1)
 
 Automated Semantic Versioning (SemVer 2.0.0), release synchronizer, and Keep a Changelog management skill for Google Antigravity agent skills, Python packages, and multi-file codebases.
 

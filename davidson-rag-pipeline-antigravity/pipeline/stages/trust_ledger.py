@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 
 from pipeline import checkpoint_utils
 from pipeline.stages import corpus_trust
-from pipeline.stages.mutation_guard import read_protection_marker
+from pipeline.stages.mutation_guard import read_protection_marker, sha256_of_file_or_none
 from pipeline.stages.source_lines_precision import build_precision_summary
 
 
@@ -56,6 +56,9 @@ def _derive_prefix(output_dir):
     ]
     for suffix in suffixes_in_priority_order:
         matches = sorted(glob.glob(os.path.join(output_dir, f"*{suffix}")))
+        if len(matches) > 1:
+            # several runs left several files: the most recently written one is the current run, not the alphabetically first
+            matches.sort(key=lambda m: (-os.path.getmtime(m), m))
         if matches:
             basename = os.path.basename(matches[0])
             return basename[: -len(suffix)]
@@ -117,6 +120,21 @@ def _extract_stage_8_unresolved_from_checkpoint(stage_8_entry):
                 return True, value
             return True, value  # present but malformed -- classify_trust's _bad_count() will catch it
     return False, None
+
+
+def marker_hash_mismatches(output_dir, prefix, marker):
+    """F10 / 1.20: names of protected files whose current SHA-256 differs from the hash the protection marker
+    recorded at finalize. A recorded hash of None means the file did not exist then and is not compared."""
+    if not marker:
+        return []
+    files = {"rag_optimised_sha256": f"{prefix}_RAG_Optimised.md", "chunks_sha256": f"{prefix}_chunks.md",
+             "clinical_fidelity_gate_sha256": f"{prefix}_ClinicalFidelityGate.json"}
+    bad = []
+    for key, name in files.items():
+        recorded = marker.get(key)
+        if recorded is not None and sha256_of_file_or_none(os.path.join(output_dir, name)) != recorded:
+            bad.append(name)
+    return bad
 
 
 def build_chapter_trust_record(output_dir, chapter_dir_name, *, unresolved_completeness_clusters=None):
@@ -212,6 +230,13 @@ def build_chapter_trust_record(output_dir, chapter_dir_name, *, unresolved_compl
         stage_4_6_chunks_reviewed=stage_4_6_chunks_reviewed,
         stage_4_6_total_flagged=stage_4_6_total_flagged,
     )
+
+    changed = marker_hash_mismatches(output_dir, prefix, protection_marker)
+    if changed:
+        # edited after finalize: the marker no longer vouches for these files
+        result = dict(result, classification="CORPUS_REVIEW_PENDING", trusted_for_downstream_use=False,
+                      reasons=list(result["reasons"]) + [f"modified after protection marker was written: {', '.join(changed)}"],
+                      required_action="Re-run Stage 6/8 and finalize_trusted_chapter.py for this chapter.")
 
     return {
         "chapter_dir": chapter_dir_name,

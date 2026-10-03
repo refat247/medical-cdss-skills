@@ -27,6 +27,7 @@ data is now surfaced without being made blocking).
 """
 import argparse
 import sys
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 import io
 import os
 import re
@@ -45,7 +46,7 @@ def run(out_dir, prefix, args=None):
     repaired = open(rep_path, encoding='utf-8').read()
     chunks_text = open(chunk_path, encoding='utf-8').read()
 
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
     results = [check_chunk_precision(b, repaired) for b in blocks]
 
     by_verdict = {}

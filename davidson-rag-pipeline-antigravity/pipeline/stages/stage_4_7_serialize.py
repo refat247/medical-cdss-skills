@@ -13,6 +13,7 @@ written never produced it. This module is what closes that gap.
 """
 import json
 import os
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 from datetime import datetime, timezone
 
 SCHEMA_VERSION = "1.0"
@@ -66,12 +67,26 @@ def build_stage_4_7_outputs(scattered, suspected_gap, complete_diseases, pipelin
     }
 
 
+def _body_of_block(block: str) -> str:
+    """Text after the closing '---' of the frontmatter (the old regex matched the OPENING '---', so
+    'body' was really the frontmatter and its keywords were scored as clinical content)."""
+    import re
+    m = re.match(r"\s*---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n?", block, re.DOTALL)
+    return block[m.end():].strip() if m else block.strip()
+
+
+def _has_keyword(text: str, kw: str) -> bool:
+    """Whole-word match (plural/-ed allowed): "because" must not count as "cause", "design" not as "sign"."""
+    import re
+    return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?:s|es|ed|d)?(?![a-z0-9])", text) is not None
+
+
 def evaluate_clinical_completeness(chunk_text: str):
     """Deterministically evaluates clinical coverage across core categories per disease focus."""
     import re
     from collections import defaultdict
 
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", chunk_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunk_text)
     disease_chunks = defaultdict(list)
 
     categories = {
@@ -93,8 +108,7 @@ def evaluate_clinical_completeness(chunk_text: str):
         st = st_m.group(1).strip() if st_m else "clinical_feature"
         topic_m = re.search(r"topic:\s*(.*)", b)
         topic = topic_m.group(1).strip() if topic_m else ""
-        body_m = re.search(r"---\n\n?(.*)", b, re.DOTALL)
-        body = body_m.group(1).strip() if body_m else b
+        body = _body_of_block(b)
 
         disease_chunks[df].append({
             "chunk_id": cid,
@@ -107,6 +121,7 @@ def evaluate_clinical_completeness(chunk_text: str):
     suspected_gap = {}
     complete_diseases = []
     category_coverage = {}
+    low_evidence = {}      # <3 chunks: counted complete as before, but no longer silently
 
     for df, chunks in disease_chunks.items():
         if df in ("general", "self_assessment", "overview") or len(df) < 3:
@@ -116,7 +131,7 @@ def evaluate_clinical_completeness(chunk_text: str):
         for ch in chunks:
             text_combo = (ch["semantic_type"] + " " + ch["topic"] + " " + ch["body"][:200]).lower()
             for cat, kws in categories.items():
-                if any(kw in text_combo for kw in kws):
+                if any(_has_keyword(text_combo, kw) for kw in kws):
                     covered_cats.add(cat)
 
         category_coverage[df] = sorted(list(covered_cats))
@@ -131,12 +146,14 @@ def evaluate_clinical_completeness(chunk_text: str):
                 scattered[df] = f"Partially covered across {len(covered_cats)}/5 categories: {sorted(list(covered_cats))}"
         else:
             complete_diseases.append(df)
+            low_evidence[df] = len(chunks)
 
     return {
         "scattered": scattered,
         "suspected_gap": suspected_gap,
         "complete_diseases": sorted(list(set(complete_diseases))),
         "category_coverage": category_coverage,
+        "low_evidence": low_evidence,
     }
 
 
@@ -188,7 +205,8 @@ def evaluate_and_write_stage_4_7(chunk_text: str, out_dir: str, prefix: str, pip
         "|---|---|---|",
     ]
     for df, cats in res["category_coverage"].items():
-        status = "COMPLETE" if df in res["complete_diseases"] else ("GAP" if df in res["suspected_gap"] else "SCATTERED")
+        status = (f"COMPLETE (low evidence: {res['low_evidence'][df]} chunk(s), coverage not assessed)"
+                  if df in res["low_evidence"] else "COMPLETE") if df in res["complete_diseases"] else ("GAP" if df in res["suspected_gap"] else "SCATTERED")
         report_lines.append(f"| {df} | {', '.join(cats) if cats else 'general'} | {status} |")
 
     with open(log_path, "w", encoding="utf-8") as f:

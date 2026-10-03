@@ -191,3 +191,74 @@ def test_cmd_organize_book():
         assert (book_dir / "Ch01" / "ocr markdown" / "Ch01.pdf" / "markdown.md").exists()
         assert (book_dir / "Ch02" / "Ch02.pdf").exists()
         assert (book_dir / "Ch02" / "ocr markdown" / "Ch02.pdf" / "markdown.md").exists()
+
+
+# ---------------- second-sweep 2.5 (M8-M11, O1) ----------------
+def _book(tmp_path, sections=("Sec A",)):
+    book = tmp_path / "book"
+    for s in sections:
+        (book / f"{s}.pdf").mkdir(parents=True)          # section folder named like its PDF
+        (book / f"{s}.pdf" / "ocr markdown").mkdir()
+    return book
+
+
+def _ocr_download(tmp_path, name, with_file=True):
+    d = tmp_path / "dl" / name
+    d.mkdir(parents=True)
+    if with_file:
+        (d / "markdown.md").write_text("ocr text")
+    return d.parent
+
+
+def test_ingest_into_an_existing_empty_destination_does_not_nest(tmp_path):
+    book = _book(tmp_path)
+    (book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf").mkdir()          # pre-created empty slot
+    dl = _ocr_download(tmp_path, "Sec A.pdf")
+    cmd_ingest(str(book), source_dir=str(dl))
+    dest = book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf"
+    assert (dest / "markdown.md").exists() and not (dest / "Sec A.pdf").exists()
+
+
+def test_force_overwrite_moves_the_old_ocr_aside_instead_of_deleting_it(tmp_path):
+    book = _book(tmp_path)
+    old = book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf"; old.mkdir(); (old / "old.md").write_text("precious")
+    dl = _ocr_download(tmp_path, "Sec A.pdf")
+    cmd_ingest(str(book), source_dir=str(dl), force=True)
+    kept = [p for p in (book / "Sec A.pdf" / "_replaced_backups").iterdir() if ".replaced-" in p.name]
+    assert kept and (kept[0] / "old.md").read_text() == "precious"
+    # backups must not sit among the live OCR slots
+    assert not [p for p in (book / "Sec A.pdf" / "ocr markdown").iterdir() if ".replaced-" in p.name]
+
+
+def test_ingest_dry_run_moves_nothing(tmp_path):
+    book = _book(tmp_path)
+    dl = _ocr_download(tmp_path, "Sec A.pdf")
+    cmd_ingest(str(book), source_dir=str(dl), dry_run=True)
+    assert (dl / "Sec A.pdf" / "markdown.md").exists()
+    assert not (book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf").exists()
+
+
+def test_fuzzy_match_prefers_the_longest_exact_section_and_refuses_ambiguity(tmp_path):
+    book = _book(tmp_path, sections=("Part 1 Cardiology Chapter 1", "Part 1 Cardiology Chapter 10"))
+    dl = _ocr_download(tmp_path, "Part 1 Cardiology Chapter 10 Heart Failure.pdf")
+    cmd_ingest(str(book), source_dir=str(dl))
+    assert any((book / "Part 1 Cardiology Chapter 10.pdf" / "ocr markdown").iterdir())
+    assert not any((book / "Part 1 Cardiology Chapter 1.pdf" / "ocr markdown").iterdir())
+
+
+def test_status_does_not_count_an_empty_ocr_slot_as_present(tmp_path, capsys):
+    book = _book(tmp_path)
+    (book / "Sec A.pdf" / "ocr markdown" / "Sec A.pdf").mkdir()           # empty
+    (book / "Sec A.pdf" / "Sec A.pdf").write_bytes(b"%PDF")
+    cmd_status(str(book))
+    assert "With OCR: 0/1" in capsys.readouterr().out
+
+
+def test_organize_section_leaves_unrelated_files_in_an_already_canonical_section(tmp_path):
+    sec = tmp_path / "Sec A"
+    sec.mkdir()
+    (sec / "Sec A.pdf").write_bytes(b"%PDF")
+    (sec / "my_clinical_notes.md").write_text("notes")
+    (sec / "cdss_package_out").mkdir()
+    cmd_organize_section(str(sec))
+    assert (sec / "my_clinical_notes.md").exists() and (sec / "cdss_package_out").exists()

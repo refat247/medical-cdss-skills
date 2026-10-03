@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-10-01
+
+### Changed
+- Review fixes: same-topic benchmark, CDSSRouter class, chunk divider strip
+
+## [1.3.0] - 2026-10-01
+
+### Changed
+- Benchmark is now computed (was a hard-coded scorecard); tokenizer keeps acronyms/alphanumerics; first chunk of a frontmatter-first file no longer dropped; apostrophes kept in topics; --dry-run writes nothing; safety matrix derived from chunks; generated router performs real lexical retrieval; exit 1 when benchmark misses targets.
+
 ## [1.2.0] - 2026-09-25
 
 ### Changed

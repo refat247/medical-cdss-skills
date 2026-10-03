@@ -142,11 +142,12 @@ def evaluate_chapter_trust(search_dirs: List[Path]) -> Dict[str, Any]:
 # ----------------------------------------------------------------------
 # 1. Status & Inspection
 # ----------------------------------------------------------------------
-def audit_book_status(book_dir: Path) -> None:
-    """Audits the pipeline progress of each section inside a book directory."""
+def audit_book_status(book_dir: Path):
+    """Audits the pipeline progress of each section inside a book directory.
+    Returns False if the directory does not exist (callers turn that into a non-zero exit)."""
     if not book_dir.exists():
         print(f"[ERROR] Target book directory does not exist: {book_dir}")
-        return
+        return False
 
     print(f"\n================================================================================")
     print(f" MEDICAL RAG PIPELINE STATUS AUDIT")
@@ -268,7 +269,9 @@ def cmd_package(package_dir: str) -> int:
 def cmd_guard(target_dir: str, fix: bool = False, enforce_ismp: bool = True) -> int:
     action = "fix" if fix else "audit"
     cmd = [sys.executable, str(GUARD_SCRIPT), action, "--target-dir", target_dir]
-    if enforce_ismp:
+    # guard.py's `audit` subparser does not accept --enforce-ismp (only `fix` does, as a deprecated no-op);
+    # passing it to audit made `guard --target-dir X` exit 2 before doing anything.
+    if enforce_ismp and fix:
         cmd.append("--enforce-ismp")
     return run_subcommand(cmd)
 
@@ -292,13 +295,16 @@ def cmd_publish_manifest(manifest_path: str, output_dir: str) -> int:
         print(f"[ERROR] Topic manifest not found: {mpath}")
         return 1
 
-    import json
     with open(mpath, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     chapter = data.get("chapter", "Unknown")
     title = data.get("title", "Unknown")
     topics = data.get("topics", [])
+    if not isinstance(topics, list) or not topics or not all(isinstance(x, dict) for x in topics):
+        print(f"[ERROR] Manifest {mpath} has no usable 'topics' list (empty, missing, or not a list of objects); "
+              f"nothing was published.")
+        return 1
     print(f"\n================================================================================")
     print(f" STAGE 6: EXECUTING CHAPTER MANIFEST")
     print(f" Chapter {chapter}: {title} ({len(topics)} discrete clinical entities)")
@@ -407,7 +413,7 @@ def main():
         sys.exit(0)
 
     if args.command == "status":
-        audit_book_status(Path(args.book_dir))
+        sys.exit(0 if audit_book_status(Path(args.book_dir)) is not False else 1)
     elif args.command == "guard":
         code = cmd_guard(args.target_dir, fix=args.fix, enforce_ismp=args.enforce_ismp)
         sys.exit(code)
@@ -455,6 +461,7 @@ def main():
             sys.exit(code)
 
         # 4. Optional chapter chaining (Stages 2 & 3)
+        untrusted_chapters = []
         if args.process_chapters:
             print("\n>>> STAGE 2 & 3: Processing chapters (Pre-Ready Inlining & RAG)...")
             chapter_dirs = sorted([d for d in bdir.iterdir() if d.is_dir() and d.name != "Index"])
@@ -486,6 +493,7 @@ def main():
                     if code == 3:
                         print(f"[WARN] {ch.name}: pipeline finished but Stage 8 did not mark it trusted; "
                               f"it will be excluded from indexing until reviewed/finalized.")
+                        untrusted_chapters.append(ch.name)
                         continue
                     if code != 0:
                         print(f"[ERROR] Stage 3 (RAG) failed for {ch.name} with exit code {code}")
@@ -493,6 +501,12 @@ def main():
 
         # 5. Status after organization
         audit_book_status(bdir)
+        print("\n[ORCHESTRATOR] Note: `auto` covers Gate 0 and Stages 1-3 only; indexing, packaging and "
+              "publishing are separate commands (index / package / publish-note).")
+        if untrusted_chapters:
+            print(f"\n[ORCHESTRATOR] Finished WITH {len(untrusted_chapters)} chapter(s) not trusted: "
+                  f"{untrusted_chapters}. Exit code 3 -- review/finalize them before indexing.")
+            sys.exit(3)
         print("\n[ORCHESTRATOR] Automated lifecycle step completed successfully.")
 
 

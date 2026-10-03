@@ -5,6 +5,16 @@ All notable changes to the `medical-cdss-unified-orchestrator` skill will be doc
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-10-01
+
+### Changed
+- Review fixes: keep partial federated results on rc 1
+
+## [1.5.0] - 2026-10-01
+
+### Changed
+- Partial results (a selected book missing) exit 3 unless --allow-partial; --book honoured by vignette/diff/outline/validate-therapy; --json refused where unsupported; exactly one mode; --output validated; context packet reports not_populated/complete and no longer claims ESC/AHA evidence.
+
 ## [1.4.0] - 2026-09-25
 
 ### Changed

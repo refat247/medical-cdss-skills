@@ -1,4 +1,5 @@
 """Image Normalizer & Decoupled Asset Extractor for Davidson OCR Pre-Ready Pipeline."""
+import filecmp
 import glob
 import os
 import re
@@ -175,12 +176,31 @@ def normalize_images(
             "rel_asset_path": rel_asset_path,
         })
 
+    # M18 cross-run collision guard. used_asset_names only protects
+    # collisions created inside this invocation; a caller may reuse one
+    # shared assets_dir across separate runs. Never let a later run silently
+    # overwrite a different already-published canonical figure.
+    # Preflight every target before copying anything so a conflict is a
+    # no-partial-mutation refusal. Identical existing files are safe to reuse.
+    for d in match_data:
+        src_img_path = image_map.get(d["img_name"])
+        target = d["canonical_target_path"]
+        if src_img_path and os.path.exists(src_img_path) and os.path.exists(target):
+            if not filecmp.cmp(src_img_path, target, shallow=False):
+                raise FileExistsError(
+                    "Refusing cross-run figure overwrite: canonical asset "
+                    f"{target!r} already exists with different content from "
+                    f"{src_img_path!r}. Use a run-specific --assets-dir/--out-dir "
+                    "or reconcile the figure identity explicitly."
+                )
+
     # Second pass (reverse): perform string slice replacements and copy assets
     for d in reversed(match_data):
         src_img_path = image_map.get(d["img_name"])
         file_copied = False
         if src_img_path and os.path.exists(src_img_path):
-            shutil.copyfile(src_img_path, d["canonical_target_path"])
+            if not os.path.exists(d["canonical_target_path"]):
+                shutil.copyfile(src_img_path, d["canonical_target_path"])
             file_copied = True
 
         # Build clean markdown block

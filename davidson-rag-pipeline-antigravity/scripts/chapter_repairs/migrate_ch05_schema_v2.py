@@ -22,6 +22,7 @@ default), on top of the pre-existing hand-taken backup referenced above.
 """
 import argparse
 import json
+import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))

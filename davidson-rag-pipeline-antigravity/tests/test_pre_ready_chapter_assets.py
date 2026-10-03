@@ -84,3 +84,20 @@ def test_pre_ready_cli_end_to_end():
         assert os.path.exists(out_md)
         audit_file = os.path.join(tmp_dir, "Davidson_25_18_Cardio_FIGURE_AUDIT.md")
         assert os.path.exists(audit_file)
+
+
+def test_b11_latex_caption_does_not_crash_and_is_inserted_verbatim():
+    cits = scan_figure_citations(r"See Fig. 3.1: Effect of $\pi$ and $\mu$ on flow.")
+    out, audit = inline_figure_tags(r"See Fig. 3.1: Effect of $\pi$ and $\mu$ on flow.", cits, "/nonexistent")
+    assert audit[0]["inlined_now"] is True
+    assert r"$\pi$ and $\mu$" in out
+
+
+def test_b11_figure_tag_is_not_inserted_inside_a_table():
+    md = ("Intro.\n\n| Finding | Note |\n|---|---|\n| ST rise | see Fig. 4.2: STEMI ECG |\n| Q waves | late |\n\nAfter table.\n")
+    cits = scan_figure_citations(md)
+    out, _ = inline_figure_tags(md, cits, "/nonexistent")
+    lines = out.splitlines()
+    tag_i = next(i for i, l in enumerate(lines) if l.startswith("!["))
+    assert lines[tag_i - 2].startswith("| Q waves")            # tag follows the complete table
+    assert all(l.startswith("|") for l in lines[3:tag_i - 1] if l.strip())

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-GENERATE EXTENDED MODALITIES (v1.1.0)
+GENERATE EXTENDED MODALITIES (v1.2.1)
 Extracts and manufactures the 7 Additional Untapped Clinical & Educational Modalities
 from D:\HABIJABI_FULL:
 1. Multimodal Clinical Image VQA & OSCE Visual Spotters (169 Media Files)
@@ -28,8 +28,8 @@ from typing import List, Dict, Any, Tuple
 if sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
-__version__ = "1.1.0"
-VERSION = "1.1.0"
+__version__ = "1.2.1"
+VERSION = "1.2.1"
 
 CORPUS_ROOT = Path(r"D:\HABIJABI_FULL")
 MEDIA_DIR = CORPUS_ROOT / "02_RAW_MEDIA"
@@ -46,6 +46,20 @@ def configure_workspace(ws: Path):
     PERSONA_DIR = CORPUS_ROOT / "04_PERSONA" if (CORPUS_ROOT / "04_PERSONA").exists() else CORPUS_ROOT / "04_KAWSAR_PERSONA"
     BRIDGE_DIR = CORPUS_ROOT / "05_TEXTBOOK_BRIDGE" if (CORPUS_ROOT / "05_TEXTBOOK_BRIDGE").exists() else CORPUS_ROOT / "05_DAVIDSON_BRIDGE"
     EXPORTS_DIR = CORPUS_ROOT / "08_EXPORTS"
+
+def _md_uri(record_id: str) -> str:
+    """Link to a record's markdown INSIDE the configured workspace (links were hard-coded to file:///D:/HABIJABI_FULL)."""
+    p = (NORMALIZED_DIR / "MARKDOWN" / f"{record_id}.md")
+    try:
+        return p.resolve().as_uri()
+    except ValueError:
+        return p.as_posix()
+
+
+def _has_word(text: str, kw: str) -> bool:
+    """Whole-word keyword test ('gra' must not match 'Graves', 'iv' must not match 'Hypertensive')."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", text) is not None
+
 
 def load_claims() -> List[Dict[str, str]]:
     claims_csv = NORMALIZED_DIR / "TABLES" / "clinical_claims.csv"
@@ -212,12 +226,12 @@ def build_modality_2_curriculum(records: List[Dict[str, Any]], bridge_map: Dict[
         cond = r["primary_condition"]
         text_corpus = (title + " " + domain + " " + cond).lower()
 
-        if any(k in text_corpus for k in t3_keywords):
+        if any(_has_word(text_corpus, k) for k in t3_keywords):
             tier = "Tier 3"
             cadre = "Postgraduate Trainee / FCPS Part II / MD Residency / MRCP UK"
             competency = "Complex Syndromic Differential, Genetic Channelopathies & High-Risk Pharmacotherapy"
             prereq = "Advanced systemic pathophysiology, molecular genetics, and toxic drug interactions"
-        elif any(k in text_corpus for k in t1_keywords):
+        elif any(_has_word(text_corpus, k) for k in t1_keywords):
             tier = "Tier 1"
             cadre = "Intern / House Officer / Foundation Year Doctor"
             competency = "Bedside Emergency Triage, Dynamic Fluid Drop Calculations, Routine Panel Interpretation"
@@ -234,7 +248,7 @@ def build_modality_2_curriculum(records: List[Dict[str, Any]], bridge_map: Dict[
 
         tier_rows.append({
             "record_id": rid,
-            "series_number": r["series_number"],
+            "series_number": r.get("series_number", ""),
             "title": title,
             "clinical_domain": domain,
             "primary_condition": cond,
@@ -248,6 +262,7 @@ def build_modality_2_curriculum(records: List[Dict[str, Any]], bridge_map: Dict[
 
     # Save CSV
     tiers_csv = NORMALIZED_DIR / "TABLES" / "residency_curriculum_tiers.csv"
+    tiers_csv.parent.mkdir(parents=True, exist_ok=True)      # crashed with FileNotFoundError on an unscaffolded workspace
     with tiers_csv.open("w", encoding="utf-8", newline="") as f:
         fieldnames = [
             "record_id", "series_number", "title", "clinical_domain", "primary_condition",
@@ -274,10 +289,10 @@ def build_modality_2_curriculum(records: List[Dict[str, Any]], bridge_map: Dict[
             f.write("|---|---|---|---|---|\n")
             for item in tier_rows:
                 if item["curriculum_tier"] == current_tier:
-                    f.write(f"| [`{item['record_id']}`](file:///D:/HABIJABI_FULL/03_NORMALIZED_CORPUS/MARKDOWN/{item['record_id']}.md) | **{item['title']}** | {item['clinical_domain']} | {item['core_competencies']} | {item['davidson_textbook_bridge']} |\n")
+                    f.write(f"| [`{item['record_id']}`]({_md_uri(item['record_id'])}) | **{item['title']}** | {item['clinical_domain']} | {item['core_competencies']} | {item['davidson_textbook_bridge']} |\n")
             f.write("\n---\n\n")
 
-    print(f"  ✅ Classified 137 cases: Tier 1 ({tier_counts['Tier 1']}), Tier 2 ({tier_counts['Tier 2']}), Tier 3 ({tier_counts['Tier 3']})")
+    print(f"  ✅ Classified {len(records)} cases: Tier 1 ({tier_counts['Tier 1']}), Tier 2 ({tier_counts['Tier 2']}), Tier 3 ({tier_counts['Tier 3']})")
     print(f"  ✅ Saved {tiers_csv}")
     print(f"  ✅ Generated {curr_md}")
 
@@ -482,7 +497,7 @@ def build_modality_4_sbar_handovers(records: List[Dict[str, Any]]):
         f.write("---\n\n")
 
         for card in high_acuity_cases:
-            f.write(f"### 🚨 [{card['id']}] {card['condition']} ([{card['record_id']}](file:///D:/HABIJABI_FULL/03_NORMALIZED_CORPUS/MARKDOWN/{card['record_id']}.md))\n\n")
+            f.write(f"### 🚨 [{card['id']}] {card['condition']} ([{card['record_id']}]({_md_uri(card['record_id'])}))\n\n")
             f.write(f"**S — Situation**:\n{card['situation']}\n\n")
             f.write(f"**B — Background**:\n{card['background']}\n\n")
             f.write(f"**A — Assessment**:\n{card['assessment']}\n\n")
@@ -596,7 +611,7 @@ def build_modality_5_patient_leaflets():
 
         for l in leaflets:
             f.write(f"## [{l['id']}] {l['topic']}\n")
-            f.write(f"- **উৎস কেস**: [`{l['record_id']}`](file:///D:/HABIJABI_FULL/03_NORMALIZED_CORPUS/MARKDOWN/{l['record_id']}.md)\n")
+            f.write(f"- **উৎস কেস**: [`{l['record_id']}`]({_md_uri(l['record_id'])})\n")
             f.write(f"- **উদ্দিষ্ট ব্যক্তি**: {l['target_patient']}\n\n")
             f.write(f"{l['bengali_content']}\n\n")
             f.write("---\n\n")
@@ -849,7 +864,7 @@ def build_modality_7_pharmacovigilance(claims: List[Dict[str, str]]):
         f.write("\n---\n\n")
 
         for m in matrix_rows:
-            f.write(f"### 🛑 [{m['id']}] {m['prescribed_agent']} in {m['forbidden_clinical_context']} ([{m['record_id']}](file:///D:/HABIJABI_FULL/03_NORMALIZED_CORPUS/MARKDOWN/{m['record_id']}.md))\n\n")
+            f.write(f"### 🛑 [{m['id']}] {m['prescribed_agent']} in {m['forbidden_clinical_context']} ([{m['record_id']}]({_md_uri(m['record_id'])}))\n\n")
             f.write(f"- **Consequence**: {m['lethal_adverse_consequence']}\n")
             f.write(f"- **Mechanism**: {m['underlying_pathophysiology']}\n")
             f.write(f"- **Safe Alternative**: {m['safe_clinical_alternative']}\n\n")

@@ -3,7 +3,7 @@ CDSS Unicode, Anti-Mojibake, ISMP Clinical Safety & LaTeX De-Delimiter Engine
 Autonomous pre-flight auditor, in-place sanitizer, and runtime encoding guard.
 """
 
-__version__ = "1.5.2"
+__version__ = "1.6.1"
 
 import os
 import re
@@ -48,13 +48,17 @@ MOJIBAKE_MAP: Dict[str, str] = {
     "Ã—": "x",
     "Ã©": "e",
     "Ã¨": "e",
+    # added in the second sweep (previously neither repaired nor flagged; a sign flip like "âˆ’5" passed the gate)
+    "âˆ’": "-", "â‰ˆ": "~", "Î±": "alpha", "Î²": "beta", "Î³": "gamma", "Î”": "Delta", "Î¼": "mc",
+    "Â½": "1/2", "Â²": "2", "Â³": "3", "Â·": ".", "â€¢": "-", "â€¦": "...",
+    "Ã¶": "o", "Ã¼": "u", "Ã¤": "a", "Ã±": "n", "Ã§": "c",
 }
 
 # Regex for detecting encoding corruptions, invisible artifacts, and raw LaTeX OCR tags
 # BLOCKING: genuine corruption only. Source text is kept verbatim, so printed symbols (µg, ≥) and the
 # pipeline's LaTeX are NOT corruption; they are normalised only in generated output (sanitize_for_llm).
 CORRUPTION_PATTERNS = [
-    r"â‰[¥¤]", r"Â[±µ°]", r"â[€™€˜]", r"â€[“”—–]", r"Ã[—©]", r"\ufffd", r"\u200b", r"\ufeff", r"\u00ad",
+    r"â‰[¥¤ˆ]", r"Â[±µ°½²³·]", r"â[€™€˜]", r"â€[“”—–¢¦]", r"Ã[—©¶¼¤±§]", r"âˆ’", r"Î[±²³”¼]", r"\ufffd", r"\u200b", r"\ufeff", r"\u00ad",
     # Legacy corruption written by guard/preready versions <= 1.3.0 / 1.7.0 (NFKC and \mu bugs), or OCR.
     # Files containing these must be regenerated from source, not patched.
     r"mcg\s*(?:mol|g)\b", r"\b10(?:9|12)/L\b", "\u2044",
@@ -71,13 +75,13 @@ OUTPUT_NORMALISATION_PATTERNS = [
 # textbook/source markdown stays verbatim (lab values such as "Hb 13.0 g/dL" are not doses).
 # Rewrites are applied only to generated output (cleanroom_docx_filter / sanitize_for_llm(rewrite_doses=True)).
 DOSE_UNITS = r"(?:mg|mcg|g|mL|units)"
-NOT_LAB_DENOM = r"(?!\s*/\s*(?:d?L|mL|mmol|h|hr|min)\b)"
+NOT_LAB_DENOM = r"(?!\s*/\s*(?:d?L|mL|mmol|\d+\s*h)\b)"
 ISMP_ADVISORY_PATTERNS = [
     r"\b\d+\.0+\s*" + DOSE_UNITS + r"\b" + NOT_LAB_DENOM,
     r"(?:^|[\s(])\.\d+\s*(?:mg|mcg|g|mL|units|mmol)\b",
-    r"\b(?:Q\.D\.|QD|Q\.O\.D\.|QOD)\b",
-    r"\b\d+\s*(?:IU|I\.U\.)\b",
-    r"\b\d+\s*U\b(?!\s*\/\s*[a-zA-Z])",
+    r"(?<![\w.])(?:Q\.D\.|QD|Q\.O\.D\.|QOD)(?!\w)",
+    r"\b\d+\s*(?:IU\b|I\.U\.(?!\w))",
+    r"\b\d+\s*U\b(?!\s*\/\s*[a-zA-Z])(?![.\-][A-Za-z])",
 ]
 ISMP_ADVISORY_REGEX = re.compile("|".join(ISMP_ADVISORY_PATTERNS + OUTPUT_NORMALISATION_PATTERNS))
 
@@ -86,6 +90,9 @@ SOURCE_MOJIBAKE_MAP: Dict[str, str] = {
     "â‰¥": "≥", "â‰¤": "≤", "Â±": "±", "Âµ": "µ", "Â°": "°",
     "â€™": "\u2019", "â€˜": "\u2018", "â€œ": "\u201c", "â€\x9d": "\u201d",
     "â€”": "\u2014", "â€“": "\u2013", "â†’": "→", "Ã—": "×", "Ã©": "é", "Ã¨": "è",
+    "âˆ’": "\u2212", "â‰ˆ": "≈", "Î±": "α", "Î²": "β", "Î³": "γ", "Î”": "Δ", "Î¼": "μ",
+    "Â½": "½", "Â²": "²", "Â³": "³", "Â·": "·", "â€¢": "•", "â€¦": "…",
+    "Ã¶": "ö", "Ã¼": "ü", "Ã¤": "ä", "Ã±": "ñ", "Ã§": "ç",
 }
 
 
@@ -135,11 +142,18 @@ def clean_clinical_latex(text: str) -> str:
     if not text:
         return ""
 
+    # 0. Powers of ten in math mode: 10$^{9}$ -> 10⁹ (must run before citation rule)
+    _sup0 = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+    text = re.sub(r"(?<![\d.])(10)\s*\$\^\{?\s*(-?\d{1,3})\s*\}?\$",
+                  lambda m: m.group(1) + m.group(2).translate(_sup0), text)
+    text = re.sub(r"\$\^\{\\circ\}\$|\\\(\s*\^\{\\circ\}\s*\\\)|\^\{\\circ\}", "°", text)
+    text = re.sub(r"\$\^\\circ\$", "°", text)
     # 1. Superscript references: \( ^{18} \) or $^{18}$ -> [18]
     text = re.sub(r"\\\(\s*\^\{([0-9,\-\s]+)\}\s*\\\)", r"[\1]", text)
     text = re.sub(r"\$\^\{([0-9,\-\s]+)\}\$", r"[\1]", text)
     text = re.sub(r"\$\^([0-9]+)\$", r"[\1]", text)
-    text = re.sub(r"\$\^\{([^}]+)\}\$", r"[\1]", text)
+    # Other superscripts are ion charges / isotopes, NOT citation numbers: Ca$^{2+}$ -> Ca2+, $^{99m}$Tc -> 99mTc
+    text = re.sub(r"\$\^\{([^}]+)\}\$", r"\1", text)
 
     # 1b. Powers of ten / numeric exponents: 10^{9} or 10^9 -> 10⁹ (never collapse to "109")
     _sup = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
@@ -172,6 +186,9 @@ def clean_clinical_latex(text: str) -> str:
     text = re.sub(r"\\Delta\s*P\b", "Delta P", text)
     text = re.sub(r"\\Delta(?=[^a-zA-Z]|$)", "Delta", text)
     text = re.sub(r"\\rho(?=[^a-zA-Z]|$)", "rho", text)
+    text = re.sub(r"\\circ(?=[^a-zA-Z]|$)", "°", text)
+    text = re.sub(r"\\beta(?=[^a-zA-Z]|$)", "beta", text)
+    text = re.sub(r"\\alpha(?=[^a-zA-Z]|$)", "alpha", text)
     text = re.sub(r"\\rightarrow(?=[^a-zA-Z]|$)", "->", text)
 
     # Convert LaTeX microgram: \mu g, \mu\text{g}, \mu\mathrm{g}, \(\mu\)g, $\mu$g -> mcg
@@ -192,7 +209,13 @@ def clean_clinical_latex(text: str) -> str:
 
     # 6. De-delimit \( ... \) or $ ... $ wrapping comparisons, numbers, or units
     def strip_delimiters(m):
-        inner = m.group(1).strip()
+        raw_inner = m.group(1)
+        nxt = m.string[m.end():m.end() + 1]
+        # "$5 for A vs $10": the closing "$" is really the opening of the next currency amount
+        # (preceded by whitespace and followed by a digit) -> not a math span.
+        if raw_inner != raw_inner.rstrip() and nxt.isdigit():
+            return m.group(0)
+        inner = raw_inner.strip()
         # If inner text contains prose conjunctions or currency phrases (e.g. "$5 to $10"),
         # these are standalone currency amounts or prose, NOT LaTeX math delimiters!
         if re.search(r"\b(?:to|and|or|per|with|between|from)\b", inner, re.IGNORECASE):
@@ -208,7 +231,8 @@ def clean_clinical_latex(text: str) -> str:
     # 7. Clean up leftover basic subscripts: only numeric subscripts (e.g. S_1 -> S1)
     # or explicit braces (V_{max} -> Vmax) to avoid corrupting snake_case words like drug_dosing
     text = re.sub(r"\b([A-Za-z]{1,4})_\{([0-9A-Za-z]+)\}\b", r"\1\2", text)
-    text = re.sub(r"\b([A-Za-z]{1,4})_([0-9]+)\b", r"\1\2", text)
+    # (not file names: page_042.png / fig_3.png keep their underscore)
+    text = re.sub(r"\b([A-Za-z]{1,4})_([0-9]+)\b(?!\.[A-Za-z0-9]{2,4}\b)", r"\1\2", text)
 
     # 8. Proper spacing around comparisons
     text = re.sub(r"(>=|<=|>|<)([0-9])", r"\1 \2", text)
@@ -223,10 +247,11 @@ def apply_ismp_dose_rewrites(text: str) -> str:
     """
     text = re.sub(r"\b(\d+)\.0+\s*(mg|mcg|g|mL|units)\b" + NOT_LAB_DENOM, r"\1 \2", text)
     text = re.sub(r"(^|[\s(])\.(\d+)\s*(mg|mcg|g|mL|units|mmol)\b", r"\g<1>0.\2 \3", text)
-    text = re.sub(r"\b(?:Q\.D\.|QD)\b", "once daily", text)
-    text = re.sub(r"\b(?:Q\.O\.D\.|QOD)\b", "every other day", text)
-    text = re.sub(r"(\d+)\s*(?:IU|I\.U\.)\b", r"\1 units", text)
-    text = re.sub(r"(\d+)\s*U\b(?!\s*\/\s*[a-zA-Z])", r"\1 units", text)
+    text = re.sub(r"(?<![\w.])(?:Q\.D\.|QD)(?!\w)", "once daily", text)
+    text = re.sub(r"(?<![\w.])(?:Q\.O\.D\.|QOD)(?!\w)", "every other day", text)
+    text = re.sub(r"(\d+)\s*(?:IU\b|I\.U\.(?!\w))", r"\1 units", text)
+    # "U" is a dose unit only; "5 U.S. adults", "2 U-wave" are not doses
+    text = re.sub(r"(\d+)\s*U\b(?!\s*\/\s*[a-zA-Z])(?![.\-][A-Za-z])", r"\1 units", text)
     return text
 
 def sanitize_for_llm(text: str, enforce_ismp: bool = True, clean_latex: bool = True,
@@ -369,6 +394,12 @@ def audit_directory(target_dir: Path, include_outputs: bool = False) -> Dict[str
         "advisories": advisories
     }
 
+def looks_non_utf8_text(raw: bytes) -> bool:
+    """UTF-16/32 (BOM) or NUL-bearing data: must never be run through the byte-wise cp1252 repair, which
+    rewrites it as UTF-8 garbage ("ÿþD\\x00o\\x00...")."""
+    return raw.startswith((b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff")) or b"\x00" in raw[:8192]
+
+
 def safe_decode_text(raw_bytes: bytes) -> str:
     """
     Decodes text safely without corrupting valid multi-byte UTF-8 sequences
@@ -399,14 +430,19 @@ def safe_decode_text(raw_bytes: bytes) -> str:
             out.append(ch)
     return "".join(out)
 
-def fix_directory(target_dir: Path, enforce_ismp: bool = True, clean_latex: bool = True) -> int:
-    """Repairs mojibake, strips BOMs, and normalizes files in-place while protecting RAG pipelines and checkpoints."""
+def fix_directory(target_dir: Path, enforce_ismp: bool = True, clean_latex: bool = True, dry_run: bool = False) -> int:
+    """Repairs mojibake, strips BOMs, and normalizes files in-place while protecting RAG pipelines and checkpoints.
+    A directory holding a checkpoint/trust marker is skipped TOGETHER WITH ITS SUBDIRECTORIES. UTF-16/32 and
+    binary-looking files are skipped, never rewritten. dry_run reports what would change and writes nothing.
+    Returns the number of files fixed (or that would be fixed)."""
     fixed_count = 0
+    skipped: List[str] = []
     for root, dirs, files in os.walk(target_dir):
         # Prune excluded directories
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS and d not in NON_TEXT_DIRS and not d.startswith(".")]
-        # Skip directories protected by RAG checkpoint or trust markers
+        # Skip directories protected by RAG checkpoint or trust markers (and everything beneath them)
         if any(f.endswith("_CHECKPOINT.json") or f in PROTECTED_MARKERS for f in files):
+            dirs[:] = []
             continue
 
         for f in files:
@@ -416,21 +452,29 @@ def fix_directory(target_dir: Path, enforce_ismp: bool = True, clean_latex: bool
                 fp = Path(root) / f
                 try:
                     raw = fp.read_bytes()
-                    is_valid_utf8 = True
-                    try:
-                        raw.decode("utf-8")
-                    except UnicodeDecodeError:
-                        is_valid_utf8 = False
-                    text = safe_decode_text(raw)
-                except Exception:
+                except Exception as e:
+                    skipped.append(f"{fp}: unreadable ({e.__class__.__name__})")
                     continue
+                if looks_non_utf8_text(raw):
+                    skipped.append(f"{fp}: UTF-16/32 or binary-looking, not touched")
+                    continue
+                is_valid_utf8 = True
+                try:
+                    raw.decode("utf-8")
+                except UnicodeDecodeError:
+                    is_valid_utf8 = False
+                text = safe_decode_text(raw)
 
                 # enforce_ismp / clean_latex are accepted for CLI compatibility but no longer rewrite source text
                 cleaned = repair_source_text(text)
                 if cleaned != text or raw.startswith(b"\xef\xbb\xbf") or not is_valid_utf8:
-                    fp.write_text(cleaned, encoding="utf-8")
+                    if not dry_run:
+                        fp.write_text(cleaned, encoding="utf-8")
                     fixed_count += 1
+    for s in skipped:
+        print(f"[MOJIBAKE-GUARD] skipped {s}", file=sys.stderr)
     return fixed_count
+
 
 def main():
     parser = argparse.ArgumentParser(description="CDSS Unicode & Anti-Mojibake Guard")
@@ -444,6 +488,7 @@ def main():
     # fix
     p_fix = subparsers.add_parser("fix", help="Repair encoding damage in-place (mojibake, BOM, invisible chars, CP1252 bytes); printed text is kept verbatim")
     p_fix.add_argument("--target-dir", "-t", required=True, help="Path to directory to repair")
+    p_fix.add_argument("--dry-run", action="store_true", help="Report files that would be repaired; write nothing")
     p_fix.add_argument("--enforce-ismp", action="store_true", default=True, help="Deprecated no-op: ISMP conversions apply to generated output only")
     p_fix.add_argument("--clean-latex", action="store_true", default=True, help="Deprecated no-op: LaTeX is cleaned in generated output only")
 
@@ -488,7 +533,7 @@ def main():
             sys.exit(0)
 
     elif args.command == "fix":
-        count = fix_directory(target, enforce_ismp=args.enforce_ismp, clean_latex=args.clean_latex)
+        count = fix_directory(target, enforce_ismp=args.enforce_ismp, clean_latex=args.clean_latex, dry_run=getattr(args, 'dry_run', False))
         print(f"[MOJIBAKE-GUARD] Fixed {count} file(s) in: {target}")
 
     elif args.command == "gate":

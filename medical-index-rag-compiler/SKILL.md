@@ -1,14 +1,14 @@
 ---
 name: medical-index-rag-compiler
-version: 1.2.0
+version: 1.3.1
 description: |
   Autonomous Index Intelligence Compiler for medical textbooks (Davidson, Hurst, Braunwald, Harrison).
   Compiles back-of-the-book index markdown and completed chapter RAG files (*_RAG_Optimised.md) into
   the complete 26-asset index intelligence suite, GraphRAG co-occurrence networks, GBNF grammars,
-  drug safety matrices, 768-triplet validation test scorecards, and turnkey CDSS query routers.
+  a chunk-derived drug-mention matrix, a computed synthetic self-topic retrieval benchmark, and a small lexical CDSS router (query/vignette only).
 ---
 
-# Medical Index RAG Compiler (v1.2.0)
+# Medical Index RAG Compiler (v1.3.1)
 
 Production-grade Autonomous Index Intelligence Compiler for medical textbooks and clinical guidelines. Converts completed chapter RAG outputs (`*_RAG_Optimised.md`) and back-of-the-book index markdown files into a comprehensive, zero-hallucination, sub-millisecond Clinical Decision Support System (CDSS) suite.
 
@@ -88,12 +88,12 @@ When invoked, the compiler executes through 6 deterministic, zero-token local ph
 - Calculates BM25 token salience multipliers into `*_index_salience_bm25_weights.json`.
 
 ### Phase 5: Automated Benchmark Test Harness
-- Synthesizes 768 hard-negative evaluation triplets (`*_rag_eval_triplets.json`).
-- Benchmarks Hit@1, Hit@3, MRR, latency (P50, P90, P99), and token compression.
+- Samples up to N chunks and uses each chunk's own topic as the query (a SYNTHETIC SELF-TOPIC benchmark: an upper bound for lexical retrieval over this catalog, not clinical retrieval quality). Hard negatives are the best-scoring non-gold chunks; ties are scored pessimistically.
+- Computes Hit@1, Hit@3, MRR, hard-negative discrimination and in-process lookup latency (P50/P95) from the built index, writes raw per-query results (`*_benchmark_raw_results.json`) and `BENCHMARK_SCORECARD.md`; exits 1 if targets are missed (override: `--allow-benchmark-fail`). Token compression is not measured.
 - Emits formal `BENCHMARK_SCORECARD.md`.
 
 ### Phase 6: CDSS Router & Skill Scaffold
-- Synthesizes the turnkey `cdss_qa_router.py` ready for clinical queries.
+- Writes a small REAL lexical `cdss_qa_router.py` (`--query`, `--vignette`, `--json`, `--top_k`). `--validate-therapy`, `--outline` and `--diff` are NOT implemented by the generated router and exit 2.
 - Scaffolds a new dedicated `<book>-cdss-navigator` skill definition ready for deployment to `~/.gemini/config/skills/`.
 
 ---

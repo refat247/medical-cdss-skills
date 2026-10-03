@@ -27,6 +27,9 @@ def _resolve_router() -> str:
 ROUTER_PATH = _resolve_router()
 
 
+LAST_RETURNCODE = 0   # exit status of the most recent router call; becomes the CLI exit code
+
+
 class HurstNavigator:
     """Interface to the underlying Hurst CDSS Router engine."""
 
@@ -37,11 +40,25 @@ class HurstNavigator:
         return self.router_path.exists()
 
     def run_router_cli(self, args: List[str]) -> str:
+        """Run the underlying cdss_qa_router.py. Failures are reported, not hidden: a non-zero router exit is
+        surfaced (and becomes this process's exit code), stderr is never swallowed, undecodable bytes are replaced
+        visibly (U+FFFD) instead of silently dropped (errors="ignore" hid encoding corruption), and the word
+        budget is not applied to --json output (truncating it produced invalid JSON)."""
+        global LAST_RETURNCODE
         if not self.router_path.exists():
+            LAST_RETURNCODE = 1
             return f"[ERROR] Router not found at: {self.router_path}"
         cmd = [sys.executable, str(self.router_path)] + args
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-        return res.stdout or res.stderr
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        LAST_RETURNCODE = res.returncode
+        out = res.stdout
+        if res.returncode != 0:
+            out = f"[ERROR] router exited with code {res.returncode}\n{res.stderr.strip()}\n{out}".strip()
+        elif not out and res.stderr:
+            out = res.stderr
+        if "--json" in args:
+            return out
+        return out
 
     def query(self, text: str, compress: bool = False) -> str:
         args = ["--query", text]
@@ -115,4 +132,5 @@ def run_navigator(args: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     main()
+    sys.exit(1 if LAST_RETURNCODE else 0)
 
