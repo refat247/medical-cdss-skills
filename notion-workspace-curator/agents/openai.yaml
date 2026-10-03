@@ -1,13 +1,13 @@
 name: notion-workspace-curator
 display_name: Notion Workspace Curator
-version: 0.5.0
+version: 0.6.0
 description: Audit, redesign and maintain Notion workspaces with canonical routing,
-  evidence/state discipline, reciprocal technical-glossary navigation, native Notion
-  UX, mobile-first hub compression and a thin mobile access/capture layer.
+  artifact-form routing, evidence/state discipline, reciprocal technical-glossary navigation,
+  native Notion UX, mobile-first hub compression and a thin mobile access/capture layer.
 entrypoint: SKILL.md
 status: stable
 metadata:
-  release_date: 2026-09-25
+  release_date: 2026-10-03
   prior_verified_rule_version: 0.4.2
   mobile_layer_state: device-validated
   device_validation: passed-user-confirmed-2026-09-04
@@ -25,7 +25,7 @@ interface:
     databases, archives, navigation, research outputs, mobile access surfaces and
     documentation systems. Use when organizing existing Notion content, consolidating
     research, reducing duplication, improving mobile usability, creating canonical
-    navigation, or applying consistent native Notion UX.
+    navigation, routing written artifacts, or applying consistent native Notion UX.
   icon_small: assets/icon.svg
   icon_large: assets/icon.svg
 metadata_niqs:
@@ -38,6 +38,7 @@ required_files:
 - agents/openai.yaml
 - assets/icon.svg
 - references/evidence-archive-routing.md
+- references/artifact-routing.md
 - references/notion-information-quality-standard.md
 - references/notion-ux-patterns.md
 - references/zero-guesswork-execution-standard.md
