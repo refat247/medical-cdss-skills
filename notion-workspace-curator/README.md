@@ -1,9 +1,9 @@
 # Notion Workspace Curator
 
 **Package:** `notion-workspace-curator`
-**Version:** `0.5.0`
-**Date:** 25 Sep 2026
-**Status:** Stable package source release. NIQS v1.0 is authored and Git-synchronized; runtime installation/activation of v0.5.0 remains a separate fresh-session gate.
+**Version:** `0.6.0`
+**Date:** 3 Oct 2026
+**Status:** Stable package source release. Artifact-form routing is authored on top of NIQS v1.0; runtime installation/activation of v0.6.0 remains a separate fresh-session gate.
 
 ## Purpose
 
@@ -11,19 +11,16 @@ This skill audits, repairs and maintains Notion workspaces as structured knowled
 
 ## What changed in this release
 
-`0.5.0` adds NIQS v1.0 while preserving the verified mobile/access/provenance rules. Historical `0.4.3` promoted the reconciled `0.4.3-rc.2` package after user-confirmed real-device validation. It retains the verified v0.4.1 mobile first-screen rule and the v0.4.2 Mobile Access Layer guidance, reconciles the two divergent `0.4.3-rc.1` builds, and includes:
+`0.6.0` adds a deterministic artifact/writing routing layer without changing NIQS v1.0. The Curator now routes ambiguous pages through **Domain / Ownership → NIQS Page Role → Artifact Form → Canonical Home**, with precedence **existing canonical parent → domain ownership → NIQS Page Role → artifact form**.
 
-- New substantive pages are classified against the technical glossary categories.
-- Relevant source pages link to applicable glossary category pages.
-- Applicable glossary pages link back to each canonical source/control/project page.
-- Descendants are classified independently rather than inheriting parent coverage.
-- Every write is re-fetched and verified in both directions.
-- Reconciliation uses `EXPECTED = VERIFIED BIDIRECTIONALLY LINKED + UNRESOLVED`.
-- Material changes are propagated to the appropriate canonical index or companion page.
-- Timestamped evidence archives are placed under the canonical synthesis/status page or nearest durable research hub.
-- Canonical pages, evidence archives and source-card children receive verified forward and return navigation without rewriting raw evidence.
-- Package identity is declared consistently in `SKILL.md`, this README, the changelog and `agents/openai.yaml`.
+The release also adds:
+- an **existing-router-first** guardrail so a new routing/index page is not created when the canonical router can absorb the rule cleanly;
+- explicit separation of **Page Role** from **Artifact Form**, preventing a competing taxonomy;
+- domain-specific vs cross-domain routing rules for audits, SOPs, guides, prompts, handoffs, learning notes, execution reports and manuscripts;
+- a writing-specific guardrail: being prose is not sufficient reason to route content into a writing area;
+- the detailed reference `references/artifact-routing.md`.
 
+NIQS remains **v1.0**. Content Auditor and Research Method Curator ownership boundaries are unchanged.
 The retained Mobile Access Layer guidance includes:
 
 - Mobile Home should be intent-first rather than a miniature workspace tree.
