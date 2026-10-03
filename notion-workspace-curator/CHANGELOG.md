@@ -15,7 +15,7 @@
 - Existing mobile/access, evidence-archive, duplicate-control, provenance, safe-editing and re-fetch verification rules remain intact.
 
 ### State boundary
-- **Canonical Git source:** this release must be merged to `refat247/medical-cdss-skills` `main` before source state is called canonical.
+- **Canonical Git source:** v0.6.0 is merged to `refat247/medical-cdss-skills` `main` via PR #2 (3 Oct 2026).
 - **Notion mirror:** maintained as a separate readable governance/archive state.
 - **Runtime installation/activation:** NOT VERIFIED by source or Notion state; requires a user-controlled install/update and fresh-session activation test.
 
