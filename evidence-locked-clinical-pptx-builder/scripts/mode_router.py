@@ -1,7 +1,7 @@
 from __future__ import annotations
 import argparse, json, re
 
-MODES=['INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','FINAL_RELEASE','MAINTENANCE']
+MODES=['INSPECT','PATCH','BUILD_STANDARD','BUILD_CASE_BASED','CORPUS_BUILD','DERIVATIVE_BUILD','VISUAL_QA','VISUAL_POLISH','FINAL_RELEASE','MAINTENANCE']
 
 def route(text:str, project_status='active'):
     t=text.lower()
@@ -9,6 +9,7 @@ def route(text:str, project_status='active'):
         return {'mode':'MAINTENANCE','reason':'project is closed; new request must be classified as maintenance'}
     rules=[
         ('FINAL_RELEASE', r'canonical|final release|promot'),
+        ('VISUAL_POLISH', r'beauti|polish|restyle|improve (the )?(visual|look|design)|visual repair|make (it|the deck) look'),
         ('VISUAL_QA', r'visual qa|projector|render.*audit|visual review'),
         ('DERIVATIVE_BUILD', r'derivative|30.?min|45.?min|60.?min|90.?min|audience-specific|local-resource'),
         ('CORPUS_BUILD', r'master case library|case corpus|decision node|exhaustive.*cases'),

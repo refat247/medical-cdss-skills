@@ -27,6 +27,9 @@ projector rule in `SKILL.md` still applies unless a project approves and
 visually validates a denser profile. A visually attractive reference can
 still contain defects; validate every generated slide.
 
+v2.4.0 encodes this density as the opt-in `dense_case_reveal` profile of
+`scripts/visual_polish/` (approval required; see `visual_polish_protocol.md`).
+
 Run `scripts/case_reveal_layout_gate.py` as an early warning screen, then
 render and inspect each final slide. Record renderer identity/version and
 distinguish an alternate-renderer review from native PowerPoint confirmation.

@@ -29,6 +29,7 @@
 6. speaker-note schema
 7. PPTX build
 8. clinical/provenance audit
+8a. optional VISUAL_POLISH (content-locked restyle) + `VISUAL_POLISH_CONTENT_LOCK`
 9. automated structural/mechanical preflight
 10. full render
 11. 100% visual/projector/UI review ledger

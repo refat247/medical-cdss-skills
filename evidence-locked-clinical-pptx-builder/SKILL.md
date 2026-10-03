@@ -1,8 +1,8 @@
 ---
 name: evidence-locked-clinical-pptx-builder
-description: Evidence-locked clinical presentation system with source/correction control, exhaustive decision-node and case-corpus workflows, standard/case-based/derivative modes, slide specification, speaker-note provenance, full-render visual QA, independent promotion, modular indexing, closure, and maintenance governance.
+description: Evidence-locked clinical presentation system with source/correction control, exhaustive decision-node and case-corpus workflows, standard/case-based/derivative modes, slide specification, speaker-note provenance, content-locked visual polish, full-render visual QA, independent promotion, modular indexing, closure, and maintenance governance.
 metadata:
-  version: 2.3.0
+  version: 2.4.0
   schema_version: 3
 ---
 
@@ -21,6 +21,7 @@ At the beginning of every task, select and state one mode and the reason:
 - `CORPUS_BUILD` — approved sources -> decision nodes -> audited/frozen Master Case Library.
 - `DERIVATIVE_BUILD` — create a duration-, audience-, module-, or resource-specific product from frozen canonical artifacts.
 - `VISUAL_QA` — render and visually audit an existing deck without changing clinical evidence.
+- `VISUAL_POLISH` — restyle an already-built, clinically audited deck (presentation only) under the content-lock gate; see section 17A.
 - `FINAL_RELEASE` — run all final acceptance gates and decide canonical promotion.
 - `MAINTENANCE` — closed-project defect repair, source update, new derivative, accessibility change, or archive/export task.
 
@@ -48,7 +49,7 @@ Never reconstruct project state only from conversational memory when project art
 
 ### Pipeline B — Presentation / Artifact
 
-`approved storyboard -> slide-level content specification -> semantic source-binding QA -> prompt semantic QA -> repair-fidelity QA -> visuals/source-figure plan -> speaker-note schema -> PPTX build -> clinical/provenance audit -> mechanical preflight -> 100% rendering -> 100% visual/projector/UI audit -> repair -> 100% rerender -> automated preflight again -> visual re-audit -> independent promotion decision`
+`approved storyboard -> slide-level content specification -> semantic source-binding QA -> prompt semantic QA -> repair-fidelity QA -> visuals/source-figure plan -> speaker-note schema -> PPTX build -> clinical/provenance audit -> [optional VISUAL_POLISH + content lock] -> mechanical preflight -> 100% rendering -> 100% visual/projector/UI audit -> repair -> 100% rerender -> automated preflight again -> visual re-audit -> independent promotion decision`
 
 Keep the pipelines separated so design work cannot mutate frozen clinical evidence and derivative decks can reuse the frozen corpus without restarting research.
 
@@ -364,6 +365,40 @@ Do not solve overflow by blindly shrinking fonts. Preferred repair order:
 5. enlarge/reposition visual;
 6. only then reconsider typography without violating the floor.
 
+## 17A. VISUAL_POLISH — Content-Locked Presentation Restyle
+
+Use when the user wants a built deck to look better without changing content or
+layout logic ("beautify", "polish", "improve the visual"). It runs after
+`clinical_provenance_audit` and before `automated_preflight`. It is presentation
+work only, so section 21 still governs every clinical claim.
+
+1. **Inspect and diagnose first.** Render the built deck, read every contact sheet,
+   open one slide per role at full size, and list concrete defects. Every design
+   change must map to a defect.
+2. **Confirm with the deck owner:** scope (6-slide sample first), profile, COR
+   colour coding and phase colours. Record them in `release_policy.visual_polish`.
+3. **Profiles.** `projector_default` keeps the section 17 floors (body ≥24 pt,
+   source ≥16 pt). `dense_case_reveal` (body 24/20/18 pt for 1/2/3 cards) mirrors the
+   DYS_2026 v1.5 reference and **requires recorded owner approval**. No profile
+   lowers the 16 pt source floor.
+4. **Sample, then roll out by rule:**
+   `python -m scripts.visual_polish.polish BUILT.pptx POLISHED.pptx --profile <p> [--profile-approved-by <name>] [--only ...] --report polish_report.json`.
+   Text is copied run by run. Slide ids/order, layouts/masters and notes are untouched.
+5. **Fail closed.** `SKIPPED` (unrecognised structure) and `SPLIT_REQUIRED` (cannot
+   fit at the floor) slides are left exactly as built. Route `SPLIT_REQUIRED`
+   upstream using the section 17 repair order. Never shrink below the floor and never trim text.
+6. **Gate:** `python -m scripts.visual_polish.verify BUILT.pptx POLISHED.pptx --polish-report polish_report.json --render <dir>`
+   must exit 0 (`VISUAL_POLISH_CONTENT_LOCK`: identity, verbatim text, no
+   additions beyond whitelisted design tokens, notes, chrome, floors, fit, repo
+   preflight). It also writes the render manifest and a blank per-slide visual-review ledger.
+7. **Then continue normally:** sections 18–20 (100% individual review, independent
+   QA). Any repair is a rule change followed by a full re-polish, re-verify and rerender.
+8. **Promotion:** set `visual_polish_applied: true` and `visual_polish_content_lock: PASS`
+   in the gates JSON. `scripts/semantic_promotion_gate.py` blocks a polished deck
+   without that PASS, and it cannot be waived.
+
+Full contract, design system and limits: `docs/visual_polish_protocol.md`.
+
 ## 18. Automated Mechanical / Structural QA
 
 Run automated checks over 100% of slides where technically possible:
@@ -629,6 +664,7 @@ Do not report a clinical deck or skill package as complete unless the relevant g
 - `STRUCTURAL PASS`
 - `CLINICAL/PROVENANCE PASS`
 - `RENDER-UNCERTIFIED`
+- `VISUAL_POLISH_CONTENT_LOCK PASS` (only when polish was applied)
 - `VISUAL PASS — 100% REVIEWED`
 - `INDEPENDENT VISUAL QA PASS` or documented waiver
 - `CANONICAL`

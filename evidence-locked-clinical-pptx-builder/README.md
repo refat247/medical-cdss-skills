@@ -1,4 +1,10 @@
-# Evidence-Locked Clinical PPTX Builder v2.3.0
+# Evidence-Locked Clinical PPTX Builder v2.4.0
+
+v2.4.0 adds an optional, content-locked `VISUAL_POLISH` stage
+(`scripts/visual_polish/`): a rule-based restyle of a built deck with its own
+blocking `VISUAL_POLISH_CONTENT_LOCK` gate. Slides that cannot be restyled
+safely are left as built (`SKIPPED` / `SPLIT_REQUIRED`). See
+`docs/visual_polish_protocol.md`.
 
 v2.3.0 adds a source-derived scenario-to-DECIDE-prompt contract, stricter
 prompt leakage and fragment checks, and an advisory case/reveal geometry
@@ -18,7 +24,7 @@ v2.1.1 is a focused hardening patch: package manifests no longer self-reference,
 
 ## Operating modes
 
-`INSPECT`, `PATCH`, `BUILD_STANDARD`, `BUILD_CASE_BASED`, `CORPUS_BUILD`, `DERIVATIVE_BUILD`, `VISUAL_QA`, `FINAL_RELEASE`, `MAINTENANCE`.
+`INSPECT`, `PATCH`, `BUILD_STANDARD`, `BUILD_CASE_BASED`, `CORPUS_BUILD`, `DERIVATIVE_BUILD`, `VISUAL_QA`, `VISUAL_POLISH`, `FINAL_RELEASE`, `MAINTENANCE`.
 
 The assistant should state the selected mode and reason before execution.
 
@@ -28,7 +34,7 @@ The assistant should state the selected mode and reason before execution.
 locked sources -> independent source-structure/recommendation census -> source-recommendation inventory -> SOURCE_INVENTORY_CERTIFICATION -> exhaustive decision nodes -> SOURCE_EXTRACTION_COMPLETENESS -> extraction audit -> reconciliation -> candidate cases -> case audit/deduplication/coverage -> frozen Master Case Library -> audience architecture -> storyboard/case mapping.
 
 **Pipeline B — Presentation / Artifact**  
-approved storyboard -> slide spec -> source-binding/prompt/repair semantic QA -> visual/notes plan -> PPTX -> clinical audit -> mechanical preflight -> 100% render -> 100% visual/projector QA -> repair -> full rerender/re-audit -> independent promotion.
+approved storyboard -> slide spec -> source-binding/prompt/repair semantic QA -> visual/notes plan -> PPTX -> clinical audit -> [optional content-locked visual polish] -> mechanical preflight -> 100% render -> 100% visual/projector QA -> repair -> full rerender/re-audit -> independent promotion.
 
 ## Installation
 

@@ -1,7 +1,7 @@
 schema_version: 3
 skill:
   name: evidence-locked-clinical-pptx-builder
-  version: 2.3.0
+  version: 2.4.0
 project:
   id: ''
   title: ''
@@ -30,6 +30,12 @@ release_policy:
   block_unresolved_critical_high_semantic_defects: true
   semantic_uncertified_status: SEMANTIC-AUDIT-UNCERTIFIED
   require_source_inventory_certification: true
+  visual_polish:
+    enabled: false
+    profile: projector_default
+    profile_approved_by: ''
+    sample_approved_by: ''
+    content_lock_required_when_enabled: true
 correction_policy:
   enabled: false
   require_explicit_scope: true
@@ -120,10 +126,14 @@ pipelines:
       status: pending
       depends_on:
       - pptx_build
-    - id: automated_preflight
+    - id: visual_polish
       status: pending
       depends_on:
       - clinical_provenance_audit
+    - id: automated_preflight
+      status: pending
+      depends_on:
+      - visual_polish
     - id: full_render_visual_qa
       status: pending
       depends_on:

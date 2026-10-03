@@ -12,7 +12,25 @@ from pathlib import Path
 from PIL import ImageFont
 from pptx import Presentation
 
-FONT = Path('C:/Windows/Fonts/arialbd.ttf')
+def _metric_font():
+    """Portable bold sans metric font (was hard-coded to C:/Windows/Fonts/arialbd.ttf)."""
+    import os, shutil, subprocess
+    cands = [os.environ.get('LAYOUT_GATE_FONT', ''),
+             os.path.join(os.environ.get('WINDIR', 'C:/Windows'), 'Fonts', 'arialbd.ttf'),
+             '/Library/Fonts/Arial Bold.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+             '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+             '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf']
+    for c in cands:
+        if c and Path(c).exists():
+            return Path(c)
+    if shutil.which('fc-match'):
+        out = subprocess.run(['fc-match', '-f', '%{file}', 'Arial:bold'], capture_output=True, text=True).stdout.strip()
+        if out and Path(out).exists():
+            return Path(out)
+    raise FileNotFoundError('no bold sans-serif metric font found; set LAYOUT_GATE_FONT')
+
+
+FONT = _metric_font()
 EMU_PER_INCH = 914400
 PX_PER_INCH = 96
 
