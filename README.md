@@ -1,6 +1,6 @@
 # Medical CDSS & Antigravity Agent Skills
 
-A modular suite of 28 production-grade clinical decision support (CDSS), medical textbook RAG pipelines, clinical presentation systems, knowledge curation tools, and autonomous agent orchestration skills designed for Google Antigravity and medical AI agents.
+A modular suite of 29 production-grade clinical decision support (CDSS), medical textbook RAG pipelines, clinical presentation systems, knowledge curation tools, and autonomous agent orchestration skills designed for Google Antigravity and medical AI agents.
 
 ## Repository Overview
 
@@ -15,7 +15,7 @@ This repository houses verified skills built for multi-textbook internal medicin
 
 ---
 
-## Skills Catalog (28 Skills)
+## Skills Catalog (29 Skills)
 
 ### 1. Clinical Decision Support & Textbook Navigation
 | Skill | Role / Function |
@@ -55,6 +55,7 @@ This repository houses verified skills built for multi-textbook internal medicin
 | **`research-method-curator`** | Design high-integrity research outputs, claim verification, deep research prompts, and anti-hallucination research workflows. |
 | **`humanizer-niqs-bridge`** | Prose-cleanup engine enforcing the Khaled Knowledge OS NIQS preservation boundary for evidence-bearing, clinical, and legal text. |
 | **`humanizer`** | Rewrite AI-sounding text to read naturally like human writing while strictly preserving all facts, claims, and data. |
+| **`mobile-first-google-sheets`** | Design, audit, repair, and QA phone-first Google Sheets workflows with low-friction entry, mobile navigation, validation, performance, protection, and native conversion verification. |
 
 ### 5. Antigravity Agent Protocols, Auditing & Maintenance
 | Skill | Role / Function |
