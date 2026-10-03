@@ -1,0 +1,40 @@
+{
+  "gate": "VISUAL_POLISH_CONTENT_LOCK",
+  "original": "/home/user/workspace/slides/uploads/DYS_2026_Master_Core_v1.5.pptx",
+  "polished": "/tmp/vp/dense.pptx",
+  "content_lock": {
+    "passed": true,
+    "errors": []
+  },
+  "floors_and_fit": {
+    "passed": true,
+    "errors": []
+  },
+  "repo_preflight": {
+    "passed": true,
+    "issues": [],
+    "warning_counts": {
+      "body_runs_below_default_floor": 1511,
+      "text_box_overlap_heuristic": 2954
+    }
+  },
+  "case_reveal_layout_advisory": {
+    "issue_count": 7,
+    "codes": {
+      "TITLE_TEXT_FIT": 1,
+      "BADGE_TEXT_FIT": 6
+    },
+    "error": null
+  },
+  "render": {
+    "status": "RENDERED_REVIEW_PENDING",
+    "renderer": "LibreOffice 25.2.3.2 520(Build:2)",
+    "slides": 193,
+    "dir": "/tmp/vp/dense_render",
+    "rendered_slide_set_sha256": "0709f253f41fe076856d820917325cdbd4bb951bc615855e27e3937c1e68aa5d",
+    "ledger": "/tmp/vp/dense_render/visual_review_ledger.csv",
+    "note": "Fill the ledger slide by slide; render_qa_gate --require-ledger certifies."
+  },
+  "certifies_visual_quality": false,
+  "pass": true
+}
