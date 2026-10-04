@@ -29,4 +29,4 @@ python scripts/orchestrator.py --workspace "D:\HABIJABI_FULL" --never-events "Li
 ```
 
 ## Documentation
-See [SKILL.md](file:///C:/Users/User/.gemini/config/skills/clinical-preceptor-cdss-orchestrator/SKILL.md) for full 13-modality documentation and [CHANGELOG.md](file:///C:/Users/User/.gemini/config/skills/clinical-preceptor-cdss-orchestrator/CHANGELOG.md) for release notes.
+See [SKILL.md](SKILL.md) for full 13-modality documentation and [CHANGELOG.md](CHANGELOG.md) for release notes.
