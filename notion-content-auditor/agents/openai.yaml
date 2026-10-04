@@ -1,16 +1,17 @@
 name: notion-content-auditor
 display_name: Notion Content Auditor
-version: 1.2.1
+version: 1.5.0
 description: Audit substantive Notion knowledge for completeness, accuracy, currency,
   provenance, semantic duplication, contradictions, canonicality, reality alignment,
-  decision propagation, implementation truth, and unresolved gaps.
+  decision propagation, implementation truth, unresolved gaps, and permanent
+  information-freshness maintenance.
 entrypoint: SKILL.md
 status: stable
 default_mode: audit
 metadata:
-  release_date: 2026-09-23
-  package_state: manual_upload_candidate
-  humanizer_baseline: blader/humanizer 3.0.0
+  release_date: 2026-10-04
+  package_state: canonical_git_source
+  niqs_baseline: 1.0
 policy:
   allow_implicit_invocation: true
   products:
@@ -24,8 +25,7 @@ safety:
   require_refetch_after_material_write: true
 interface:
   display_name: Notion Content Auditor
-  short_description: Audit substantive Notion knowledge for semantic correctness,
-    evidence, freshness, canonicality and implementation truth.
+  short_description: Audit substantive Notion knowledge and maintain current truth while preserving historical provenance.
   icon_small: assets/icon.svg
   icon_large: assets/icon.svg
 required_files:
@@ -37,8 +37,17 @@ required_files:
 - references/coverage-and-closure.md
 - references/safe-repair-protocol.md
 - references/prompt-injection-defense.md
+- references/information-freshness-system.md
 - agents/openai.yaml
 - assets/icon.svg
+freshness_mode:
+  enabled: true
+  historical_preservation_required: true
+  previous_current_impact_record_required: true
+  structured_fields_preferred: true
+  multi_database_sql_backbone: false
+  refetch_after_repair: true
+  scheduled_watch_handoff_required: true
 humanizer_finishing_gate:
   enabled: true
   after_semantic_audit_or_repair: true
