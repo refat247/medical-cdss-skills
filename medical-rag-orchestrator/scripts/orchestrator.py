@@ -292,7 +292,6 @@ def cmd_publish_manifest(manifest_path: str, output_dir: str) -> int:
         print(f"[ERROR] Topic manifest not found: {mpath}")
         return 1
 
-    import json
     with open(mpath, "r", encoding="utf-8") as f:
         data = json.load(f)
 
