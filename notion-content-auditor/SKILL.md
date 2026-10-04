@@ -108,7 +108,7 @@ For a central freshness/audit registry, prefer these fields where available:
 Do not bulk-populate values that cannot be supported. Existing historical rows may remain blank until they become decision-relevant.
 
 ### Daily/weekly operating view
-Maintain a compact filtered view such as `Freshness — Needs Review` showing rows that are due, need revalidation, are conflicting, or explicitly need recheck. Sort by `Next Recheck` then risk/last-verified date when possible. This view is the operating queue; heavy cross-database counting is not.
+Maintain a compact filtered view such as `Freshness — Needs Review` that defaults to `Review Due`, `Needs Revalidation`, and `Conflicting`. When a legacy registry already has broad historical `Needs Recheck` flags, expose `Needs Recheck` as a quick filter rather than a default OR condition so old audit debt does not flood the prospective current-freshness queue. Sort by `Next Recheck` then `Last Verified` when possible. This view is the operating queue; heavy cross-database counting is not.
 
 ### Scheduled-watch handoff contract
 A scheduled watch that finds a material delta must:
