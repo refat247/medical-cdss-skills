@@ -1,5 +1,6 @@
 ---
 name: clinical-pptx-builder
+version: 0.2.1
 description: "Create, edit, merge, and audit clinical or academic PowerPoint decks with source-traceable content, geometry-first layouts, and explicit structural, clinical, and render QA. Use for CME, teaching, grand-rounds, journal-club, and other evidence-based medical presentations; do not use as a marketing-deck generator."
 ---
 
