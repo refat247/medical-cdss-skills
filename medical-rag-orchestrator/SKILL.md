@@ -146,13 +146,13 @@ python "C:\Users\User\.gemini\config\skills\medical-rag-orchestrator\scripts\orc
 ## 🛡️ Sub-Skills Inventory & Handover Contracts
 
 This master orchestrator governs the following modular sub-skills:
-- [`cdss-unicode-mojibake-guard`](file:///C:/Users/User/.gemini/config/skills/cdss-unicode-mojibake-guard/SKILL.md): Pre-flight Gate 0 corpus audit, UTF-8 normalization, BOM stripping, and ISMP safety.
-- [`medical-book-split-ocr-organizer`](file:///C:/Users/User/.gemini/config/skills/medical-book-split-ocr-organizer/SKILL.md): Raw PDF split staging and OCR ingestion.
-- [`davidson-ocr-preready`](file:///C:/Users/User/.gemini/config/skills/davidson-ocr-preready/SKILL.md): Table inlining, caption standardization, running header stripping.
-- [`davidson-rag-pipeline-antigravity`](file:///C:/Users/User/.gemini/config/skills/davidson-rag-pipeline-antigravity/SKILL.md): 18-stage chunking, span coverage gates, clinical fidelity checks.
-- [`medical-index-rag-compiler`](file:///C:/Users/User/.gemini/config/skills/medical-index-rag-compiler/SKILL.md): 26-asset index compilation, GBNF grammars, drug safety matrix.
-- [`cdss-retrieval-packager`](file:///C:/Users/User/.gemini/config/skills/cdss-retrieval-packager/SKILL.md): Pruning, relative path patching, multimodal asset preservation, federated search CLI.
-- [`cdss-bridge-note-publisher`](file:///C:/Users/User/.gemini/config/skills/cdss-bridge-note-publisher/SKILL.md): Autonomous Stage 6 Cognitive Bridge Note publisher, Lanczos-4 figure enhancement, and Native Word Card Grid generator.
+- [`cdss-unicode-mojibake-guard`](../cdss-unicode-mojibake-guard/SKILL.md): Pre-flight Gate 0 corpus audit, UTF-8 normalization, BOM stripping, and ISMP safety.
+- [`medical-book-split-ocr-organizer`](../medical-book-split-ocr-organizer/SKILL.md): Raw PDF split staging and OCR ingestion.
+- [`davidson-ocr-preready`](../davidson-ocr-preready/SKILL.md): Table inlining, caption standardization, running header stripping.
+- [`davidson-rag-pipeline-antigravity`](../davidson-rag-pipeline-antigravity/SKILL.md): 18-stage chunking, span coverage gates, clinical fidelity checks.
+- [`medical-index-rag-compiler`](../medical-index-rag-compiler/SKILL.md): 26-asset index compilation, GBNF grammars, drug safety matrix.
+- [`cdss-retrieval-packager`](../cdss-retrieval-packager/SKILL.md): Pruning, relative path patching, multimodal asset preservation, federated search CLI.
+- [`cdss-bridge-note-publisher`](../cdss-bridge-note-publisher/SKILL.md): Autonomous Stage 6 Cognitive Bridge Note publisher, Lanczos-4 figure enhancement, and Native Word Card Grid generator.
 
 ---
 
