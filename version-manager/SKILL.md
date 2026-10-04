@@ -98,5 +98,5 @@ The skill ships with a standalone, zero-dependency Python script at `scripts/bum
 
 ## 4. References
 
-- [Semantic Versioning 2.0.0 Guidelines](file:///C:/Users/User/.gemini/config/skills/version-manager/references/semver_rules.md)
-- [Keep a Changelog Specification](file:///C:/Users/User/.gemini/config/skills/version-manager/references/changelog_spec.md)
+- [Semantic Versioning 2.0.0 Guidelines](references/semver_rules.md)
+- [Keep a Changelog Specification](references/changelog_spec.md)
