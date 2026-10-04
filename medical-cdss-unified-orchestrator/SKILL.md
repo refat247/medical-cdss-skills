@@ -111,10 +111,10 @@ The Unified Orchestrator augments, federates, and routes queries across four ded
 
 | Governed Sub-Skill | Clinical Domain | Handover Contract & Routing |
 | :--- | :--- | :--- |
-| [`harrison-cdss-navigator`](file:///C:/Users/User/.gemini/config/skills/harrison-cdss-navigator/SKILL.md) | Internal Medicine & Multisystem Disorders | Dispatches general medicine queries, complex polypharmacy vignettes, and differential trees via `02_Harrison_22/Index/cdss_qa_router.py`. |
-| [`hurst-cdss-navigator`](file:///C:/Users/User/.gemini/config/skills/hurst-cdss-navigator/SKILL.md) | Cardiovascular Medicine & Hemodynamics | Dispatches ECG findings, valve gradients, landmark cardiology trials (PARADIGM-HF, DAPT), and heart failure safety checks via `03_Hurst_The_Heart_15/Index/cdss_qa_router.py`. |
-| [`kumar-cdss-navigator`](file:///C:/Users/User/.gemini/config/skills/kumar-cdss-navigator/SKILL.md) | Clinical Specialties & Board Examination | Dispatches specialty disease protocols, board review MCQs, and reference intervals via `04_Kumar_and_Clark_11/Index/cdss_qa_router.py`. |
-| [`davidson-rag-pipeline-antigravity`](file:///C:/Users/User/.gemini/config/skills/davidson-rag-pipeline-antigravity/SKILL.md) | General Practice & Curricular Truth | Queries Davidson 25 SQLite CDSS engine (`DAVIDSON_25_CDSS_ENGINE.db`) for baseline primary care truth and clinical calculators. |
+| [`harrison-cdss-navigator`](../harrison-cdss-navigator/SKILL.md) | Internal Medicine & Multisystem Disorders | Dispatches general medicine queries, complex polypharmacy vignettes, and differential trees via `02_Harrison_22/Index/cdss_qa_router.py`. |
+| [`hurst-cdss-navigator`](../hurst-cdss-navigator/SKILL.md) | Cardiovascular Medicine & Hemodynamics | Dispatches ECG findings, valve gradients, landmark cardiology trials (PARADIGM-HF, DAPT), and heart failure safety checks via `03_Hurst_The_Heart_15/Index/cdss_qa_router.py`. |
+| [`kumar-cdss-navigator`](../kumar-cdss-navigator/SKILL.md) | Clinical Specialties & Board Examination | Dispatches specialty disease protocols, board review MCQs, and reference intervals via `04_Kumar_and_Clark_11/Index/cdss_qa_router.py`. |
+| [`davidson-rag-pipeline-antigravity`](../davidson-rag-pipeline-antigravity/SKILL.md) | General Practice & Curricular Truth | Queries Davidson 25 SQLite CDSS engine (`DAVIDSON_25_CDSS_ENGINE.db`) for baseline primary care truth and clinical calculators. |
 
 ---
 
