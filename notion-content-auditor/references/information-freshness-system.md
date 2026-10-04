@@ -53,7 +53,7 @@ Recommended fields:
 | Last Verified | Date | Last date current truth was externally/authoritatively verified |
 | Next Recheck | Date | Next planned revalidation point |
 | Freshness Trigger | Select | Why revalidation was opened |
-| Needs Recheck | Checkbox | Fast operating-queue gate |
+| Needs Recheck | Checkbox | Legacy/general recheck gate and optional queue filter |
 | Evidence State | Select | Current evidence sufficiency/conflict |
 | Canonical State / Duplicate Review | Select | Canonicality and duplicate handling |
 | Finding Summary | Text | Compact current state, impact and residual uncertainty |
@@ -80,11 +80,12 @@ Do not bulk-fill unsupported values. Historical rows may remain blank until they
 
 Maintain a compact view named `Freshness — Needs Review`.
 
-Include rows when any of the following is true:
-- `Needs Recheck` is checked;
+Default-filter the view to:
 - `Freshness State` = `Review Due`;
 - `Freshness State` = `Needs Revalidation`;
 - `Freshness State` = `Conflicting`.
+
+Expose `Needs Recheck` as a **quick filter**, not as a default OR condition when a legacy registry already has broad historical recheck flags. This prevents old audit debt from flooding the prospective current-freshness queue while still making legacy rows one click away when deliberately reviewing them.
 
 Show at minimum:
 - Page / Scope
