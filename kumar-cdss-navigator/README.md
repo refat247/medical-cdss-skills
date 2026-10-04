@@ -1,4 +1,4 @@
-# Kumar & Clark CDSS Navigator (v1.0.1)
+# Kumar & Clark CDSS Navigator (v1.0.2)
 
 Production-grade Clinical Decision Support System (CDSS) and Index Retrieval Engine grounded directly in the 11th Edition of *Kumar and Clark's Clinical Medicine (2026)*.
 

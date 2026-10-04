@@ -1,6 +1,6 @@
 ---
 name: cdss-retrieval-packager
-version: 1.4.0
+version: 1.5.1
 description: |
   Autonomous Packager, Pruner, Path Patcher, and Federated Search Orchestrator for medical textbook
   Clinical Decision Support Systems (CDSS). Extracts pure retrieval assets (*_RAG_Optimised.md, *_chunks.md,
@@ -8,7 +8,7 @@ description: |
   generates federated search CLIs, and verifies sub-millisecond retrieval health.
 ---
 
-# CDSS Retrieval Packager (v1.4.0)
+# CDSS Retrieval Packager (v1.5.1)
 
 Production-grade utility for compiling, pruning, and validating lean, high-performance **CDSS Retrieval Packages** from compiled medical textbook libraries (*Davidson*, *Harrison*, *Hurst*, *Braunwald*, *Kumar & Clark*).
 

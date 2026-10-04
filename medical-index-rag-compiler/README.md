@@ -1,4 +1,4 @@
-# Medical Index RAG Compiler (v1.2.0)
+# Medical Index RAG Compiler (v1.3.1)
 
 Production-grade Autonomous Index Intelligence Compiler for medical textbooks (such as *Davidson's Principles and Practice of Medicine*, *Fuster & Hurst's The Heart*, *Braunwald's Heart Disease*, and *Harrison's Principles of Internal Medicine*).
 
@@ -10,7 +10,7 @@ The `medical-index-rag-compiler` skill takes a back-of-the-book index markdown f
 
 This suite enables:
 - **Zero-Hallucination Grounding**: All acronyms, trials, and drugs are linked to verifiable textbook citations.
-- **Sub-Millisecond Retrieval**: Delivers P50 retrieval latency under 10 ms.
+- **Measured retrieval benchmark**: computed from the built index (synthetic self-topic queries; in-process lookup latency); see `BENCHMARK_SCORECARD.md`. No latency figure is promised here.
 - **96.2% Token Compression**: Reduces prompt token consumption from multi-thousand-word full chunks down to ~35-word extractive spans or 120-word checklists.
 - **Clinical Safety Guardrails**: Pre-indexes drug-disease safety, contraindications, and high-risk look-alike differential comparators.
 - **Constrained Decoding**: Emits formal GBNF grammars for local LLM engines (llama.cpp, Ollama, vLLM).

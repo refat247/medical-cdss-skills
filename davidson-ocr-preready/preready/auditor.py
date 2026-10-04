@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 SKILL_NAME = "davidson-ocr-preready"
-SKILL_VERSION = "1.6.0"
+from preready import __version__ as SKILL_VERSION  # single source of truth (was a stale duplicate: 1.6.0)
 
 
 def _format_provenance_header(source_path: str) -> str:
@@ -18,6 +18,15 @@ def _format_provenance_header(source_path: str) -> str:
         f"  source_path: \"{source_path}\"\n"
         f"-->\n\n"
     )
+
+
+def _completeness(table_audits, image_audits) -> str:
+    """Computed, not hard-coded: inlined tables + copied figures over everything the chapter referenced."""
+    total = len(table_audits) + len(image_audits)
+    if not total:
+        return "n/a (no tables or figures referenced)"
+    done = sum(1 for t in table_audits if t["status"] == "INLINED") + sum(1 for i in image_audits if i["copied"])
+    return f"{100 * done // total}% ({done}/{total})"
 
 
 def write_audit_reports(
@@ -109,7 +118,7 @@ def write_audit_reports(
         f"- **Decoupled Raster Figures**: {sum(1 for img in image_audits if img['copied'])} / {len(image_audits)}",
         f"- **Tabular Figures Inlined**: {len(tabular_figs)}",
         f"- **Assets Store**: `{assets_dir}`",
-        f"- **Visual Asset Completeness**: 100%",
+        f"- **Visual Asset Completeness**: {_completeness(table_audits, image_audits)}",
         f"",
         f"## Handover Contract with davidson-rag-pipeline-antigravity",
         f"The generated `{prefix}.pdf.markdown_inlined.md` is 100% compliant with the downstream RAG pipeline:",

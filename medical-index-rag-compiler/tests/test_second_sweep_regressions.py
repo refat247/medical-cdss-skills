@@ -1,0 +1,170 @@
+"""Regression tests for the second audit sweep (skill_audits/SECOND_SWEEP.md 2.7-2.9, I1-I3)."""
+import json
+import os
+import subprocess
+import sys
+
+import pytest
+
+from scripts.compiler import CompilerConfig, MedicalBookIndexCompiler
+
+CHUNKS = (
+    "---\nchunk_id: C-1\nchunk_level: 2\ntopic_primary: \"Atrial fibrillation\"\nsemantic_type: management_step\n---\n"
+    "AF and MI with T2DM; HbA1c 8%. Warfarin or apixaban is used for stroke prevention.\n\n"
+    "---\nchunk_id: C-2\nchunk_level: 2\ntopic_primary: \"Parkinson's disease\"\nsemantic_type: clinical_feature\n---\n"
+    "Tremor and rigidity. Levodopa is first line.\n\n"
+    "---\nchunk_id: C-3\nchunk_level: 2\ntopic_primary: \"Heart failure\"\nsemantic_type: drug_info\n---\n"
+    "Sacubitril/valsartan reduces mortality; furosemide relieves congestion.\n"
+)
+
+
+def build(tmp_path, chunks=CHUNKS, **cfg_kw):
+    corpus = tmp_path / "corpus" / "CH01"
+    corpus.mkdir(parents=True)
+    (corpus / "CH01_RAG_Optimised.md").write_text(chunks, encoding="utf-8")   # NOTE: starts directly with '---'
+    (corpus / "CH01_CHECKPOINT.json").write_text(json.dumps({"stage_completions": {
+        "6": {"status": "COMPLETED"}, "8": {"status": "COMPLETED", "trusted_for_downstream_use": True}}}), encoding="utf-8")
+    idx = tmp_path / "index.md"
+    idx.write_text("# Index\nAtrial fibrillation, 10\nHeart failure, 20\n", encoding="utf-8")
+    out = tmp_path / "out"
+    cfg = CompilerConfig(book_title="Test Book", edition="1", corpus_root=str(tmp_path / "corpus"),
+                         index_markdown_path=str(idx), output_dir=str(out), asset_prefix="t", **cfg_kw)
+    return MedicalBookIndexCompiler(cfg), out
+
+
+def test_first_chunk_of_a_file_starting_with_frontmatter_is_catalogued(tmp_path):
+    comp, out = build(tmp_path, skip_eval=True)
+    comp.run_all()
+    cat = json.loads((out / "t_chunks_master_catalog.json").read_text(encoding="utf-8"))
+    assert [c["chunk_id"] for c in cat] == ["C-1", "C-2", "C-3"]
+
+
+def test_inverted_index_keeps_acronyms_and_alphanumerics(tmp_path):
+    comp, out = build(tmp_path, skip_eval=True)
+    comp.run_all()
+    inv = json.loads((out / "t_inverted_chunk_index.json").read_text(encoding="utf-8"))
+    for tok in ("af", "mi", "t2dm", "hba1c"):
+        assert tok in inv, tok
+
+
+def test_apostrophe_topic_is_not_truncated(tmp_path):
+    comp, out = build(tmp_path, skip_eval=True)
+    comp.run_all()
+    cat = json.loads((out / "t_chunks_master_catalog.json").read_text(encoding="utf-8"))
+    assert any(c["topic"] == "Parkinson's disease" for c in cat)
+
+
+def test_dry_run_writes_nothing(tmp_path):
+    comp, out = build(tmp_path, dry_run=True)
+    comp.run_all()
+    assert not out.exists() or not any(out.iterdir())
+
+
+def test_scorecard_is_computed_not_hard_coded(tmp_path):
+    comp, out = build(tmp_path)
+    man = comp.run_all()
+    card = (out / "BENCHMARK_SCORECARD.md").read_text(encoding="utf-8")
+    assert "78.4%" not in card and "6.54 ms" not in card and "95.8%" not in card
+    assert "SELF-TOPIC" in card.upper()
+    raw = json.loads((out / "t_benchmark_raw_results.json").read_text(encoding="utf-8"))
+    assert raw["queries"] and "latency_ns" in raw["queries"][0]
+    assert man["benchmark_verdict"] in ("PASS", "FAIL")
+
+
+def test_safety_matrix_is_derived_from_chunks_not_boilerplate(tmp_path):
+    comp, out = build(tmp_path, skip_eval=True)
+    comp.run_all()
+    m = json.loads((out / "t_drug_disease_safety_matrix.json").read_text(encoding="utf-8"))["matrix"]
+    assert "Cardiovascular pharmacotherapy" not in json.dumps(m)
+    assert m["warfarin"]["matches_count"] == 1 and m["warfarin"]["chunk_ids"] == ["C-1"]
+    assert m["metformin"]["matches_count"] == 0
+
+
+def test_generated_router_really_retrieves_and_refuses_what_it_cannot_do(tmp_path):
+    comp, out = build(tmp_path, skip_eval=True)
+    comp.run_all()
+    router = out / "cdss_qa_router.py"
+    r = subprocess.run([sys.executable, str(router), "--query", "levodopa tremor", "--json"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    hits = json.loads(r.stdout)["results"]
+    assert hits and hits[0]["chunk_id"] == "C-2"
+    r2 = subprocess.run([sys.executable, str(router), "--validate-therapy", "warfarin"], capture_output=True, text=True)
+    assert r2.returncode != 0 and "not implemented" in (r2.stdout + r2.stderr).lower()
+
+
+def test_router_template_exposes_packager_class_interface():
+    from scripts.compiler import ROUTER_TEMPLATE
+    ns = {"__name__": "gen_router", "__file__": __file__}
+    exec(compile(ROUTER_TEMPLATE.replace("__TITLE__", "T"), "router", "exec"), ns)
+    assert hasattr(ns["CDSSRouter"], "retrieve_chunks")
+    assert ns["HarrisonCDSSRouter"] is ns["CDSSRouter"]
+
+
+def test_trailing_chunk_divider_heading_is_not_in_body():
+    import re
+    body = "text of chunk\n\n### Chunk 2 of 5\n"
+    out = re.sub(r"(?:\r?\n)+#{1,6}[ \t]+Chunk\b[^\n]*\s*$", "", body.strip())
+    assert out == "text of chunk"
+
+
+def test_duplicate_acronym_keeps_every_expansion(tmp_path):
+    """M22: 'PE' used to keep only the last expansion."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nPulmonary embolism (PE), 10\nPre-eclampsia (PE), 20\nPulmonary embolism (PE), 30\n", encoding="utf-8")
+    comp.run_all()
+    syn = json.loads((out / "cardiology_synonyms_and_acronyms.json").read_text(encoding="utf-8"))
+    assert syn["PE"]["canonical_terms"] == ["Pulmonary embolism", "Pre-eclampsia"]
+
+
+def test_page_anchors_ignore_digits_inside_terms(tmp_path):
+    """M21: 'HbA1c' used to yield page 1 / token '1c'; real locators must still parse."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text("# Index\nHbA1c, 12, 14-16, 20t, 21f\nSGLT2 inhibitors, 30\n", encoding="utf-8")
+    comp.run_all()
+    anchors = json.loads((out / "t_typographical_anchors.json").read_text(encoding="utf-8"))
+    got = {(a.get("page") or a.get("page_start"), a["anchor_type"]) for a in anchors}
+    assert got == {("14", "page_interval"), ("20", "table_anchor"), ("21", "figure_anchor")}
+
+
+def test_lowercase_initial_acronym_term_is_a_primary_entry(tmp_path):
+    """M20: 'eGFR' was filed as a sub-entry of the preceding term."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nAtrial fibrillation, 10\nin heart failure, 11\neGFR in, 80\nin CKD, 81\n", encoding="utf-8")
+    comp.run_all()
+    h = json.loads((out / "index_concept_hierarchy.json").read_text(encoding="utf-8"))
+    assert h["Atrial fibrillation, 10"] == ["in heart failure, 11"]
+    assert "eGFR in, 80" in h and h["eGFR in, 80"] == ["in CKD, 81"]
+
+
+def _extra_chapter(tmp_path, folder, name, chunk_id):
+    d = tmp_path / "corpus" / folder
+    d.mkdir(parents=True)
+    (d / f"{name}_RAG_Optimised.md").write_text(
+        f"---\nchunk_id: {chunk_id}\nchunk_level: 2\ntopic_primary: \"Anaemia\"\nsemantic_type: clinical_feature\n---\nPallor.\n",
+        encoding="utf-8")
+    (d / f"{name}_CHECKPOINT.json").write_text(json.dumps({"stage_completions": {
+        "6": {"status": "COMPLETED"}, "8": {"status": "COMPLETED", "trusted_for_downstream_use": True}}}), encoding="utf-8")
+
+
+def test_path_filter_matches_whole_segments_only(tmp_path):
+    """M26: 'unbundled_cases' was dropped because it contains 'bundle'; 'audit_copy' must still be dropped."""
+    comp, out = build(tmp_path, skip_eval=True)
+    _extra_chapter(tmp_path, "unbundled_cases", "CH02", "C-keep")
+    _extra_chapter(tmp_path, "audit_copy", "CH03", "C-drop")
+    comp.run_all()
+    cat = json.loads((out / "t_chunks_master_catalog.json").read_text(encoding="utf-8"))
+    ids = {c["chunk_id"] for c in cat}
+    assert "C-keep" in ids and "C-drop" not in ids
+
+
+def test_bm25_weights_skip_stopwords_and_discount_common_words(tmp_path):
+    """M25: weights were a flat 3.0 for every word, including 'see'/'the'."""
+    comp, out = build(tmp_path, skip_eval=True)
+    (tmp_path / "index.md").write_text(
+        "# Index\nDisease of the heart, 1\nDisease of the liver, 2\nDisease of the lung, 3\nApixaban, 4\n", encoding="utf-8")
+    comp.run_all()
+    w = json.loads((out / "t_index_salience_bm25_weights.json").read_text(encoding="utf-8"))
+    assert "the" not in w
+    assert w["apixaban"] > w["disease"]

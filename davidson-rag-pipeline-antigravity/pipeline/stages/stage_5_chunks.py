@@ -6,6 +6,7 @@ Encapsulates:
 """
 import io
 import os
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 import re
 import sys
 from collections import Counter
@@ -27,7 +28,7 @@ def run_stage_5_4_autolink(chunk_path: str, out_dir: str, prefix: str) -> dict:
         return {"status": "skipped", "reason": "already complete"}
 
     text = open(chunk_path, encoding="utf-8").read()
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", text, re.DOTALL)
+    blocks = split_chunk_blocks(text)
 
     id_to_disease = {}
     for b in blocks:
@@ -99,6 +100,27 @@ def run_stage_5_4_autolink(chunk_path: str, out_dir: str, prefix: str) -> dict:
     return {"linked_chunks": len(id_to_disease)}
 
 
+def add_coverage_fields(block, scattered_notes):
+    """Adds coverage_status / gap_note frontmatter. The note is written through a function replacement and
+    escaped (the old f-string replacement crashed on a backslash -- re.error "bad escape" --, expanded "\\1",
+    and wrote an unescaped quote that broke the frontmatter)."""
+    if re.search(r"^coverage_status:", block, re.M):
+        return block
+    cid_m = re.search(r"chunk_id:\s*(.+)", block)
+    cid = cid_m.group(1).strip() if cid_m else ""
+    if cid in scattered_notes:
+        status, note = "partial", scattered_notes[cid]
+    else:
+        status, note = "complete", ""
+    note_esc = note.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+    return re.sub(
+        r"(chunk_level:\s*\d+\n)",
+        lambda m: f'{m.group(1)}coverage_status: {status}\ngap_note: "{note_esc}"\n',
+        block,
+        count=1,
+    )
+
+
 def run_stage_5(
     chunk_path: str,
     out_dir: str,
@@ -116,26 +138,10 @@ def run_stage_5(
         scattered_notes = {}
 
     text = open(chunk_path, encoding="utf-8").read()
-    blocks = re.findall(r"(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)", text, re.DOTALL)
+    blocks = split_chunk_blocks(text)
     l2 = [b.strip() for b in blocks if re.search(r"chunk_level:\s*2", b)]
 
-    def add_coverage_fields(block):
-        if re.search(r"^coverage_status:", block, re.M):
-            return block
-        cid_m = re.search(r"chunk_id:\s*(.+)", block)
-        cid = cid_m.group(1).strip() if cid_m else ""
-        if cid in scattered_notes:
-            status, note = "partial", scattered_notes[cid]
-        else:
-            status, note = "complete", ""
-        return re.sub(
-            r"(chunk_level:\s*\d+\n)",
-            rf'\1coverage_status: {status}\ngap_note: "{note}"\n',
-            block,
-            count=1,
-        )
-
-    l2 = [add_coverage_fields(b) for b in l2]
+    l2 = [add_coverage_fields(b, scattered_notes) for b in l2]
 
     prov_hdr = format_markdown_provenance_header(chunk_path, stage_name="5")
     header = (

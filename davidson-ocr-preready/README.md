@@ -1,4 +1,4 @@
-# davidson-ocr-preready (v1.7.5)
+# davidson-ocr-preready (v1.7.7)
 
 Automated Pre-Ready Inliner and Multi-Modal Asset Normalizer for raw OCR outputs of Davidson's Principles and Practice of Medicine (25th Edition) and Clinical Practice Guidelines (ADA, KDIGO, ESC, NICE).
 

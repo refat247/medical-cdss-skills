@@ -3,13 +3,12 @@ SKILL.md's inline block for the same testability reason as stage_3_reaudit.
 Regex/threshold logic unchanged from the original — extraction, not rewrite.
 """
 import re
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 
 COVERAGE_THRESHOLD = 0.90
 
 
-def _body_of(block):
-    parts = block.split('---\n')
-    return parts[2].strip() if len(parts) >= 3 else ''
+from pipeline.stages.chunk_blocks import block_body as _body_of   # (the old split('---\\n') cut bodies at the first '---')
 
 
 def _clean_sentences(body):
@@ -30,7 +29,7 @@ def _clean_sentences(body):
 def compute_coverage_gaps(chunks_text, threshold=COVERAGE_THRESHOLD):
     """Same logic as the original SKILL.md Stage 4.5c inline block. Returns
     {l1_checked, gaps: [...], verdict}."""
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
 
     l1_chunks, l2_bodies = [], []
     for b in blocks:
@@ -61,6 +60,11 @@ def compute_coverage_gaps(chunks_text, threshold=COVERAGE_THRESHOLD):
             gaps.append({**l1, 'coverage_pct': round(pct * 100, 1), 'excerpt': uncovered[:100]})
 
     verdict = "PASS" if not gaps else "BLOCKING FAIL"
+    if not l1_chunks:
+        # Nothing to check is not a pass: an empty/failed Stage 4B used to clear this gate.
+        gaps.append({"id": "<none>", "topic": "", "source_lines": "", "coverage_pct": 0.0,
+                     "excerpt": "no L1 chunks found in the chunks file -- nothing was verified"})
+        verdict = "BLOCKING FAIL"
     return {"l1_checked": len(l1_chunks), "gaps": gaps, "verdict": verdict}
 
 

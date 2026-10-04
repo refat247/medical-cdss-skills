@@ -39,8 +39,21 @@ def sync_chapter_assets(source_path: str, out_dir: str) -> None:
         shutil.copytree(src_assets, out_assets, dirs_exist_ok=True)
 
 
+def resolve_legacy_prefix(out_dir: str, prefix: str) -> str:
+    """derive_chapter_info now keeps the full chapter slug. If this out_dir already holds exactly one checkpoint whose
+    prefix is a leading part of the new prefix (the old, truncated slug), keep using it so resume does not restart."""
+    import glob
+    if os.path.exists(os.path.join(out_dir, f"{prefix}_CHECKPOINT.json")):
+        return prefix
+    legacy = [os.path.basename(p)[:-len("_CHECKPOINT.json")]
+              for p in glob.glob(os.path.join(out_dir, "*_CHECKPOINT.json"))]
+    legacy = [l for l in legacy if l and prefix.startswith(l)]
+    return legacy[0] if len(legacy) == 1 else prefix
+
+
 def derive_chapter_info(source_path: str) -> dict:
-    basename = os.path.basename(source_path)
+    # Split on both separators so Windows-style paths work on POSIX too.
+    basename = re.split(r"[\\/]", source_path.rstrip("\\/"))[-1]
     # Strip any leading upload / file-id prefix (e.g. 12345678_Davidson_25_...)
     clean_name = re.sub(r"^[a-fA-F0-9\-]{6,}_", "", basename)
     
@@ -52,8 +65,8 @@ def derive_chapter_info(source_path: str) -> dict:
 
     m = (
         re.search(r"Davidson_25_(\d+)_(.+?)\.pdf", source_path) or
-        re.search(r"Davidson_25_Ch(\d+)_(.+?)(?:_|$|\.)", clean_name) or
-        re.search(r"Davidson_25_(\d+)_(.+?)(?:_|$|\.)", clean_name)
+        re.search(r"Davidson_25_Ch(\d+)_(.+?)(?:\.pdf|\.markdown|\.md|$)", clean_name) or
+        re.search(r"Davidson_25_(\d+)_(.+?)(?:\.pdf|\.markdown|\.md|$)", clean_name)
     )
     m_harrison = (
         re.search(r"Harrison_22_PART[_\-\s]*(\d+)[_\-\s]*(.*?)(?:\.pdf|\.markdown|$)", clean_name, re.IGNORECASE) or
@@ -95,6 +108,7 @@ def derive_chapter_info(source_path: str) -> dict:
         "therapeutics", "pharmacol", "cardiol", "cardio", "infectious",
         "respiratory", "gastro", "nephrol", "endocrin",
         "haematol", "oncol", "rheumatol", "dermatol", "dengue",
+        "prescrib", "poison", "toxicol",
     ]
     is_pharma = any(k in ch_display.lower() for k in pharma_keywords)
     return {
@@ -105,6 +119,26 @@ def derive_chapter_info(source_path: str) -> dict:
         "is_pharma": is_pharma,
         "doc_archetype": doc_archetype,
     }
+
+
+_STAGE_ALIASES = {"45": "4.5", "45b": "4.5b", "45c": "4.5c", "45d": "4.5d", "46": "4.6", "47": "4.7",
+                  "52": "5.2", "53": "5.3", "54": "5.4"}
+
+
+def _blocked_predecessors(stage: str, out_dir: str, prefix: str):
+    """Earlier stages whose checkpoint entry exists but is not COMPLETED (BLOCKED / FAILED / IN_PROGRESS / STALE).
+    Stages that never ran are not listed (individual stage runners may be used out of a fresh checkpoint)."""
+    from pipeline.checkpoint_utils import STAGE_ORDER, read_checkpoint
+    key = _STAGE_ALIASES.get(stage.lower(), stage.lower())
+    if key not in STAGE_ORDER:
+        return []
+    try:
+        cp, _ = read_checkpoint(out_dir, prefix)
+    except Exception:
+        return []
+    sc = cp.get("stage_completions", {})
+    return [s for s in STAGE_ORDER[:STAGE_ORDER.index(key)]
+            if isinstance(sc.get(s), dict) and sc[s].get("status") != "COMPLETED"]
 
 
 def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str = None, force: bool = False, auto_adjudicate: bool = False, use_llm: bool = False) -> dict:
@@ -124,8 +158,15 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         return {"status": "ERROR", "stage": stage, "message": f"Asset sync from chapter assets/ failed: {e}"}
 
     info = derive_chapter_info(source_path)
-    prefix = prefix or info["prefix"]
+    prefix = prefix or resolve_legacy_prefix(out_dir, info["prefix"])
     stage = stage.lower()
+
+    if not force:
+        blockers = _blocked_predecessors(stage, out_dir, prefix)
+        if blockers:
+            msg = f"predecessor stage(s) not COMPLETED: {blockers}; fix/re-run them first (or --force)"
+            print(f"Stage {stage} refused: {msg}")
+            return {"status": "BLOCKED", "stage": stage, "reason": msg}
 
     rep_path = os.path.join(out_dir, f"{prefix}_REPAIRED_S2.md")
     chunk_path = os.path.join(out_dir, f"{prefix}_chunks.md")
@@ -214,6 +255,9 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
     elif stage == "4b":
         from pipeline.stages.stage_4_parse import run_stage_4b
         res = run_stage_4b(rep_path, out_dir, prefix)
+        if res.get("blocked"):
+            print(f"Stage 4B -> BLOCKED: {res.get('reason')}")
+            return {"status": "BLOCKED", "stage": "4b", "reason": res.get("reason")}
         print(f"Stage 4B -> {res.get('l1_count')} L1 chunks, {res.get('l2_count')} L2 chunks")
         return {"status": "COMPLETED", "stage": "4b", "l1_count": res.get("l1_count"), "l2_count": res.get("l2_count")}
 
@@ -315,8 +359,6 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
 
         if use_llm:
             print("      [STAGE 4.6] Opt-in LLM verification enabled (--use-llm). Calling model API...")
-            from pipeline.stage_4_6_gemini_verification import stage_4_with_verification
-            from pipeline.stages.stage_4_6_decision import decide_checkpoint_action
             final, meta = stage_4_with_verification(chunks_data, rep_text, levels=(2,))
         else:
             print("      [STAGE 4.6] Running zero-token deterministic offline clinical adjudication...")
@@ -375,6 +417,11 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         with open(log_path, "w", encoding="utf-8") as f:
             f.write(remap_log_content.replace("Status: success", f"Status: {action}"))
 
+        # Persist HOW the review was done, so a later reader can tell an LLM/human review from the
+        # offline title-rule pass (the checkpoint used to say only "COMPLETED").
+        decision_metadata["verification_method"] = meta.get("verification_method", "llm_gemini" if use_llm else "unknown")
+        decision_metadata["independent_verification"] = bool(meta.get("independent_verification", use_llm))
+
         if action == "complete":
             with open(chunk_path, "w", encoding="utf-8") as f:
                 f.write(final)
@@ -382,7 +429,6 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
             print(f"Stage 4.6 -> {log_path} | {meta.get('chunks_corrected', 0)} corrected | action={action}")
             return {"status": "COMPLETED", "stage": "4.6", "corrected": meta.get("chunks_corrected", 0), "action": action}
         elif action in ("pending_manual", "review_incomplete"):
-            from pipeline.checkpoint_utils import mark_stage_in_progress
             mark_stage_in_progress(checkpoint, checkpoint_path, "4.6", output_file=os.path.basename(log_path), **decision_metadata)
             print(f"Stage 4.6 -> {log_path} | {meta.get('chunks_corrected', 0)} corrected | action={action} (manual review pending)")
             return {"status": "PENDING_MANUAL", "stage": "4.6", "corrected": meta.get("chunks_corrected", 0), "action": action}
@@ -431,10 +477,16 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         count = 0
         if os.path.exists(scattered_json):
             try:
-                s_data = json.load(open(scattered_json, encoding="utf-8"))
+                with open(scattered_json, encoding="utf-8") as _f:
+                    s_data = json.load(_f)
                 count = len(s_data.get("data", {}))
-            except Exception:
-                pass
+            except Exception as e:
+                # an unreadable evidence file used to be swallowed and the stage still COMPLETED with count 0
+                print(f"Stage 5.2 FAILED: cannot parse {os.path.basename(scattered_json)}: {e}")
+                return {"status": "FAILED", "stage": "5.2", "message": f"unparseable {os.path.basename(scattered_json)}: {e}"}
+        elif (checkpoint.get("stage_completions", {}).get("4.7") or {}).get("status") == "COMPLETED":
+            print(f"Stage 5.2 FAILED: Stage 4.7 completed but {os.path.basename(scattered_json)} is missing")
+            return {"status": "FAILED", "stage": "5.2", "message": f"{os.path.basename(scattered_json)} missing after Stage 4.7"}
         mark_stage_complete(checkpoint, checkpoint_path, "5.2", scattered_candidates=count)
         print(f"Stage 5.2 -> Tier 2 synthesis evaluated ({count} scattered candidates)")
         return {"status": "COMPLETED", "stage": "5.2", "scattered_candidates": count}
@@ -448,10 +500,16 @@ def execute_stage(stage: str, source_path: str, out_dir: str = None, prefix: str
         count = 0
         if os.path.exists(gap_json):
             try:
-                g_data = json.load(open(gap_json, encoding="utf-8"))
+                with open(gap_json, encoding="utf-8") as _f:
+                    g_data = json.load(_f)
                 count = len(g_data.get("data", {}))
-            except Exception:
-                pass
+            except Exception as e:
+                # an unreadable evidence file used to be swallowed and the stage still COMPLETED with count 0
+                print(f"Stage 5.3 FAILED: cannot parse {os.path.basename(gap_json)}: {e}")
+                return {"status": "FAILED", "stage": "5.3", "message": f"unparseable {os.path.basename(gap_json)}: {e}"}
+        elif (checkpoint.get("stage_completions", {}).get("4.7") or {}).get("status") == "COMPLETED":
+            print(f"Stage 5.3 FAILED: Stage 4.7 completed but {os.path.basename(gap_json)} is missing")
+            return {"status": "FAILED", "stage": "5.3", "message": f"{os.path.basename(gap_json)} missing after Stage 4.7"}
         mark_stage_complete(checkpoint, checkpoint_path, "5.3", suspected_gaps=count)
         print(f"Stage 5.3 -> Tier 3 gap stubs evaluated ({count} suspected gaps)")
         return {"status": "COMPLETED", "stage": "5.3", "suspected_gaps": count}
@@ -549,7 +607,7 @@ def execute_pipeline_auto(source_path: str, out_dir: str = None, prefix: str = N
         return False
 
     info = derive_chapter_info(source_path)
-    prefix = prefix or info["prefix"]
+    prefix = prefix or resolve_legacy_prefix(out_dir, info["prefix"])
 
     # Stage 0 initialization
     execute_stage("0", source_path, out_dir, prefix, force=force)
@@ -639,6 +697,8 @@ def main():
         res = execute_stage(stage_arg, source_path, out_dir, prefix=args.prefix, force=args.force, auto_adjudicate=args.auto_adjudicate, use_llm=args.use_llm)
         if res.get("status") in ("BLOCKED", "FAILED", "ERROR"):
             sys.exit(1)
+        if res.get("status") == "PENDING_MANUAL":
+            sys.exit(4)        # needs human adjudication: not success (documented exit code)
 
 
 if __name__ == "__main__":

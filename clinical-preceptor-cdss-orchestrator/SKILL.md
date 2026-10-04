@@ -1,6 +1,6 @@
 ---
 name: clinical-preceptor-cdss-orchestrator
-version: 1.1.0
+version: 1.2.1
 description: |
   Universal Clinical Preceptor & Bedside Case CDSS Orchestrator for physician-authored clinical series,
   medical vignettes, and preceptor corpora. Automates full-lifecycle corpus manufacturing (workspace pre-scaffolding,
@@ -9,9 +9,10 @@ description: |
   runtime engine (Socratic Preceptor, Exam SBA Generator, Prescribing Safety Guard, 4-Textbook Federation,
   Tropical Ward Calculator, Bilingual Retrieval, OSCE Visual Spotters, Residency Progression Curriculum,
   GraphRAG Causal Graphs, Acute SBAR Handovers, Bengali Patient Leaflets, Anki Cloze Decks, and Never-Events Toxic Matrix).
+  Use for building/running a general preceptor corpus; for Habijabi-series-only queries use kawsar-habijabi-cdss-navigator, and for a federated textbook query use medical-cdss-unified-orchestrator.
 ---
 
-# Clinical Preceptor CDSS Orchestrator (v1.1.0)
+# Clinical Preceptor CDSS Orchestrator (v1.2.1)
 
 A universal, modular Clinical Decision Support System (CDSS) orchestrator and manufacturing pipeline designed for **physician-authored medical education series, bedside clinical case collections, and ward preceptorship archives**.
 

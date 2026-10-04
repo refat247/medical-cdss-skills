@@ -1,13 +1,13 @@
 ---
 name: medical-book-split-ocr-organizer
-version: 1.2.0
+version: 1.3.1
 description: |
   Automates directory structure setup, source PDF organization, and OCR extraction routing
   for medical textbooks and clinical guidelines. Creates section folders from split PDFs, establishes
   'ocr markdown' isolation workspaces, and routes OCR outputs from Downloads or custom paths.
 ---
 
-# Medical Book Split & OCR Organizer (v1.2.0)
+# Medical Book Split & OCR Organizer (v1.3.1)
 
 Production-grade pipeline utility for structuring split medical textbook PDFs (Davidson, Hurst, Harrison, Braunwald) and routing raw OCR extractions (Mistral OCR Playground, Document AI) into standardized directory layouts compatible with downstream RAG and CDSS compilers.
 

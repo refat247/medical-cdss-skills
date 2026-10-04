@@ -1,7 +1,7 @@
 ---
 name: clean-my-ai-harness
-version: 1.0.1
-description: Map the setup Antigravity and AI agents can see and prepare a safe cleanup plan. Use after model changes or when instructions, skills, rules, tools, permissions, or checks may overlap.
+version: 1.0.2
+description: Map the setup Antigravity and AI agents can see and prepare a safe cleanup plan. Use after model changes or when instructions, skills, rules, tools, permissions, or checks may overlap. Not for token or cost analysis; use token-audit for that.
 ---
 
 # Clean My AI Harness — Antigravity & Codex Edition
@@ -52,7 +52,7 @@ Use **Quick Check** unless the user explicitly asks for a maintainer audit. Choo
 
 Run the bundled scanner on each approved root:
 ```bash
-python "C:\Users\User\.gemini\config\skills\clean-my-ai-harness\scripts\scan_visible_harness.py" TARGET --surface antigravity --output-dir SCAN_DIR
+python "C:\Users\User\.gemini\config\skills\clean-my-ai-harness\scripts\scan_visible_harness.py" TARGET --surface antigravity --model MODEL_NAME --output-dir SCAN_DIR
 ```
 
 Group reviewed controls into:

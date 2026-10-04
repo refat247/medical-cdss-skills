@@ -11,7 +11,7 @@ Supports:
   - Generic medical textbook RAG packages
 """
 
-__version__ = "1.4.0"
+__version__ = "1.5.1"
 
 import os
 import sys
@@ -65,6 +65,24 @@ PRUNE_PATTERNS = [
     "*_REPAIRED_S2.md",
 ]
 
+# Subset of PRUNE_PATTERNS that is the EVIDENCE the RAG pipeline's trust classifier (and therefore the
+# index compiler) reads. Pruning these before indexing leaves chapters "LEGACY"/excluded; run prune AFTER
+# indexing, or pass --keep-trust-evidence.
+TRUST_EVIDENCE_PATTERNS = [
+    "*_CHECKPOINT.json", "ClinicalFidelity.*", "ClinicalFidelityGate.*", "ClinicalFidelityFailures.*",
+    "CompletenessChecklist.*", "*_L1L2_CoverageGaps.md", "*_SourceLinesPrecision.*", "*_Stage6_Validation.md",
+    "*_SCATTERED.json", "*_SUSPECTED_GAP.json", "*_COMPLETE_DISEASES.json",
+]
+
+
+def _matches_any(file_name: str, patterns) -> bool:
+    for pattern in patterns:
+        regex = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+        if re.match(regex, file_name, re.IGNORECASE):
+            return True
+    return False
+
+
 # Patterns of files strictly PROTECTED from pruning
 PROTECT_EXTENSIONS = {
     ".jpeg", ".jpg", ".png", ".webp", ".gif", ".svg",
@@ -84,11 +102,27 @@ def compress_excerpt(text: str, max_chars: int = 150, hard_cap: int = 0) -> str:
     """
     if not text:
         return ""
+    _abbreviations = frozenset({
+        "approx", "vs", "fig", "figs", "no", "nos", "cf", "ca", "resp", "dr", "st", "prof", "mr", "mrs", "ms",
+        "e.g", "i.e", "i.v", "i.m", "s.c", "p.o", "p.r", "q.d", "b.i.d", "t.i.d", "q.i.d", "o.d", "b.d", "t.d.s", "q.d.s",
+        "esp", "incl", "min", "max", "conc", "wt", "ht", "tab", "tabs", "caps", "sol", "inj", "vol", "ref", "refs",
+    })
+
+    def _is_abbreviation_period(txt: str, period_idx: int) -> bool:
+        # True when the '.' closes an abbreviation ("i.v.", "approx.", "vs."), not a sentence: cutting there
+        # used to drop the dose that follows ("Start heparin i.v. [...]").
+        m = re.search(r"([A-Za-z](?:\.?[A-Za-z])*)$", txt[:period_idx])
+        if not m:
+            return False
+        tok = m.group(1).lower()
+        return tok in _abbreviations or bool(re.fullmatch(r"(?:[a-z]\.)+[a-z]", tok))
+
     text = " ".join(text.split())
     if len(text) <= max_chars:
         return text
     hard_cap = hard_cap or max_chars * 4
-    ends = [m.end() for m in re.finditer(r"(?<=[A-Za-z\)%\]])[.!?](?=\s+[A-Z0-9(\[]|$)", text)]
+    ends = [m.end() for m in re.finditer(r"(?<=[A-Za-z\)%\]])[.!?](?=\s+[A-Z0-9(\[]|$)", text)
+            if not _is_abbreviation_period(text, m.start())]
     fitting = [e for e in ends if e <= max_chars]
     if fitting:
         cut = fitting[-1]
@@ -103,13 +137,15 @@ def compress_excerpt(text: str, max_chars: int = 150, hard_cap: int = 0) -> str:
 class CDSSPackager:
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
+        self.remaining_hardcoded: List[str] = []
 
     def log(self, message: str):
         if self.verbose:
             print(f"[CDSS-PACKAGER] {message}")
 
-    def prune_directory(self, target_dir: Path) -> int:
-        """Prunes build-time QA scorecards and backup archives while strictly safeguarding images."""
+    def prune_directory(self, target_dir: Path, dry_run: bool = False, keep_trust_evidence: bool = False) -> int:
+        """Prunes build-time QA scorecards and backup archives while strictly safeguarding images.
+        dry_run lists what WOULD be removed; keep_trust_evidence preserves the files the trust classifier needs."""
         if not target_dir.exists():
             self.log(f"Directory not found: {target_dir}")
             return 0
@@ -126,22 +162,26 @@ class CDSSPackager:
                 if file_name in PROTECTED_FILENAMES or file_ext in PROTECT_EXTENSIONS:
                     continue
 
-                # Check if file matches anchored prune patterns
-                should_prune = False
-                for pattern in PRUNE_PATTERNS:
-                    regex = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
-                    if re.match(regex, file_name, re.IGNORECASE):
-                        should_prune = True
-                        break
+                should_prune = _matches_any(file_name, PRUNE_PATTERNS)
+                if should_prune and keep_trust_evidence and _matches_any(file_name, TRUST_EVIDENCE_PATTERNS):
+                    should_prune = False
 
                 if should_prune:
+                    if dry_run:
+                        self.log(f"  [dry-run] would remove {file_path}")
+                        deleted_count += 1
+                        continue
                     try:
                         file_path.unlink()
                         deleted_count += 1
                     except Exception as e:
                         self.log(f"  Warning: could not delete {file_path.name}: {e}")
 
-        self.log(f"Pruning complete. Removed {deleted_count} non-retrieval files.")
+        verb = "Would remove" if dry_run else "Removed"
+        self.log(f"Pruning complete. {verb} {deleted_count} non-retrieval files.")
+        if not dry_run and not keep_trust_evidence:
+            self.log("NOTE: trust evidence (checkpoints, fidelity gates, Stage 6 reports) is pruned too; index (compiler) BEFORE "
+                     "pruning or use --keep-trust-evidence.")
         return deleted_count
 
     def patch_paths(self, target_dir: Path) -> int:
@@ -194,6 +234,17 @@ class CDSSPackager:
                 patched_count += 1
                 self.log(f"  Patched paths to dynamic relative resolution: {py_file.name}")
 
+        # Patching is regex-on-source and silently no-ops if a router template changes: re-scan and say what is left.
+        self.remaining_hardcoded = []
+        for py_file in target_dir.rglob("*.py"):
+            try:
+                for n, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
+                    if re.search(r"""['"][A-Za-z]:\\\\""", line) or re.search(r"""r['"][A-Za-z]:\\""", line):
+                        self.remaining_hardcoded.append(f"{py_file.name}:{n}")
+            except Exception:
+                continue
+        if self.remaining_hardcoded:
+            self.log(f"  WARNING: {len(self.remaining_hardcoded)} hard-coded drive path(s) remain after patching, e.g. {self.remaining_hardcoded[:5]}")
         self.log(f"Path audit complete. Patched {patched_count} scripts.")
         return patched_count
 
@@ -266,6 +317,24 @@ def clean_excerpt(text: str, max_chars: int) -> str:
     """Normalise for output first (so LaTeX markup does not eat the length budget), then compress."""
     return compress_excerpt(sanitize_for_llm(text or ""), max_chars=max_chars)
 
+def _load_router_module(unique_name: str, idx_dir: Path):
+    """Load <idx_dir>/cdss_qa_router.py under a UNIQUE module name. The four books ship routers with the same
+    file name; importing them all as `cdss_qa_router` and reload()-ing made a later book overwrite the
+    globals of an earlier book's live router (a Harrison query returned Kumar chunk ids)."""
+    import importlib.util
+    path = idx_dir / "cdss_qa_router.py"
+    spec = importlib.util.spec_from_file_location(unique_name, str(path))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[unique_name] = mod
+    sys.path.insert(0, str(idx_dir))
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        if str(idx_dir) in sys.path:
+            sys.path.remove(str(idx_dir))
+    return mod
+
+
 class CDSSFederatedSearch:
     def __init__(self):
         self.dav_client = None
@@ -289,48 +358,35 @@ class CDSSFederatedSearch:
         if self.har_router is None:
             har_idx = ROOT_DIR / "02_Harrison_22" / "Index"
             if har_idx.exists():
-                sys.path.insert(0, str(har_idx))
-                try:
-                    import cdss_qa_router as h_mod
-                    self.har_router = h_mod.HarrisonCDSSRouter()
-                finally:
-                    if str(har_idx) in sys.path:
-                        sys.path.remove(str(har_idx))
+                h_mod = _load_router_module("cdss_qa_router_harrison", har_idx)
+                self.har_router = h_mod.HarrisonCDSSRouter()
 
     def _init_hurst(self):
         if self.hurst_router is None:
             hurst_idx = ROOT_DIR / "03_Hurst_The_Heart_15" / "Index"
             if hurst_idx.exists():
-                sys.path.insert(0, str(hurst_idx))
-                try:
-                    import importlib
-                    import cdss_qa_router as hu_mod
-                    importlib.reload(hu_mod)
-                    self.hurst_router = hu_mod.CDSSRouter()
-                finally:
-                    if str(hurst_idx) in sys.path:
-                        sys.path.remove(str(hurst_idx))
+                hu_mod = _load_router_module("cdss_qa_router_hurst", hurst_idx)
+                self.hurst_router = hu_mod.CDSSRouter()
 
     def _init_kumar(self):
         if self.kumar_router is None:
             kc_idx = ROOT_DIR / "04_Kumar_and_Clark_11" / "Index"
             if kc_idx.exists():
-                sys.path.insert(0, str(kc_idx))
-                try:
-                    import importlib
-                    import cdss_qa_router as kc_mod
-                    importlib.reload(kc_mod)
-                    self.kumar_router = kc_mod.CDSSRouter()
-                finally:
-                    if str(kc_idx) in sys.path:
-                        sys.path.remove(str(kc_idx))
+                kc_mod = _load_router_module("cdss_qa_router_kumar", kc_idx)
+                self.kumar_router = kc_mod.CDSSRouter()
 
     def search(self, query: str, book: str = "all", top_k: int = 3, compress: bool = False) -> Dict[str, List[Dict[str, Any]]]:
         results: Dict[str, List[Dict[str, Any]]] = {}
 
         # 1. Davidson
         if book in ("all", "davidson"):
-            self._init_davidson()
+            try:
+                self._init_davidson()
+            except Exception as e:
+                results["Davidson_25"] = [{"error": f"init failed: {e}"}]
+                init_failed = True
+            else:
+                init_failed = False
             if self.dav_client:
                 try:
                     dav_raw = self.dav_client.search_chunks_lexical(query, top_k=top_k)
@@ -348,12 +404,18 @@ class CDSSFederatedSearch:
                     ]
                 except Exception as e:
                     results["Davidson_25"] = [{"error": str(e)}]
-            else:
+            elif not init_failed:
                 results["Davidson_25"] = []
 
         # 2. Harrison
         if book in ("all", "harrison"):
-            self._init_harrison()
+            try:
+                self._init_harrison()
+            except Exception as e:
+                results["Harrison_22"] = [{"error": f"init failed: {e}"}]
+                init_failed = True
+            else:
+                init_failed = False
             if self.har_router:
                 try:
                     try:
@@ -374,12 +436,18 @@ class CDSSFederatedSearch:
                     ]
                 except Exception as e:
                     results["Harrison_22"] = [{"error": str(e)}]
-            else:
+            elif not init_failed:
                 results["Harrison_22"] = []
 
         # 3. Hurst
         if book in ("all", "hurst"):
-            self._init_hurst()
+            try:
+                self._init_hurst()
+            except Exception as e:
+                results["Hurst_The_Heart_15"] = [{"error": f"init failed: {e}"}]
+                init_failed = True
+            else:
+                init_failed = False
             if self.hurst_router:
                 try:
                     try:
@@ -400,12 +468,18 @@ class CDSSFederatedSearch:
                     ]
                 except Exception as e:
                     results["Hurst_The_Heart_15"] = [{"error": str(e)}]
-            else:
+            elif not init_failed:
                 results["Hurst_The_Heart_15"] = []
 
         # 4. Kumar & Clark
         if book in ("all", "kumar", "kumar_clark"):
-            self._init_kumar()
+            try:
+                self._init_kumar()
+            except Exception as e:
+                results["Kumar_and_Clark_11"] = [{"error": f"init failed: {e}"}]
+                init_failed = True
+            else:
+                init_failed = False
             if self.kumar_router:
                 try:
                     try:
@@ -426,7 +500,7 @@ class CDSSFederatedSearch:
                     ]
                 except Exception as e:
                     results["Kumar_and_Clark_11"] = [{"error": str(e)}]
-            else:
+            elif not init_failed:
                 results["Kumar_and_Clark_11"] = []
 
         return results
@@ -435,11 +509,18 @@ class CDSSFederatedSearch:
         if self.dav_client:
             self.dav_client.close()
 
+def _positive_int(s):
+    v = int(s)
+    if v < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return v
+
+
 def main():
     parser = argparse.ArgumentParser(description="Federated CDSS Clinical Chunk Retrieval Engine")
     parser.add_argument("--query", "-q", required=True, help="Clinical query / disease / drug / symptom")
     parser.add_argument("--book", "-b", choices=["all", "davidson", "harrison", "hurst", "kumar"], default="all", help="Target textbook")
-    parser.add_argument("--top_k", "-k", type=int, default=3, help="Max chunks per textbook")
+    parser.add_argument("--top_k", "-k", type=_positive_int, default=3, help="Max chunks per textbook (>= 1)")
     parser.add_argument("--compress", action="store_true", help="Extractive span compression for high-precision token saving")
     parser.add_argument("--json", action="store_true", help="Output raw JSON for downstream LLM prompts")
     
@@ -448,25 +529,41 @@ def main():
     
     try:
         results = engine.search(args.query, book=args.book, top_k=args.top_k, compress=args.compress)
-        
+        # A per-book {"error": ...} entry is a FAILURE of that book, not a retrieved chunk.
+        errors = {b: [c["error"] for c in chunks if isinstance(c, dict) and "error" in c] for b, chunks in results.items()}
+        errors = {b: e for b, e in errors.items() if e}
+        if not results:
+            print("[ERROR] no book index was found for --book " + str(args.book) + "; nothing was searched.", file=sys.stderr)
+            if args.json:
+                print("{}")
+            return 1
+        failed = bool(errors)
+
         if args.json:
             try:
                 from cdss_encoding_guard import safe_json_dumps
                 print(safe_json_dumps(results, indent=2))
             except ImportError:
                 print(json.dumps(results, ensure_ascii=False, indent=2))
-            return
+            return 1 if failed else 0
 
         print("\n" + "=" * 75)
         print(f"FEDERATED CDSS RETRIEVAL: \"{args.query}\"")
         print("=" * 75)
+        for b, errs in errors.items():
+            print(f"[ERROR] {b}: {'; '.join(errs)}", file=sys.stderr)
+            print(f"\n[{b.upper()}] - RETRIEVAL FAILED: {'; '.join(errs)}")
 
-        total_retrieved = sum(len(chunks) for chunks in results.values())
+        total_retrieved = sum(1 for chunks in results.values() for c in chunks if not (isinstance(c, dict) and "error" in c))
         if total_retrieved == 0:
-            print("No matching clinical evidence found.")
-            return
+            if not failed:
+                print("No matching clinical evidence found.")
+            return 1 if failed else 0
 
         for book_name, chunks in results.items():
+            chunks = [c for c in chunks if not (isinstance(c, dict) and "error" in c)]
+            if book_name in errors:
+                continue
             print(f"\n[{book_name.upper()}] - {len(chunks)} Evidence Chunks Found:")
             print("-" * 75)
             if not chunks:
@@ -483,12 +580,13 @@ def main():
                 print(f"  ({i}) [{chunk_id}] | Topic: {topic} | Type: {stype} | Score: {score}")
                 print(f"      Excerpt: {excerpt}\n")
         print("=" * 75 + "\n")
-        
+        return 1 if failed else 0
+
     finally:
         engine.close()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 '''
         # Inject the single canonical compress_excerpt implementation (no duplicated copy to drift)
         code = code.replace("__COMPRESS_EXCERPT_SOURCE__", inspect.getsource(compress_excerpt))
@@ -756,6 +854,9 @@ def main():
     # prune
     p_prune = subparsers.add_parser("prune", help="Prune build-time QA scorecards and cold backup zips")
     p_prune.add_argument("--package-dir", "-p", required=True, help="Target CDSS Retrieval Package directory")
+    p_prune.add_argument("--dry-run", action="store_true", help="List what would be removed; delete nothing")
+    p_prune.add_argument("--keep-trust-evidence", action="store_true",
+                         help="Keep checkpoints / fidelity gates / Stage 6 reports (needed by the index compiler's trust check)")
 
     # patch-paths
     p_patch = subparsers.add_parser("patch-paths", help="Audit and patch hardcoded paths to dynamic relative paths")
@@ -778,10 +879,15 @@ def main():
 
     target_dir = Path(args.package_dir).resolve()
 
+    if args.command in ("prune", "patch-paths", "verify", "auto") and not target_dir.is_dir():
+        print(f"[CDSS-PACKAGER] ERROR: package directory not found: {target_dir}", file=sys.stderr)
+        sys.exit(2)
     if args.command == "prune":
-        packager.prune_directory(target_dir)
+        packager.prune_directory(target_dir, dry_run=args.dry_run, keep_trust_evidence=args.keep_trust_evidence)
     elif args.command == "patch-paths":
         packager.patch_paths(target_dir)
+        if packager.remaining_hardcoded:
+            sys.exit(1)
     elif args.command == "federate":
         packager.sync_encoding_guard(target_dir)
         packager.generate_federated_search(target_dir)
@@ -792,6 +898,10 @@ def main():
         failed = [k for k, v in results.items() if str(v).startswith("FAIL")]
         if failed:
             print(f"[CDSS-PACKAGER] FAILED checks: {failed}", file=sys.stderr)
+            sys.exit(1)
+        if not any(str(results.get(b, "")).startswith("PASS") for b in ("Davidson", "Harrison", "Hurst", "Kumar_and_Clark")):
+            print("[CDSS-PACKAGER] No textbook router was verified (all SKIPPED): an empty or wrong package directory "
+                  "is not a pass.", file=sys.stderr)
             sys.exit(1)
 
 if __name__ == "__main__":

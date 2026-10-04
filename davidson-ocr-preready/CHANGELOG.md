@@ -5,6 +5,16 @@ All notable changes to the `davidson-ocr-preready` package will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.7] - 2026-10-01
+
+### Changed
+- Review fixes: caption headings, publisher PDF watermark URL
+
+## [1.7.6] - 2026-10-01
+
+### Changed
+- Provenance stamp now imports the package version (was a stale 1.6.0 duplicate); archetype detection uses whole tokens (canada_/venice_ no longer GUIDELINE); page markers only for isolated numbers with S/A/P prefixes (T4, CD4, B12, IL-6, pH 7 and running-text numbers kept); https resource lines kept (only DOI/downloaded-from removed); adjacent distinct page markers kept; prose and dose lines no longer turned into headings; code fences untouched.
+
 ## [1.7.5] - 2026-09-25
 
 ### Changed

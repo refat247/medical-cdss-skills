@@ -1,4 +1,4 @@
-# CDSS Bridge Note Publisher (v1.2.1)
+# CDSS Bridge Note Publisher (v1.3.1)
 
 Autonomous Generator, Claim-Level Grounding Verifier, and Multi-Modal Publisher for Davidson Cognitive Bridge Notes (V2.2 Standard).
 

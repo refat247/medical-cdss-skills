@@ -28,6 +28,7 @@ metadata-precision check rather than a clinical-content one (lower stakes,
 but still not something to silently rewrite without review).
 """
 import re
+from pipeline.stages.chunk_blocks import split_chunk_blocks
 
 MATCH_RATE_FLOOR = 0.5
 GAP_TOLERANCE = 2  # lines allowed between two matched anchors to still cluster as one segment
@@ -287,9 +288,46 @@ def classify_precision(declared_segments, matched_lines, total_units, unmatched,
                 any_internal_gap_checked = True
                 if not _gap_is_bullet_only(source_lines_list, prev_hi, next_lo):
                     all_internal_gaps_bullet_only = False
-    over_inclusive = bool(declared_segments) and not outside and internal_gap_found
+    # Edge over-inclusion: an oversized declared segment may contain
+    # unrelated substantive source text before the first matched body anchor
+    # or after the last one. Historically this was ignored entirely because
+    # headings/blank lines at chunk boundaries are often not anchors. Keep
+    # those structural boundary lines ignored, but surface real prose/table/
+    # list content as an adjudication candidate. This is measurement only;
+    # it never auto-rewrites source_lines.
+    def substantive_edge_line(line):
+        stripped = line.strip()
+        if not stripped:
+            return False
+        if re.match(r'^#{1,6}\s', stripped):
+            return False
+        if re.match(r'^<!--\s*(?:page|pdf_page):', stripped):
+            return False
+        return True
+
+    edge_over_inclusive = False
+    if declared_segments and source_lines_list is not None and not outside:
+        for d_lo, d_hi in declared_segments:
+            in_seg = sorted(n for n in matched_lines if d_lo <= n <= d_hi)
+            if not in_seg:
+                continue
+            first_match, last_match = in_seg[0], in_seg[-1]
+            edge_ranges = (
+                range(d_lo, first_match),
+                range(last_match + 1, d_hi + 1),
+            )
+            if any(
+                substantive_edge_line(source_lines_list[n - 1])
+                for rng in edge_ranges for n in rng
+                if 1 <= n <= len(source_lines_list)
+            ):
+                edge_over_inclusive = True
+                break
+
+    over_inclusive = bool(declared_segments) and not outside and (internal_gap_found or edge_over_inclusive)
     bullet_gap_only = bool(
-        over_inclusive and source_lines_list is not None
+        over_inclusive and internal_gap_found and not edge_over_inclusive
+        and source_lines_list is not None
         and any_internal_gap_checked and all_internal_gaps_bullet_only
     )
 
@@ -308,6 +346,7 @@ def classify_precision(declared_segments, matched_lines, total_units, unmatched,
         "declared_segments": declared_segments,
         "suggested_segments": suggested,
         "lines_matched_outside_declared": outside,
+        "edge_over_inclusive": edge_over_inclusive,
         "bullet_gap_only": bullet_gap_only,
     }
 
@@ -563,7 +602,7 @@ def apply_corrections(chunks_text, corrections):
     chunk_id in `corrections` not found in chunks_text fails loudly via the
     returned unmatched list (same discipline as Stage 4.6's
     apply_manual_corrections / Stage 4.5d's apply_adjudication_decisions)."""
-    blocks = re.findall(r'(---\nchunk_id:.*?\n---\n.*?)(?=\n---\nchunk_id:|\Z)', chunks_text, re.DOTALL)
+    blocks = split_chunk_blocks(chunks_text)
     by_id = {}
     for b in blocks:
         m = re.search(r'chunk_id:\s*(\S+)', b)
@@ -577,7 +616,9 @@ def apply_corrections(chunks_text, corrections):
             unmatched.append(chunk_id)
             continue
         new_value = segments_to_source_lines_string(segments)
-        new_block = re.sub(r'source_lines:\s*"?[\d,\s\-]+"?', f'source_lines: "{new_value}"', block, count=1)
+        # replace ONLY the value on the source_lines line (the old pattern's \s also matched the newline, so an
+        # unquoted value swallowed the closing '---' and the first digits of the body)
+        new_block = re.sub(r'(?m)^source_lines:[ \t]*[^\n]*$', lambda _m: f'source_lines: "{new_value}"', block, count=1)
         if new_block == block:
             unmatched.append(chunk_id)
             continue

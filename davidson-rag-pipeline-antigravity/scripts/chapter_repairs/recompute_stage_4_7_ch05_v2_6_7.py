@@ -5,8 +5,9 @@ Blocker 1: CompletenessChecklist.md declares "Disease clusters (>=2 chunks):
 enumerated, no COMPLETE_DISEASES.json, no complete_count field).
 
 This is READ-ONLY, diagnostic only: it re-derives the multi-chunk
-disease_focus clustering fresh from the CURRENT chunks.md, using the exact
-unmodified Stage 4.7 clustering algorithm from SKILL.md's inline block
+disease_focus clustering fresh from the CURRENT chunks.md, using its own
+re-implementation of the Stage 4.7 clustering (NOT the shipped pipeline/stages/stage_4_7_serialize.py
+algorithm, which differs in keyword matching and body extraction) modelled on SKILL.md's inline block
 (infer_categories / REQUIRED_CATEGORIES / BODY_PATTERNS / the >=2-missing
 SCATTERED rule / the SUSPECTED_GAP_RULE mechanism) -- pipeline/stages/stage_4_7_serialize.py
 itself is untouched, and this script does not write anything to Ch05's real

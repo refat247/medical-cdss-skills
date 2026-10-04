@@ -15,6 +15,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 > version number each first shipped under was not recorded anywhere and
 > cannot be verified retroactively.
 
+## [2.26.1] - 2026-10-01
+
+### Changed
+- Review fixes: MCQ/ligature spot-check, watermark sweep, 4.5d alignment, legacy checkpoint prefix
+
+## [2.26.0] - 2026-10-01
+
+### Changed
+- Second-sweep fixes: Stage 6 fails on zero chunks and reads frontmatter only; Stage 4B no longer NFKC-normalises clinical text; Stage 2/3/1 share OCR cleanup rules (header/page-number/TOC/piracy no longer destroy clinical text); Stage 4.5d unit/negation/polarity/vocabulary/boundary detectors strengthened; 4.5b/7 compare dose values; 4.5 verifies whole chunk bodies; offline Stage 4.6 no longer relabels from body regexes and records verification_method; invalid manual corrections are unparsed; adjudication manifests bound to scan candidates; trust withdrawn when a gating stage is open; stale downstream on re-completion; predecessor refusal; one chunk splitter for all stages; Stage 5 gap_note escaping; 4A/4B line numbering; source_lines correction regex; checkpoint writes use unique fsynced temp files; unique backup names; PENDING_MANUAL exit 4; execute_stage 4.5d crash and 5 missing os imports fixed; CRLF fixtures pinned.
+
 ## [2.25.1] - 2026-09-25
 
 ### Fixed

@@ -15,6 +15,7 @@ content without overwriting the real file. Requires --write --in-place
 this chapter) to actually mutate.
 """
 import argparse
+import os
 import sys
 import re
 from collections import Counter

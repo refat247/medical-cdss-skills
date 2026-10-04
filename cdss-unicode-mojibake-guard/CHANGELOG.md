@@ -5,6 +5,16 @@ All notable changes to the `cdss-unicode-mojibake-guard` skill will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-10-01
+
+### Changed
+- Review fixes: LaTeX powers/degree/beta, ISMP trailing-zero for /day restored
+
+## [1.6.0] - 2026-10-01
+
+### Changed
+- fix: protected directories are skipped with their subdirectories; UTF-16/32 and binary files are never rewritten; --dry-run; ISMP 'U' rule no longer rewrites U.S./U-wave; Q.D./I.U. with trailing dot handled; lab denominators like g/24 h kept; ion charges and isotopes no longer become citation brackets; file names and currency pairs left alone; 15 more mojibake sequences repaired and flagged (minus sign, approx, Greek, fractions, bullets, accents). SKILL.md/README corrected.
+
 ## [1.5.2] - 2026-09-25
 
 ### Fixed

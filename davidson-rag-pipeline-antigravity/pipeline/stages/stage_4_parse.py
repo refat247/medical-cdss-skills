@@ -22,6 +22,27 @@ from pipeline.checkpoint_utils import (
 )
 
 
+
+# Typographic ligatures and exotic spaces are safe to flatten. Everything else NFKC touches is NOT:
+# it rewrites superscripts/subscripts (10^9 -> 109, m^2 -> m2, CO2), vulgar fractions, micro sign
+# (U+00B5 -> Greek mu) and units, which silently changes clinical values.
+_SAFE_COMPAT = {
+    "\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
+    "\ufb05": "st", "\ufb06": "st",
+    "\u00a0": " ", "\u2007": " ", "\u2009": " ", "\u200a": " ", "\u202f": " ",
+}
+_INVISIBLE = ("\ufeff", "\u200b", "\u00ad")
+
+
+def sanitize_chunk_text(text):
+    """Stage 4B text hygiene: flatten ligatures / odd spaces and strip zero-width artifacts.
+    Deliberately NOT unicodedata.NFKC -- see _SAFE_COMPAT."""
+    for k, v in _SAFE_COMPAT.items():
+        text = text.replace(k, v)
+    for ch in _INVISIBLE:
+        text = text.replace(ch, "")
+    return text
+
 def slugify(s: str) -> str:
     s = s.lower()
     s = re.sub(r"^\d+\.\d+\s*", "", s)
@@ -274,6 +295,25 @@ def make_chunk(
     return f"{header}\n\n{body_text.strip()}"
 
 
+# An explanation ends only at the next ANSWER entry ("5.1 B", "Answer 5.2: C"), not at any line that merely begins
+# with a decimal ("2.5 mg is the usual starting dose" used to cut the explanation and drop it from the L2 chunk).
+MCQ_EXPLANATION_END_RE = re.compile(r"(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])(?=[ \t]*(?:[:.)]|\r?\n|$))", re.IGNORECASE)
+
+
+def _write_stage4_report_sections(log_path, sections_text):
+    """Append Stage 4's sections to the AUDIT_REPORT, first dropping any left by an earlier Stage 4 run so a
+    re-run replaces them instead of duplicating (Stage 1 owns everything above the first Stage 4 heading)."""
+    existing = ""
+    if os.path.exists(log_path):
+        with open(log_path, encoding="utf-8") as f:
+            existing = f.read()
+    marker = existing.find("\n\n## Stage 4 Header Map")
+    if marker != -1:
+        existing = existing[:marker]
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(existing + sections_text)
+
+
 def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
     """Executes Stage 4A pre-flight heading map and manifest."""
     checkpoint, checkpoint_path = load_checkpoint(out_dir, prefix)
@@ -281,7 +321,9 @@ def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
         return {"status": "skipped", "reason": "already complete"}
 
     with open(rep_path, encoding="utf-8") as f:
-        lines = f.readlines()
+        # splitlines(), like Stage 4B and the source_lines parser: readlines() split on "\n" only, so a form feed
+        # (common in PDF OCR) made Stage 4A's "Line N" disagree with Stage 4B's source_lines.
+        lines = f.read().splitlines()
 
     hmap = [f"Line {i+1}: {l.rstrip()}" for i, l in enumerate(lines) if re.match(r"^#{1,4}\s", l)]
 
@@ -313,10 +355,11 @@ def run_stage_4a(rep_path: str, out_dir: str, prefix: str) -> dict:
     manifest_header = "| ## section | location | children present | required L2 strategy |\n|---|---|---|---|"
 
     log_path = os.path.join(out_dir, f"{prefix}_AUDIT_REPORT.md")
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(f"\n\n## Stage 4 Header Map ({len(hmap)} headers)\n\n" + "\n".join(hmap))
-        f.write(f"\n\n## Stage 4A Heading-Depth Manifest ({len(sections)} ## sections) — Rule J3\n\n"
-                + manifest_header + "\n" + "\n".join(manifest))
+    _write_stage4_report_sections(
+        log_path,
+        f"\n\n## Stage 4 Header Map ({len(hmap)} headers)\n\n" + "\n".join(hmap)
+        + f"\n\n## Stage 4A Heading-Depth Manifest ({len(sections)} ## sections) — Rule J3\n\n"
+        + manifest_header + "\n" + "\n".join(manifest))
 
     h4_only = sum(1 for s in sections if s["has_h4"] and not s["has_h3"])
     flat = sum(1 for s in sections if not s["has_h3"] and not s["has_h4"])
@@ -415,11 +458,11 @@ def run_stage_4b(rep_path: str, out_dir: str, prefix: str) -> dict:
             if ans_block_start is not None:
                 ans_text = "\n".join(sec_lines[ans_block_start:])
                 # Multi-item True/False answers (e.g. 1.1 A: True, B: False, C: True, D: False, E: False)
-                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*((?:[A-E]\s*[:—–-]?\s*(?:True|False|T|F)\b\s*[,;]?\s*)+)(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
+                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*((?:[A-E]\s*[:—–-]?\s*(?:True|False|T|F)\b\s*[,;]?\s*)+)(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
                     q_num, ans_opts, exp = m.group(1), m.group(2).strip(), m.group(3).strip()
                     mcq_answers[q_num] = f"**Answers: {ans_opts}**\n{exp}".strip()
                 # Single-letter choice answers (e.g. 1.1 Answer: A)
-                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?)?\s*([A-E])\b[.:—–\s]*(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
+                for m in re.finditer(r'(?:^|\n)(?:Answer\s+)?(\d+\.\d+)\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?)?\s*([A-E])\b[.:—–\s]*(.*?)(?=(?:\n(?:Answer\s+)?\d+\.\d+\.?\s*[:—–-]?\s*(?:Answer\s*[:—–-]?\s*)?(?-i:[A-E])\b|\Z))', ans_text, re.DOTALL | re.IGNORECASE):
                     q_num, ans_opt, exp = m.group(1), m.group(2), m.group(3).strip()
                     if q_num not in mcq_answers:
                         mcq_answers[q_num] = f"**Answer: {ans_opt.upper()}**\n{exp}".strip()
@@ -568,13 +611,19 @@ def run_stage_4b(rep_path: str, out_dir: str, prefix: str) -> dict:
     s4b_prov = format_markdown_provenance_header(rep_path, "4b")
     all_chunks = s4b_prov + "\n\n".join(l1_chunks + l2_chunks)
 
-    # Sanitize and normalize Unicode (NFKC, strip zero-width artifacts)
-    import unicodedata
-    all_chunks = unicodedata.normalize("NFKC", all_chunks)
-    all_chunks = all_chunks.replace("\ufeff", "").replace("\u200b", "").replace("\u00ad", "")
+    all_chunks = sanitize_chunk_text(all_chunks)
 
     with open(chunk_path, "w", encoding="utf-8") as f:
         f.write(all_chunks)
+
+    if not l1_chunks and not l2_chunks:
+        # A document with no "## " section headings yields no chunks; that is a failed parse, not a completed stage
+        # (it used to be COMPLETED and Stages 4.5 / 4.5c then cleared an empty chunk file).
+        from pipeline.checkpoint_utils import mark_stage_blocked
+        mark_stage_blocked(checkpoint, checkpoint_path, "4b", output_file=os.path.basename(chunk_path),
+                           reason="0 L1 and 0 L2 chunks produced: the repaired source has no '## ' section headings")
+        return {"l1_count": 0, "l2_count": 0, "sections_run": len(sections), "chunk_path": chunk_path,
+                "blocked": True, "reason": "no chunks produced"}
 
     mark_stage_complete(
         checkpoint,

@@ -172,3 +172,43 @@ def test_normalize_images_lookahead_with_intervening_notes():
         assert "1. Note on dosing." in norm_text
         assert "2. Note on titrating." in norm_text
         assert os.path.exists(os.path.join(assets_dir, "ch09_fig_05.jpeg"))
+
+
+def test_m18_identical_existing_asset_is_idempotently_reused(tmp_path):
+    src = tmp_path / "img-0.jpeg"
+    src.write_bytes(b"same-bytes")
+    assets = tmp_path / "assets" / "figures"
+    assets.mkdir(parents=True)
+    target = assets / "ch01_fig_01.jpeg"
+    target.write_bytes(b"same-bytes")
+
+    md = "![img-0.jpeg](img-0.jpeg)\n\nFig. 1.1 Same figure.\n"
+    norm, audits = normalize_images(md, {"img-0.jpeg": str(src)}, str(assets), ch_num=1)
+
+    assert target.read_bytes() == b"same-bytes"
+    assert audits[0]["copied"] is True
+    assert "ch01_fig_01.jpeg" in norm
+
+
+def test_m18_conflicting_existing_asset_refuses_before_any_copy(tmp_path):
+    src0 = tmp_path / "img-0.jpeg"
+    src1 = tmp_path / "img-1.jpeg"
+    src0.write_bytes(b"new-zero")
+    src1.write_bytes(b"new-one")
+    assets = tmp_path / "assets" / "figures"
+    assets.mkdir(parents=True)
+    (assets / "ch01_fig_01.jpeg").write_bytes(b"old-different")
+    md = (
+        "![img-0.jpeg](img-0.jpeg)\n\nFig. 1.1 First.\n\n"
+        "![img-1.jpeg](img-1.jpeg)\n\nFig. 1.2 Second.\n"
+    )
+
+    with pytest.raises(FileExistsError, match="cross-run figure overwrite"):
+        normalize_images(
+            md,
+            {"img-0.jpeg": str(src0), "img-1.jpeg": str(src1)},
+            str(assets),
+            ch_num=1,
+        )
+
+    assert not (assets / "ch01_fig_02.jpeg").exists()

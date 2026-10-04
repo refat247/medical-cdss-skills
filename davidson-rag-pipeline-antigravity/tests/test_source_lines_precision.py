@@ -172,3 +172,42 @@ def test_real_ch05_l2_118_now_corrected_to_precise():
     assert block is not None
     result = check_chunk_precision(block, _ch05_repaired_s2())
     assert result["verdict"] == "PRECISE"
+
+
+
+def test_edge_over_inclusion_flags_substantive_prose_at_declared_boundary():
+    source = [
+        "unrelated clinical prose before the chunk",
+        "Body sentence one is long enough to match exactly.",
+        "Body sentence two is also long enough to match exactly.",
+        "unrelated clinical prose after the chunk",
+    ]
+    r = classify_precision(
+        [(1, 4)],
+        matched_lines=[2, 3],
+        total_units=2,
+        unmatched=0,
+        source_lines_list=source,
+    )
+    assert r["verdict"] == "OVER_INCLUSIVE"
+    assert r["edge_over_inclusive"] is True
+
+
+def test_edge_over_inclusion_ignores_blank_heading_and_page_marker_boundaries():
+    source = [
+        "## Topic heading",
+        "",
+        "<!-- page: 12 -->",
+        "Body sentence one is long enough to match exactly.",
+        "Body sentence two is also long enough to match exactly.",
+        "",
+    ]
+    r = classify_precision(
+        [(1, 6)],
+        matched_lines=[4, 5],
+        total_units=2,
+        unmatched=0,
+        source_lines_list=source,
+    )
+    assert r["verdict"] == "PRECISE"
+    assert r["edge_over_inclusive"] is False

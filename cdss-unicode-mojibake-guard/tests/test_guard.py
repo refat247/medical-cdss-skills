@@ -242,3 +242,12 @@ def test_audit_claude_findings_regression():
 
 
 
+
+
+def test_review_regressions_latex_and_ismp_day():
+    import guard
+    assert guard.clean_clinical_latex("10$^{3}$/uL") == "10³/uL"
+    assert guard.clean_clinical_latex("37$^{\\circ}$C") == "37°C"
+    assert "\\" not in guard.clean_clinical_latex("IL-1$^{\\beta}$")
+    assert guard.apply_ismp_dose_rewrites("warfarin 5.0 mg/day") == "warfarin 5 mg/day"
+    assert guard.apply_ismp_dose_rewrites("Hb 13.0 g/dL") == "Hb 13.0 g/dL"

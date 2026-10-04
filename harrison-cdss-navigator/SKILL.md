@@ -1,6 +1,6 @@
 ---
 name: harrison-cdss-navigator
-version: 1.0.1
+version: 1.0.2
 description: |
   Autonomous Clinical Decision Support System (CDSS) and zero-token precision index retrieval navigator for
   Harrison's Principles of Internal Medicine (22nd Edition). Use when querying Harrison as a single standalone book
@@ -8,7 +8,7 @@ description: |
   Provides multi-turn clinical QA, case vignette decomposition, and 120-word span compression across 10,419 chunks.
 ---
 
-# Harrison CDSS Navigator (v1.0.1)
+# Harrison CDSS Navigator (v1.0.2)
 
 Production-grade Clinical Decision Support System and Index Retrieval Engine grounded directly in the 22nd Edition of *Harrison's Principles of Internal Medicine* (3,900+ pages, 20 clinical parts, 10,419 L2 micro-chunks, 7,811 indexed clinical concepts, and 57,015 indexed vocabulary terms).
 

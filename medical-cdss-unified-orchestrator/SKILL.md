@@ -1,15 +1,16 @@
 ---
 name: medical-cdss-unified-orchestrator
-version: 1.4.0
+version: 1.5.1
 description: |
   Unified Clinical Decision Support System (CDSS) and cross-book diagnostic retrieval orchestrator across
   Davidson's Principles and Practice of Medicine (25th Edition), Harrison's Principles of Internal Medicine
   (22nd Edition), Fuster & Hurst's The Heart (15th Edition), and Kumar and Clark's Clinical Medicine
   (11th Edition 2026). Provides multi-turn clinical QA, case vignette decomposition, zero-hallucination
   drug therapy safety verification, and sub-millisecond retrieval across 28,000+ clinical chunks.
+  Use ONLY for multi-book (federated) queries; a query about one book goes to that book's navigator (harrison/hurst/kumar-cdss-navigator) and is not handled here.
 ---
 
-# Unified Medical CDSS Orchestrator (v1.4.0)
+# Unified Medical CDSS Orchestrator (v1.5.1)
 
 Production-grade Clinical Decision Support System (CDSS) orchestrator that unifies and federates clinical queries across the four major pillars of clinical medicine:
 - **General Practice & Primary Care**: *Davidson's Principles and Practice of Medicine (25th Edition)*

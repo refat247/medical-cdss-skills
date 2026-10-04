@@ -1,4 +1,4 @@
-# Harrison CDSS Navigator (v1.0.1)
+# Harrison CDSS Navigator (v1.0.2)
 
 Production-grade Clinical Decision Support System and Index Retrieval Engine grounded directly in the 22nd Edition of *Harrison's Principles of Internal Medicine* (3,900+ pages, 20 clinical parts, 10,419 L2 micro-chunks, 7,811 indexed clinical concepts, and 57,015 indexed vocabulary terms).
 

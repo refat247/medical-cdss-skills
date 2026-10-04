@@ -1,6 +1,6 @@
-# Unified Medical CDSS Orchestrator (v1.4.0)
+# Unified Medical CDSS Orchestrator (v1.5.1)
 
-Installed (v1.4.0)
+Installed (v1.5.1)
 
 Production-grade Clinical Decision Support System (CDSS) orchestrator that unifies and federates clinical queries across the four major pillars of clinical medicine:
 - **General Practice & Primary Care**: *Davidson's Principles and Practice of Medicine (25th Edition)*

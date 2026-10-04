@@ -25,6 +25,8 @@ def validate(payload: object) -> list[str]:
     funnel = payload.get("funnel")
     if not isinstance(funnel, list):
         return errors + ["funnel must be a list"]
+    if payload.get("trace_status") == "COMPLETE" and not funnel:
+        errors.append("a COMPLETE trace must have at least one funnel stage")
     seen: set[str] = set()
     for index, item in enumerate(funnel):
         prefix = f"funnel[{index}]"
@@ -54,7 +56,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         payload = json.loads(args.trace_json.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         print(f"ERROR: could not read valid JSON ({exc.__class__.__name__})", file=sys.stderr)
         return 2
     errors = validate(payload)
