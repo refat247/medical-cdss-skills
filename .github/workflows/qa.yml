@@ -1,0 +1,24 @@
+name: qa
+on: [push, pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pytest pyflakes pillow python-docx pyyaml python-pptx jsonschema pymupdf
+      - name: Crash-class checks (compile, pyflakes, --help smoke)
+        run: python qa/check_all.py
+      - name: Per-skill tests
+        run: |
+          for d in */; do
+            if [ -d "$d/tests" ]; then
+              echo "=== $d"
+              rc=0
+              (cd "$d" && python -m pytest -q -p no:cacheprovider) || rc=$?   # bash -e: capture, don't abort
+              # exit 5 = a tests/ folder with nothing to collect (e.g. fixtures only): not a failure
+              if [ $rc -ne 0 ] && [ $rc -ne 5 ]; then echo "FAILED:$d" >> /tmp/failed; fi
+            fi
+          done
+          test ! -f /tmp/failed || { cat /tmp/failed; exit 1; }
