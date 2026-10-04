@@ -1,0 +1,12 @@
+interface:
+  display_name: "Bilingual Book Curator"
+  short_description: "Audit and build evidence-preserving bilingual technical books"
+  default_prompt: "Use $notion-bilingual-book-curator to run the governed source-to-release workflow for this source-backed technical book, verify the actual exported artifact rather than builder claims, preserve unresolved evidence states, and return the smallest next action."
+metadata:
+  version: "1.2.0"
+  status: "stable"
+policy:
+  products:
+    - CHAT
+    - CODEX
+  allow_implicit_invocation: true
