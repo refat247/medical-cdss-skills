@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.5.0 — 2026-10-04
+
+### Added
+- Permanent **Freshness / Delta Revalidation Mode** for ongoing Notion current-truth maintenance.
+- Explicit current-vs-historical preservation contract: never silently rewrite dated historical truth when current evidence changes.
+- Standard material-delta record: `DATE → PREVIOUS STATE → CURRENT STATE → WHY/EVIDENCE → IMPACT → UNRESOLVED GATE → CANONICAL TARGET REPAIRED`.
+- Structured freshness-field contract: Freshness State, Last Verified, Next Recheck, Freshness Trigger, Needs Recheck, Evidence State, canonicality, finding summary and source route.
+- Scheduled-watch freshness handoff and propagation contract.
+- Operating-view rule: maintain a compact `Freshness — Needs Review` queue rather than using multi-database SQL as the daily backbone.
+- Freshness closure criteria and no-false-completeness boundary.
+- `references/information-freshness-system.md`.
+
+### Reconciled
+- Promotes the NIQS-aware v1.4.0 semantics previously mirrored in KOS into the canonical Git package source.
+- Resolves the prior source split where GitHub main exposed v1.2.1 while KOS metadata/mirrors referred to v1.4.0.
+- Clarifies specialist ownership: Content Auditor = semantic freshness; Workspace Curator = routing/views; Research Method Curator = research method/source hierarchy.
+
+## 1.4.0 — 2026-09-25
+
+### Added
+- Shared Notion Information Quality Standard (NIQS) v1.0 semantic enforcement.
+- Evidence-state, claim-type, contradiction, current-vs-historical truth, freshness, canonicality and evidence-debt governance.
+
 ## 1.2.1 — 2026-09-23
 
 ### Added
