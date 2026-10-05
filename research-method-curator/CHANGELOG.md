@@ -1,5 +1,7 @@
 # Changelog
 
+> **Distribution status notice — 2026-10-05:** this public v1.1.2 package is a preserved **lagging distribution**. The current writable canonical source is `refat247/Private_repo/skills/research-method-curator/` v1.2.0. Public promotion is a separate explicit decision.
+
 ## 1.1.2 — 2026-09-23
 
 ### Added
@@ -9,7 +11,9 @@
 - Fallback rule when `@humanizer` is unavailable: local prose cleanup only, with no claim that the skill ran.
 
 ### State boundary
-- Manual-upload candidate; fresh-session verification remains pending.
+- **Historical/public distribution:** v1.1.2 in `medical-cdss-skills`; preserve for provenance and public history.
+- **Canonical Git/package source:** `refat247/Private_repo/skills/research-method-curator/` v1.2.0.
+- **Runtime installation/activation:** separate fresh-session verification gate.
 
 ## 1.1.1 — 2026-09-04
 
