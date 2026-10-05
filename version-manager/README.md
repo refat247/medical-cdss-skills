@@ -1,5 +1,7 @@
 # Version Manager (v1.1.1)
 
+> **Distribution status notice — 2026-10-05:** this public v1.1.1 package is a **lagging distribution**, not the current writable canonical lineage. Canonical authority is `refat247/Private_repo/skills/version-manager/` v1.2.1. Claude PR #1's relevant version-manager deltas were reconciled into that private lineage at commit `1da21d2f6d700deeb40ebfddfb0a54aa27a78fab`; public promotion remains separate.
+
 Automated Semantic Versioning (SemVer 2.0.0), release synchronizer, and Keep a Changelog management skill for Google Antigravity agent skills, Python packages, and multi-file codebases.
 
 ---
