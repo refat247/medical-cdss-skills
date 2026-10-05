@@ -26,6 +26,9 @@ def _flatten_to_rgb(img: Image.Image) -> Image.Image:
         bg = Image.new("RGB", rgba.size, (255, 255, 255))
         bg.paste(rgba.convert("RGB"), mask=rgba.split()[3])
         return bg
+    if img.mode in ("I;16", "I;16L", "I;16B", "I"):
+        # Preserve 16-bit greyscale tonal values instead of clipping values >255 to white.
+        return img.point(lambda v: v / 256).convert("L").convert("RGB")
     if img.mode != "RGB":
         return img.convert("RGB")
     return img
@@ -79,7 +82,7 @@ def audit_and_enhance_directory(figures_dir: Path, output_dir: Path, min_width: 
                     results["enhanced"] += 1
                 else:
                     results["failed"] += 1
-            elif not dst.exists():
+            elif not dst.exists() or dst.stat().st_mtime < img_path.stat().st_mtime:
                 with Image.open(img_path) as im:
                     img = im if dst.suffix.lower() == ".png" else _flatten_to_rgb(im)
                     _save(img, dst)
