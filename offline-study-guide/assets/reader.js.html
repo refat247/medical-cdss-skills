@@ -406,8 +406,8 @@
       pane.appendChild(node('p','reader-note','Existing study calculator; not clinically validated. Four entries with documented audit defects are unavailable pending correction.'));
       var holder=document.getElementById('readerCalcTemplate');var form=holder.content.cloneNode(true);pane.appendChild(form);
       var weight=pane.querySelector('#calcWeight'),drug=pane.querySelector('#calcDrug'),out=pane.querySelector('#calcResult');
-      weight.min='0.5';weight.max='300';weight.step='any';out.setAttribute('role','status');
-      function run(){if(!core.validWeight(weight.value)){out.textContent='Enter a positive, finite weight.';weight.setAttribute('aria-invalid','true');return;}weight.removeAttribute('aria-invalid');if(Number(weight.value)<0.5||Number(weight.value)>300){out.textContent='Enter a weight between 0.5 and 300 kg.';weight.setAttribute('aria-invalid','true');return;}if(['iron-iv','dopamine-low','norepinephrine','amino-acid'].includes(drug.value)){out.textContent='Unavailable: this entry has an unresolved calculation or clinical-content finding in the audit.';return;}window.runCalc();}
+      weight.min='0.01';weight.step='any';out.setAttribute('role','status');
+      function run(){if(!core.validWeight(weight.value)){out.textContent='Enter a positive, finite weight.';weight.setAttribute('aria-invalid','true');return;}weight.removeAttribute('aria-invalid');if(['iron-iv','dopamine-low','norepinephrine','amino-acid'].includes(drug.value)){out.textContent='Unavailable: this entry has an unresolved calculation or clinical-content finding in the audit.';return;}window.runCalc();}
       weight.addEventListener('input',run);drug.addEventListener('change',run);run();
     }
     document.getElementById('readerContents').onclick=openContents;document.getElementById('readerSearch').onclick=openSearch;document.getElementById('readerBookmarks').onclick=openBookmarks;document.getElementById('readerSettings').onclick=openSettings;
