@@ -6,6 +6,7 @@ description: |
   Automates and unifies cdss-unicode-mojibake-guard, medical-book-split-ocr-organizer, davidson-ocr-preready,
   davidson-rag-pipeline-antigravity, medical-index-rag-compiler, cdss-retrieval-packager, and cdss-bridge-note-publisher
   into a seamless 7-stage manufacturing line.
+  Use ONLY to run or resume the end-to-end multi-stage build; to run a single stage on its own, use that stage's skill (guard, organizer, preready, compiler, packager, publisher).
 ---
 
 # Medical RAG Master Orchestrator (v1.4.0)
