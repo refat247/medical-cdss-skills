@@ -36,11 +36,7 @@ On open, if `anchor` resolves, show the current section and chapter even when th
 
 ## Print
 
-Use `assets/print-v5.css`. Hide `.reader-header`, `.reader-dialog`, `.reader-status`, `.chapter-nav`, sidebars, and floating buttons. Each chapter title starts a page except the first. Tables repeat `thead`. Paragraphs keep orphans and widows of 3. Body text prints black on white. Tables may shrink but must not clip off the page without a scroll fallback in screen CSS. All chapters remain in the document; do not print a filtered view.
-
-## Diagrams
-
-Wrap Mermaid source in `figure.diagram-source` with the caption `Diagram source (Mermaid) — not rendered offline`. Do not invent a graphic.
+Hide `.reader-header`, `.reader-dialog`, `.reader-status`, `.chapter-nav`, sidebars, and floating buttons. Body text prints black on white. Tables may shrink but must not clip off the page without a scroll fallback in screen CSS. All chapters remain in the document; do not print a filtered view.
 
 ## Checks
 
