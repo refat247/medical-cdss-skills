@@ -19,8 +19,13 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
-
 TRUST_CLASSIFIER = None  # tests may replace; resolved lazily from the RAG pipeline skill
+_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-]{1,24}")
+
+
+def tokenize(text: str) -> List[str]:
+    """Tokenize lexical index text without dropping short acronyms or alphanumerics."""
+    return [m.group(0).lower() for m in _TOKEN_RE.finditer(text or "")]
 
 
 def get_trust_classifier():
@@ -70,7 +75,8 @@ class MedicalBookIndexCompiler:
 
     def __init__(self, config: CompilerConfig):
         self.config = config
-        os.makedirs(self.config.output_dir, exist_ok=True)
+        if not self.config.dry_run:
+            os.makedirs(self.config.output_dir, exist_ok=True)
         self.chunks_catalog: List[Dict[str, Any]] = []
         self.index_terms: List[Dict[str, Any]] = []
         self.index_lines: List[str] = []
@@ -120,9 +126,7 @@ class MedicalBookIndexCompiler:
             "output_directory": self.config.output_dir,
             "runtime_seconds": total_elapsed,
         }
-        manifest_path = os.path.join(self.config.output_dir, "INDEX_INTELLIGENCE_MANIFEST.json")
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(self.manifest, f, indent=2)
+        self._write_json("INDEX_INTELLIGENCE_MANIFEST.json", self.manifest)
 
         return self.manifest
 
@@ -147,16 +151,21 @@ class MedicalBookIndexCompiler:
         # Regex extractors
         trial_pattern = re.compile(r"\b([A-Z0-9\-]{2,15})\s*\(([^)]+)\)\s*(?:trial|study|investigation|registry)", re.IGNORECASE)
         acronym_pattern = re.compile(r"([A-Za-z0-9\s\-]+)\s*\(([A-Z0-9\-]{2,10})\)")
-        page_pattern = re.compile(r"(\d+)(?:–|-)(\d+)|(\d+)([tfc]?)")
+        page_pattern = re.compile(r"(?<![A-Za-z0-9])(?:(\d+)(?:–|-)(\d+)|(\d+)([tfc]?))(?![A-Za-z0-9])")
 
         for line in raw_lines:
             if line.startswith("#") or line.startswith("Note:"):
                 continue
 
-            # Check if sub-facet or primary concept
-            is_sub = (line and line[0].islower() and not line.startswith("$")) or any(
-                line.startswith(p) for p in ["in ", "of ", "for ", "with ", "as ", "and ", "vs."]
-            )
+            # Check if sub-facet or primary concept. Lowercase-initial mixed-case tokens such as eGFR/mRNA/pH
+            # are primary terms rather than subordinate prose.
+            first_word = line.split(None, 1)[0].rstrip(",;") if line else ""
+            is_sub = (
+                line
+                and line[0].islower()
+                and not line.startswith("$")
+                and not any(c.isupper() for c in first_word)
+            ) or any(line.startswith(p) for p in ["in ", "of ", "for ", "with ", "as ", "and ", "vs."])
 
             if is_sub and current_parent:
                 current_subfacets.append(line)
@@ -176,16 +185,15 @@ class MedicalBookIndexCompiler:
                     "title": tm.group(2)
                 })
 
-            # Check for acronyms
+            # Check for acronyms. Preserve every distinct expansion when an acronym is reused.
             am = acronym_pattern.search(line)
             if am:
                 canon = am.group(1).strip()
                 acro = am.group(2).strip()
                 if len(acro) >= 2 and acro.isupper():
-                    synonyms[acro] = {
-                        "canonical_terms": [canon],
-                        "type": "acronym_expansion"
-                    }
+                    entry = synonyms.setdefault(acro, {"canonical_terms": [], "type": "acronym_expansion"})
+                    if canon not in entry["canonical_terms"]:
+                        entry["canonical_terms"].append(canon)
 
             # Check for typographical anchors (t, f, c, ranges)
             for pm in page_pattern.finditer(line):
@@ -229,6 +237,7 @@ class MedicalBookIndexCompiler:
         self.log("PHASE 2", f"Discovered {len(chunk_files)} production chapter RAG files.")
         chunks: List[Dict[str, Any]] = []
         inverted_index: Dict[str, List[int]] = defaultdict(list)
+
         def chapter_trust(cf_path: str) -> str:
             """Returns "" if the chapter output is trusted for indexing, else the reason it is excluded.
 
@@ -251,11 +260,19 @@ class MedicalBookIndexCompiler:
             return ""
 
         # One copy per chapter file: prefer the canonical "rag_pipeline_output" folder, shallowest path;
-        # skip backup / audit / verification-bundle copies entirely.
+        # skip backup / audit / verification-bundle copies entirely, but only when those are real path tokens.
         root = os.path.abspath(self.config.corpus_root)
+
         def _rel(p):
             return os.path.relpath(os.path.abspath(p), root).lower()
-        chunk_files = [p for p in chunk_files if not any(k in _rel(p) for k in ("backup", "audit", "bundle"))]
+
+        _skip = {"backup", "backups", "audit", "audits", "bundle", "bundles"}
+
+        def _is_copy(p):
+            parts = re.split(r"[\\/]", os.path.dirname(_rel(p)))
+            return any(t in _skip for part in parts for t in re.split(r"[^a-z0-9]+", part))
+
+        chunk_files = [p for p in chunk_files if not _is_copy(p)]
         by_name = {}
         for p in sorted(chunk_files, key=lambda p: (os.path.basename(os.path.dirname(p)) != "rag_pipeline_output",
                                                     _rel(p).count(os.sep), p)):
@@ -285,14 +302,21 @@ class MedicalBookIndexCompiler:
             with open(cf, encoding="utf-8") as f:
                 content = f.read()
 
-            raw_chunks = re.split(r"\n+(?:---\n+)+chunk_id:\s*", content)
-            for idx, raw in enumerate(raw_chunks[1:], start=1):
+            # A chunk opener may occur at byte 0, so do not require a preceding newline or discard element 0.
+            starts = [m for m in re.finditer(r"(?m)^---[ \t]*\r?\nchunk_id:[ \t]*", content)]
+            raw_chunks = [
+                content[m.end():(starts[i + 1].start() if i + 1 < len(starts) else len(content))]
+                for i, m in enumerate(starts)
+            ]
+            for idx, raw in enumerate(raw_chunks, start=1):
                 c_id_match = re.match(r"([A-Za-z0-9_\-]+)", raw)
                 c_id = c_id_match.group(1) if c_id_match else f"{sec_name}_CHUNK_{idx}"
 
-                # Topic match
-                topic_match = re.search(r"(?:topic_primary|topic):\s*[\"']?([^\"'\n]+)[\"']?", raw)
+                # Topic match. Capture the whole line, then remove only one pair of wrapping quotes.
+                topic_match = re.search(r"(?m)^(?:topic_primary|topic):[ \t]*(.+?)[ \t]*$", raw)
                 topic = topic_match.group(1).strip() if topic_match else "General Medical Topic"
+                if len(topic) >= 2 and topic[0] == topic[-1] and topic[0] in "\"'":
+                    topic = topic[1:-1]
 
                 # Type match
                 type_match = re.search(r"semantic_type:\s*[\"']?([^\"'\n]+)[\"']?", raw)
@@ -301,6 +325,8 @@ class MedicalBookIndexCompiler:
                 # Body extraction
                 body_parts = raw.split("---", 1)
                 body = body_parts[1].strip() if len(body_parts) > 1 else raw.strip()
+                # A trailing "### Chunk N" label belongs to the next chunk divider, not this chunk's body.
+                body = re.sub(r"(?:\r?\n)+#{1,6}[ \t]+Chunk\b[^\n]*\s*$", "", body)
 
                 chunk_entry = {
                     "chunk_id": c_id,
@@ -313,8 +339,8 @@ class MedicalBookIndexCompiler:
                 }
                 chunks.append(chunk_entry)
 
-                # Tokenize for inverted index
-                tokens = set(re.findall(r"\b[a-zA-Z]{3,25}\b", (topic + " " + body).lower()))
+                # Tokenize for inverted index, retaining short acronyms and alphanumeric medical terms.
+                tokens = set(tokenize(topic + " " + body))
                 for tok in tokens:
                     inverted_index[tok].append(chunk_counter)
 
@@ -492,9 +518,7 @@ class MedicalBookIndexCompiler:
             'ws ::= [ \\t\\n]*',
             'Acronym ::= ' + ' | '.join(f'"{a}"' for a in acro_keys)
         ]
-        gbnf_path = os.path.join(self.config.output_dir, f"{p}_entity_grammar.gbnf")
-        with open(gbnf_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(gbnf_rules) + "\n")
+        self._write_text(f"{p}_entity_grammar.gbnf", "\n".join(gbnf_rules) + "\n")
 
         json_schema = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -550,15 +574,12 @@ class MedicalBookIndexCompiler:
             "| **Token Prompt Savings** | $\\ge 75.0\\%$ | **95.8%** | **PASS** |",
             ""
         ]
-        scorecard_path = os.path.join(self.config.output_dir, "BENCHMARK_SCORECARD.md")
-        with open(scorecard_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(scorecard_md))
-        self.log("PHASE 5", f"Scorecard written to: {scorecard_path}")
+        self._write_text("BENCHMARK_SCORECARD.md", "\n".join(scorecard_md))
+        self.log("PHASE 5", f"Scorecard written to: {os.path.join(self.config.output_dir, 'BENCHMARK_SCORECARD.md')}")
 
     def phase_6_scaffold_router_and_skill(self):
         """Phase 6: Scaffold CDSS router CLI script."""
         self.log("PHASE 6", "Scaffolding turnkey cdss_qa_router.py...")
-        router_path = os.path.join(self.config.output_dir, "cdss_qa_router.py")
         router_stub = [
             f'"""Turnkey CDSS Router for {self.config.book_title}."""',
             "import argparse, json, os, sys",
@@ -582,14 +603,20 @@ class MedicalBookIndexCompiler:
             "    main()",
             ""
         ]
-        with open(router_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(router_stub))
-        self.log("PHASE 6", f"CDSS router scaffold created at: {router_path}")
+        self._write_text("cdss_qa_router.py", "\n".join(router_stub))
+        self.log("PHASE 6", f"CDSS router scaffold created at: {os.path.join(self.config.output_dir, 'cdss_qa_router.py')}")
 
     def _write_json(self, filename: str, data: Any):
+        self._write_text(filename, json.dumps(data, ensure_ascii=False, indent=2))
+
+    def _write_text(self, filename: str, text: str):
+        """Single output choke point so --dry-run performs no writes."""
         path = os.path.join(self.config.output_dir, filename)
+        if self.config.dry_run:
+            self.log("DRY-RUN", f"would write {path} ({len(text)} chars)")
+            return
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write(text)
 
     def _read_json(self, filename: str, default: Any = None) -> Any:
         path = os.path.join(self.config.output_dir, filename)
