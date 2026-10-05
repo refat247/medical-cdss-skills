@@ -1,0 +1,107 @@
+{
+  "archive_rule": "SKILL.md must be at ZIP root; no wrapper directory",
+  "canonical_version_source": "SKILL.md:metadata.version",
+  "expected_regression_checks": 59,
+  "files": {
+    "ACTIVATION_SMOKE_TEST.md": {
+      "sha256": "a41566927b34c75ab6cd3fa391ff69aa6113e2fa4bd80e764d1aab43e9e4946a",
+      "size": 1154
+    },
+    "CHANGELOG.md": {
+      "sha256": "2a48190f8d710961d378bdf6814a3af8eef1fb471bf9c8097017f5b74435f03d",
+      "size": 6109
+    },
+    "MANUAL_ACTIVATION.md": {
+      "sha256": "0d4a8e0ee16620d0500a925a695d17ffa079e33caf0e9900886759192d274242",
+      "size": 997
+    },
+    "README.md": {
+      "sha256": "c3a1f39664d002a0df93af069114b352fb565702030c0edbde27560bd0b8bd0b",
+      "size": 2802
+    },
+    "RELEASE_AUDIT.md": {
+      "sha256": "d32bead9f1a942cb910fe6a43931d17e5c9fe1f176b7fbd6649bbb03f15bb89e",
+      "size": 1975
+    },
+    "SKILL.md": {
+      "sha256": "80d3871ac52f86ed13ec783bc377340ad1f504a7c8a859e9d00df650ea8e6d72",
+      "size": 5627
+    },
+    "TEST_REPORT.md": {
+      "sha256": "7c6ce4d20289afd2ec816442a698ff4235fc14628285e862a286dcc108ecbf17",
+      "size": 3259
+    },
+    "VERSION": {
+      "sha256": "6cf4e084b47f33c9b02ef79279d157833868f8f70514169a768be353ee328fea",
+      "size": 6
+    },
+    "VERSIONING_DECISION.md": {
+      "sha256": "8632914e4cb556a89b8e0ad0a908bb1fadbb41873e178e11c4858cd66262f801",
+      "size": 1166
+    },
+    "agents/openai.yaml": {
+      "sha256": "c0ee133425d7171876c1996d39cd6fa9b48c681b1c8c4f55642eeee0fa13b928",
+      "size": 494
+    },
+    "assets/calc-template.html": {
+      "sha256": "29dba8620ae82f3fe0e89eb574d9925572fda1b56038c6056219260602ac91ee",
+      "size": 1444
+    },
+    "assets/reader.css": {
+      "sha256": "d5c2dba023b49714d1962a4ddca57e64d871f1c2af4c86216f453d2996c8acd9",
+      "size": 39191
+    },
+    "assets/reader.js.html": {
+      "sha256": "59c4302076d7636e30a14c0fc905f4a47f960703f09e8911be8e2c025b9b0216",
+      "size": 33451
+    },
+    "evals/evals.json": {
+      "sha256": "34cb56e54b6e814457bff40580b2d0b3e3949ab484a4c2653c135cf0c2a4aee7",
+      "size": 1672
+    },
+    "evals/triggers.json": {
+      "sha256": "1e203aa3f640434e760af445c265b6cfff639f08bb3bd8fd2e6ccefd6d36d8ce",
+      "size": 524
+    },
+    "references/clinical-constraints.md": {
+      "sha256": "47458c488c86c37ca12359b13ba70a3360b409d65cc6fa44e40bbc10f3f7ed44",
+      "size": 1194
+    },
+    "references/input-contract.md": {
+      "sha256": "9f07b526f56fa624c7c1642f8f10e69706e8f6884d8a97620c0db5f4a08d21f4",
+      "size": 3630
+    },
+    "references/reader-contract.md": {
+      "sha256": "53c1ed4c6a4df9024769c6a67b2f3f2555f52a60e927f6494c819068acdd2bd3",
+      "size": 1806
+    },
+    "scripts/build_guide.py": {
+      "sha256": "1c1b19f90d6f4dd0a9194f876bf4b1f44548c245915f78cd9c86c5bcdef80284",
+      "size": 50110
+    },
+    "scripts/check_guide.py": {
+      "sha256": "43b6d74b5b82ca417e1aa1f6bc3793c88bbf419781ec83d10c27f36a9818144a",
+      "size": 3059
+    },
+    "scripts/run_regression.py": {
+      "sha256": "922fcf597334027ab2e8bebec876395bdb79cd4119e076c2a1cebff73d9ed6e2",
+      "size": 32580
+    },
+    "scripts/verify_release.py": {
+      "sha256": "d31c03545d4729c45c156444d41820569e1b29d11ffdc717413694f7806be534",
+      "size": 8115
+    }
+  },
+  "functional_code_changed": false,
+  "functional_regression_command": "python3 scripts/run_regression.py",
+  "lifecycle": "active",
+  "name": "offline-study-guide",
+  "predecessor": {
+    "version": "1.2.0",
+    "zip_sha256": "3e674bdf1efd93251c254466bb026694281c5381b449b34142dfe2663d4018c1"
+  },
+  "release_type": "PATCH",
+  "release_verify_command": "python3 scripts/verify_release.py",
+  "status": "stable",
+  "version": "1.2.1"
+}
