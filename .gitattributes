@@ -1,0 +1,6 @@
+# Default: let git normalise text to LF in the repo.
+* text=auto
+
+# Regression fixtures carry SHA-256 hashes recorded on Windows (CRLF working-tree bytes).
+# Pin them to CRLF in every checkout so the hashes match on Linux/macOS/Windows alike.
+davidson-rag-pipeline-antigravity/tests/fixtures/** text eol=crlf
