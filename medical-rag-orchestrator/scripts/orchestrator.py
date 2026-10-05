@@ -93,7 +93,6 @@ def _load_trust_classifier():
         print(f"[WARN] Cannot load pipeline trust classifier from {RAG_DIR}: {e}", file=sys.stderr)
         return None
     finally:
-        # never leave the pipeline folder on sys.path: its regular "scripts" package would shadow others
         if added and str(RAG_DIR) in sys.path:
             sys.path.remove(str(RAG_DIR))
 
@@ -113,20 +112,16 @@ def _checkpoint_verdict(out_dir: Path) -> Dict[str, Any]:
         return {"ready": False, "label": "RAG INCOMPLETE (NO CHECKPOINT)"}
     if rec.get("trusted_for_downstream_use") is True:
         return {"ready": True, "label": "RAG READY", "classification": rec.get("classification")}
-    return {"ready": False, "label": f"RAG UNTRUSTED ({rec.get('classification')})",
-            "classification": rec.get("classification"), "reasons": rec.get("reasons")}
+    return {
+        "ready": False,
+        "label": f"RAG UNTRUSTED ({rec.get('classification')})",
+        "classification": rec.get("classification"),
+        "reasons": rec.get("reasons"),
+    }
 
 
 def evaluate_chapter_trust(search_dirs: List[Path]) -> Dict[str, Any]:
-    """Decides whether a chapter's RAG output is trusted for downstream use.
-
-    Uses the pipeline's own classify_trust() (the logic behind CORPUS_TRUST_STATUS.md):
-      - CORPUS_OUTPUT_PROTECTED.json is a mutation-safety marker only, never evidence of trust.
-      - Trust is judged from the evidence in the SAME folder as the *_RAG_Optimised.md
-        (checkpoint, Stage 6, Stage 4.5d gate, 4.6/4.7 reviews, Stage 8 precision).
-      - When a chapter holds several output folders (v22 copies, *_extracted, *_candidate...), the canonical
-        folder named exactly "rag_pipeline_output" (shallowest) decides; side copies are ignored.
-    """
+    """Decides whether a chapter's RAG output is trusted for downstream use."""
     search_dirs = [d for d in search_dirs if d and d.exists()]
     out_dirs = []
     for d in search_dirs:
@@ -142,11 +137,11 @@ def evaluate_chapter_trust(search_dirs: List[Path]) -> Dict[str, Any]:
 # ----------------------------------------------------------------------
 # 1. Status & Inspection
 # ----------------------------------------------------------------------
-def audit_book_status(book_dir: Path) -> None:
-    """Audits the pipeline progress of each section inside a book directory."""
+def audit_book_status(book_dir: Path):
+    """Audit each section and return False when the target directory is missing."""
     if not book_dir.exists():
         print(f"[ERROR] Target book directory does not exist: {book_dir}")
-        return
+        return False
 
     print(f"\n================================================================================")
     print(f" MEDICAL RAG PIPELINE STATUS AUDIT")
@@ -161,17 +156,14 @@ def audit_book_status(book_dir: Path) -> None:
     table_rows = []
     for d in entries:
         name = d.name
-        # Check Stage 0 (PDF / OCR)
         has_pdf = any(d.glob("*.pdf"))
         ocr_md_dir = d / "ocr markdown"
         has_ocr = ocr_md_dir.exists() and any(f for f in ocr_md_dir.iterdir() if not f.name.startswith("."))
-        
-        # Check Stage 1 (Inlined markdown)
+
         inlined_files = [f for f in d.glob("*markdown_inlined.md") if f.is_file() and f.stat().st_size > 0] or \
                         [f for f in d.glob("**/*markdown_inlined.md") if f.is_file() and f.stat().st_size > 0]
         has_inlined = bool(inlined_files)
-        
-        # Check Stage 2 (RAG Chunks & Optimized)
+
         has_chunks = any(d.glob("**/*_chunks.md"))
         has_rag_opt = any(d.glob("**/*_RAG_Optimised.md"))
         status_tag = "NOT STARTED"
@@ -191,7 +183,7 @@ def audit_book_status(book_dir: Path) -> None:
             "inlined": "YES" if has_inlined else "NO",
             "chunks": "YES" if has_chunks else "NO",
             "rag_opt": "YES" if has_rag_opt else "NO",
-            "status": status_tag
+            "status": status_tag,
         })
 
     print(f"{'Section / Chapter':<48} | {'PDF':<4} | {'OCR':<4} | {'INL':<4} | {'CHK':<4} | {'OPT':<4} | {'STATUS'}")
@@ -199,7 +191,6 @@ def audit_book_status(book_dir: Path) -> None:
     for r in table_rows:
         print(f"{r['section']:<48} | {r['pdf']:<4} | {r['ocr']:<4} | {r['inlined']:<4} | {r['chunks']:<4} | {r['rag_opt']:<4} | {r['status']}")
     print("-" * 92)
-
 
 
 # ----------------------------------------------------------------------
@@ -255,7 +246,7 @@ def cmd_index(book: str, edition: str, corpus: str, index: str, output: str) -> 
         "--edition", edition,
         "--corpus", corpus,
         "--index", index,
-        "--output", output
+        "--output", output,
     ]
     return run_subcommand(cmd, cwd=INDEX_COMPILER_DIR, extra_pythonpath=INDEX_COMPILER_DIR)
 
@@ -268,7 +259,8 @@ def cmd_package(package_dir: str) -> int:
 def cmd_guard(target_dir: str, fix: bool = False, enforce_ismp: bool = True) -> int:
     action = "fix" if fix else "audit"
     cmd = [sys.executable, str(GUARD_SCRIPT), action, "--target-dir", target_dir]
-    if enforce_ismp:
+    # guard.py's audit subparser does not accept --enforce-ismp; only the fix path accepts it.
+    if enforce_ismp and fix:
         cmd.append("--enforce-ismp")
     return run_subcommand(cmd)
 
@@ -278,7 +270,7 @@ def cmd_publish_note(topic: str, output_dir: str, note_id: Optional[str] = None)
     cmd = [
         sys.executable, str(BRIDGE_PUBLISHER_SCRIPT),
         "--topic", topic,
-        "--output-dir", output_dir
+        "--output-dir", output_dir,
     ]
     if note_id:
         cmd.extend(["--note-id", note_id])
@@ -292,13 +284,19 @@ def cmd_publish_manifest(manifest_path: str, output_dir: str) -> int:
         print(f"[ERROR] Topic manifest not found: {mpath}")
         return 1
 
-    import json
     with open(mpath, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     chapter = data.get("chapter", "Unknown")
     title = data.get("title", "Unknown")
     topics = data.get("topics", [])
+    if not isinstance(topics, list) or not topics or not all(isinstance(x, dict) for x in topics):
+        print(
+            f"[ERROR] Manifest {mpath} has no usable 'topics' list (empty, missing, or not a list of objects); "
+            "nothing was published."
+        )
+        return 1
+
     print(f"\n================================================================================")
     print(f" STAGE 6: EXECUTING CHAPTER MANIFEST")
     print(f" Chapter {chapter}: {title} ({len(topics)} discrete clinical entities)")
@@ -331,7 +329,6 @@ def cmd_verify_versions() -> int:
     return run_subcommand(cmd)
 
 
-
 # ----------------------------------------------------------------------
 # 3. Main CLI Dispatcher
 # ----------------------------------------------------------------------
@@ -341,27 +338,22 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command", help="Pipeline subcommand")
 
-    # status
     p_status = subparsers.add_parser("status", help="Audit pipeline status of all sections in a book")
     p_status.add_argument("--book-dir", required=True, help="Directory containing split book chapter folders")
 
-    # organize
     p_org = subparsers.add_parser("organize", help="Run medical-book-split-ocr-organizer")
     p_org.add_argument("--target-dir", required=True, help="Target split book directory")
     p_org.add_argument("--source-dir", default=DEFAULT_DOWNLOADS_DIR, help="Source folder with OCR downloads (env CDSS_DOWNLOADS_DIR)")
 
-    # preready
     p_pre = subparsers.add_parser("preready", help="Run davidson-ocr-preready table inlining & figure decoupling")
     p_pre.add_argument("--chapter-dir", nargs="+", required=True, help="One or more chapter directories")
     p_pre.add_argument("--skip-completed", action="store_true", default=False, help="Skip chapters that already have markdown_inlined.md")
 
-    # rag
     p_rag = subparsers.add_parser("rag", help="Run davidson-rag-pipeline-antigravity 18-stage RAG chain")
     p_rag.add_argument("--source", required=True, help="Path to markdown_inlined.md")
     p_rag.add_argument("--out", help="Output directory for rag_pipeline_output")
     p_rag.add_argument("--skip-completed", action="store_true", default=False, help="Skip chapters that already have RAG_Optimised.md")
 
-    # index
     p_idx = subparsers.add_parser("index", help="Run medical-index-rag-compiler")
     p_idx.add_argument("--book", required=True, help="Textbook name (e.g. 'Davidson')")
     p_idx.add_argument("--edition", required=True, help="Edition (e.g. '25th Edition')")
@@ -369,31 +361,25 @@ def main():
     p_idx.add_argument("--index", required=True, help="Path to inlined back-of-book index markdown")
     p_idx.add_argument("--output", required=True, help="Output destination for Index intelligence assets")
 
-    # package
     p_pkg = subparsers.add_parser("package", help="Run cdss-retrieval-packager")
     p_pkg.add_argument("--package-dir", required=True, help="Root path of CDSS_Retrieval_Package")
 
-    # guard (Gate 0)
     p_guard = subparsers.add_parser("guard", help="Run Gate 0 Unicode and ISMP clinical encoding guard")
     p_guard.add_argument("--target-dir", required=True, help="Directory to audit or sanitize")
     p_guard.add_argument("--fix", action="store_true", help="Fix encoding issues in-place (default is audit only)")
     p_guard.add_argument("--enforce-ismp", action="store_true", default=True, help="Enforce FDA/ISMP safe abbreviations")
 
-    # verify-versions
     subparsers.add_parser("verify-versions", help="Verify zero-drift version declarations across all pipeline skills")
 
-    # publish-note (Stage 6)
     p_pub = subparsers.add_parser("publish-note", help="Stage 6: Synthesize a discrete Cognitive Bridge Note & Word document")
     p_pub.add_argument("--topic", required=True, help="Clinical topic name (e.g. 'Cardiac Murmurs & Auscultation')")
     p_pub.add_argument("--output-dir", required=True, help="Destination directory for published notes and Word docx")
     p_pub.add_argument("--note-id", help="Optional note identifier (e.g. '16.1')")
 
-    # publish-manifest (Stage 6 Multi-Topic)
     p_man = subparsers.add_parser("publish-manifest", help="Stage 6: Build all discrete topic notes defined in a chapter manifest")
     p_man.add_argument("--manifest", required=True, help="Path to chapter_manifest.json")
     p_man.add_argument("--output-dir", required=True, help="Destination directory for published notes and Word docx")
 
-    # auto
     p_auto = subparsers.add_parser("auto", help="Automate complete book build lifecycle")
     p_auto.add_argument("--book-dir", required=True, help="Root folder of book")
     p_auto.add_argument("--downloads-dir", default=DEFAULT_DOWNLOADS_DIR, help="Downloads staging folder (env CDSS_DOWNLOADS_DIR)")
@@ -407,54 +393,43 @@ def main():
         sys.exit(0)
 
     if args.command == "status":
-        audit_book_status(Path(args.book_dir))
+        sys.exit(0 if audit_book_status(Path(args.book_dir)) is not False else 1)
     elif args.command == "guard":
-        code = cmd_guard(args.target_dir, fix=args.fix, enforce_ismp=args.enforce_ismp)
-        sys.exit(code)
+        sys.exit(cmd_guard(args.target_dir, fix=args.fix, enforce_ismp=args.enforce_ismp))
     elif args.command == "verify-versions":
-        code = cmd_verify_versions()
-        sys.exit(code)
+        sys.exit(cmd_verify_versions())
     elif args.command == "publish-note":
-        code = cmd_publish_note(args.topic, args.output_dir, note_id=args.note_id)
-        sys.exit(code)
+        sys.exit(cmd_publish_note(args.topic, args.output_dir, note_id=args.note_id))
     elif args.command == "publish-manifest":
-        code = cmd_publish_manifest(args.manifest, args.output_dir)
-        sys.exit(code)
+        sys.exit(cmd_publish_manifest(args.manifest, args.output_dir))
     elif args.command == "organize":
-        code = cmd_organize(args.target_dir, args.source_dir)
-        sys.exit(code)
+        sys.exit(cmd_organize(args.target_dir, args.source_dir))
     elif args.command == "preready":
-        code = cmd_preready(args.chapter_dir, skip_completed=args.skip_completed)
-        sys.exit(code)
+        sys.exit(cmd_preready(args.chapter_dir, skip_completed=args.skip_completed))
     elif args.command == "rag":
-        code = cmd_rag(args.source, args.out, skip_completed=args.skip_completed)
-        sys.exit(code)
+        sys.exit(cmd_rag(args.source, args.out, skip_completed=args.skip_completed))
     elif args.command == "index":
-        code = cmd_index(args.book, args.edition, args.corpus, args.index, args.output)
-        sys.exit(code)
+        sys.exit(cmd_index(args.book, args.edition, args.corpus, args.index, args.output))
     elif args.command == "package":
-        code = cmd_package(args.package_dir)
-        sys.exit(code)
+        sys.exit(cmd_package(args.package_dir))
     elif args.command == "auto":
         bdir = Path(args.book_dir)
         print(f"[ORCHESTRATOR] Starting automated lifecycle for {bdir}...")
-        # 1. Audit status first
         audit_book_status(bdir)
-        # 2. Gate 0: Unicode & ISMP clinical encoding guard
+
         print("\n>>> GATE 0: Running Unicode & ISMP clinical encoding guard...")
         code = cmd_guard(args.book_dir, fix=True, enforce_ismp=True)
         if code != 0:
             print(f"[ERROR] Gate 0 Unicode guard failed with exit code {code}")
             sys.exit(code)
 
-        # 3. Organize
         print("\n>>> STAGE 1: Organizing book directory and ingesting OCR...")
         code = cmd_organize(args.book_dir, args.downloads_dir)
         if code != 0:
             print(f"[ERROR] Stage 1 failed with exit code {code}")
             sys.exit(code)
 
-        # 4. Optional chapter chaining (Stages 2 & 3)
+        untrusted_chapters = []
         if args.process_chapters:
             print("\n>>> STAGE 2 & 3: Processing chapters (Pre-Ready Inlining & RAG)...")
             chapter_dirs = sorted([d for d in bdir.iterdir() if d.is_dir() and d.name != "Index"])
@@ -484,15 +459,27 @@ def main():
                     print(f"\n[ORCHESTRATOR] Running 18-stage RAG for {ch.name} ({inlined_src.name})...")
                     code = cmd_rag(str(inlined_src), skip_completed=args.skip_completed)
                     if code == 3:
-                        print(f"[WARN] {ch.name}: pipeline finished but Stage 8 did not mark it trusted; "
-                              f"it will be excluded from indexing until reviewed/finalized.")
+                        print(
+                            f"[WARN] {ch.name}: pipeline finished but Stage 8 did not mark it trusted; "
+                            "it will be excluded from indexing until reviewed/finalized."
+                        )
+                        untrusted_chapters.append(ch.name)
                         continue
                     if code != 0:
                         print(f"[ERROR] Stage 3 (RAG) failed for {ch.name} with exit code {code}")
                         sys.exit(code)
 
-        # 5. Status after organization
         audit_book_status(bdir)
+        print(
+            "\n[ORCHESTRATOR] Note: `auto` covers Gate 0 and Stages 1-3 only; indexing, packaging and "
+            "publishing are separate commands (index / package / publish-note)."
+        )
+        if untrusted_chapters:
+            print(
+                f"\n[ORCHESTRATOR] Finished WITH {len(untrusted_chapters)} chapter(s) not trusted: "
+                f"{untrusted_chapters}. Exit code 3 -- review/finalize them before indexing."
+            )
+            sys.exit(3)
         print("\n[ORCHESTRATOR] Automated lifecycle step completed successfully.")
 
 

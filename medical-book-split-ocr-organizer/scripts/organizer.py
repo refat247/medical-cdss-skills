@@ -10,15 +10,13 @@ import json
 import os
 import re
 import shutil
+import time
 import sys
 from pathlib import Path
 
 
 def normalize_name(name: str) -> str:
-    """Normalizes section/part names for flexible matching.
-    Strips .pdf extension, converts underscores/hyphens to spaces, collapses whitespace,
-    and converts to lowercase.
-    """
+    """Normalizes section/part names for flexible matching."""
     clean = re.sub(r"\.pdf$", "", name, flags=re.IGNORECASE)
     clean = re.sub(r"[_\-]+", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip().lower()
@@ -45,28 +43,52 @@ def get_default_downloads_dir() -> str:
     return str(downloads) if downloads.exists() else str(home)
 
 
+def _move_aside(path: Path) -> Path:
+    """Preserve an existing path as ``*.replaced-<timestamp>`` instead of deleting it."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    home = path.parent
+    if path.parent.name == "ocr markdown":
+        # Backups must not sit among the live OCR slots.
+        home = path.parent.parent / "_replaced_backups"
+        home.mkdir(parents=True, exist_ok=True)
+    dest = home / f"{path.name}.replaced-{stamp}"
+    n = 1
+    while dest.exists():
+        n += 1
+        dest = home / f"{path.name}.replaced-{stamp}-{n}"
+    path.rename(dest)
+    return dest
+
+
+def _best_fuzzy_section(norm: str, section_map: dict):
+    """Return the unique longest substring-match section, or None if absent/ambiguous."""
+    cands = [
+        (len(sec_norm), sec_path)
+        for sec_norm, sec_path in section_map.items()
+        if len(norm) > 10 and (sec_norm in norm or norm in sec_norm)
+    ]
+    if not cands:
+        return None
+    best = max(length for length, _ in cands)
+    top = [path for length, path in cands if length == best]
+    return top[0] if len(top) == 1 else None
+
+
 def cmd_init(target_dir: str) -> int:
-    """Initializes book split directory:
-    - Finds all top-level .pdf files
-    - Creates section folder matching file's base name
-    - Moves .pdf into section folder
-    - Creates 'ocr markdown/' subfolder inside section folder
-    """
+    """Initializes book split directory."""
     target = Path(target_dir).resolve()
     if not target.exists() or not target.is_dir():
         print(f"Error: Target directory does not exist or is not a directory: {target}", file=sys.stderr)
         return 1
 
     pdf_files = [f for f in target.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
-    
-    # Auto-detect if target itself is an unorganized section folder (e.g. named *.pdf or contains markdown.md)
+
     if target.name.lower().endswith(".pdf") or (target / "markdown.md").exists():
         print(f"Detected individual section directory: {target.name}. Organizing into canonical layout...")
         return cmd_organize_section(str(target))
 
     if not pdf_files:
         print(f"No top-level PDF files found in {target}.")
-        # Check if already organized into subdirectories
         subdirs = [d for d in target.iterdir() if d.is_dir() and not is_ignorable_dir(d)]
         if subdirs:
             print(f"Found {len(subdirs)} existing subdirectories. Ensuring 'ocr markdown/' folders exist...")
@@ -102,13 +124,8 @@ def cmd_init(target_dir: str) -> int:
     return 0
 
 
-def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> int:
-    """Ingests OCR extraction folders from source_dir into corresponding section folders:
-    - Scans source_dir for folders (typically named <Prefix>.pdf containing markdown.md/pages/)
-    - Matches them flexibly against section folders in target_dir
-    - Moves folder into <Section>/ocr markdown/<FolderName>
-    - Cleans up empty extraction folders (e.g. ocr-playground-download-*)
-    """
+def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False, dry_run: bool = False) -> int:
+    """Ingest OCR extraction folders into matching section folders without destructive overwrite."""
     target = Path(target_dir).resolve()
     if not target.exists() or not target.is_dir():
         print(f"Error: Target directory does not exist: {target}", file=sys.stderr)
@@ -122,33 +139,21 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
     print(f"Scanning target directory: {target}")
     print(f"Scanning source OCR path: {src}")
 
-    # Discover candidate folders in source_dir
-    # Check if src itself is an OCR directory (e.g. contains markdown.md or pages/)
     is_direct_ocr_folder = (src / "markdown.md").exists() or (src / "pages").exists()
-    if is_direct_ocr_folder:
-        source_items = [src]
-    else:
-        source_items = [d for d in src.iterdir() if d.is_dir()]
+    source_items = [src] if is_direct_ocr_folder else [d for d in src.iterdir() if d.is_dir()]
 
-    # Build map of normalized section name -> section Path in target_dir
     section_dirs = [d for d in target.iterdir() if d.is_dir() and not is_ignorable_dir(d)]
-    section_map = {}
-    for d in section_dirs:
-        norm = normalize_name(d.name)
-        section_map[norm] = d
+    section_map = {normalize_name(d.name): d for d in section_dirs}
 
-    # Also check if target itself is a section (contains PDFs or is an individual guideline section)
     target_pdfs = [f for f in target.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
     target_norm = normalize_name(target.name)
 
     moved_count = 0
     skipped_count = 0
     unmatched_count = 0
-
     cleanup_candidates = []
 
     for item in sorted(source_items, key=lambda x: x.name):
-        # Check for empty staging folders (e.g. ocr-playground-download-*)
         if item.name.lower().startswith("ocr-playground-download"):
             try:
                 if not any(item.iterdir()):
@@ -159,15 +164,9 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
 
         norm = normalize_name(item.name)
         target_section = section_map.get(norm)
-
         if not target_section:
-            # Fallback: check if the normalized item name is contained in or contains any section name
-            for sec_norm, sec_path in section_map.items():
-                if sec_norm == norm or (len(norm) > 10 and (norm in sec_norm or sec_norm in norm)):
-                    target_section = sec_path
-                    break
+            target_section = _best_fuzzy_section(norm, section_map)
 
-        # Check if target itself matches the item (single section mode)
         if not target_section:
             matched_pdf = False
             for pdf in target_pdfs:
@@ -185,21 +184,30 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
             continue
 
         dest_ocr_parent = target_section / "ocr markdown"
-        dest_ocr_parent.mkdir(parents=True, exist_ok=True)
         dest_item = dest_ocr_parent / item.name
 
-        if dest_item.exists() and any(dest_item.iterdir() if dest_item.is_dir() else [1]):
-            if not force:
-                print(f"  [SKIP] Target already exists (use --force to overwrite): {dest_item}")
-                skipped_count += 1
-                continue
-            else:
-                print(f"  [OVERWRITE] Removing existing folder: {dest_item}")
-                if dest_item.is_dir():
-                    shutil.rmtree(dest_item)
-                else:
-                    dest_item.unlink()
+        if dest_item.exists():
+            non_empty = any(dest_item.iterdir()) if dest_item.is_dir() else True
+            if non_empty:
+                if not force:
+                    print(f"  [SKIP] Target already exists (use --force to overwrite): {dest_item}")
+                    skipped_count += 1
+                    continue
+                if dry_run:
+                    print(f"  [DRY-RUN] would move existing {dest_item.name} aside, then move {item.name}")
+                    moved_count += 1
+                    continue
+                aside = _move_aside(dest_item)
+                print(f"  [OVERWRITE] Existing output kept as: {aside.name}")
+            elif not dry_run:
+                dest_item.rmdir()
 
+        if dry_run:
+            print(f"  [DRY-RUN] would move {item.name} -> {target_section.name}/ocr markdown/")
+            moved_count += 1
+            continue
+
+        dest_ocr_parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(item), str(dest_item))
             print(f"  [MOVED] {item.name} -> {target_section.name}/ocr markdown/")
@@ -207,8 +215,10 @@ def cmd_ingest(target_dir: str, source_dir: str = None, force: bool = False) -> 
         except Exception as e:
             print(f"  [ERROR] Failed to move {item.name}: {e}", file=sys.stderr)
 
-    # Clean up empty staging folders
     for cleanup in cleanup_candidates:
+        if dry_run:
+            print(f"  [DRY-RUN] would remove empty download folder: {cleanup.name}")
+            continue
         try:
             cleanup.rmdir()
             print(f"  [CLEANUP] Removed empty download folder: {cleanup.name}")
@@ -241,13 +251,12 @@ def cmd_status(target_dir: str) -> int:
     target_pdfs = [f for f in target.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
     target_ocr = target / "ocr markdown"
 
-    # If target itself is a single section (e.g. contains PDF directly or ocr markdown and no section subdirectories)
     if (target_pdfs or target_ocr.exists()) and not subdirs:
         print(f"\nAudit Report for Single Section: {target.name} ({target})")
         pdf_str = f"[YES] ({target_pdfs[0].name})" if target_pdfs else "[NO]"
         ocr_str = "[NO OCR]"
         if target_ocr.exists():
-            ocr_items = [item for item in target_ocr.iterdir()]
+            ocr_items = [item for item in target_ocr.iterdir() if item.is_file() or any(item.iterdir())]
             if ocr_items:
                 ocr_str = f"[YES] ({len(ocr_items)} item(s): {', '.join(x.name for x in ocr_items)})"
         print(f"{'Source PDF':<12}: {pdf_str}")
@@ -256,9 +265,8 @@ def cmd_status(target_dir: str) -> int:
 
     if not subdirs:
         print(f"No section directories found in {target}.")
-        uninit_pdfs = target_pdfs
-        if uninit_pdfs:
-            print(f"Found {len(uninit_pdfs)} uninitialized PDF files in root. Run 'init' to organize them.")
+        if target_pdfs:
+            print(f"Found {len(target_pdfs)} uninitialized PDF files in root. Run 'init' to organize them.")
         return 0
 
     print(f"\nAudit Report for: {target}")
@@ -269,7 +277,6 @@ def cmd_status(target_dir: str) -> int:
     has_ocr_count = 0
 
     for d in subdirs:
-        # Check for PDF
         pdf_present = any(f.is_file() and f.suffix.lower() == ".pdf" for f in d.iterdir())
         if pdf_present:
             has_pdf_count += 1
@@ -277,16 +284,14 @@ def cmd_status(target_dir: str) -> int:
         else:
             pdf_str = "[NO]"
 
-        # Check for OCR markdown
         ocr_dir = d / "ocr markdown"
         ocr_str = "[NO OCR]"
         if ocr_dir.exists():
-            ocr_items = [item for item in ocr_dir.iterdir()]
+            ocr_items = [item for item in ocr_dir.iterdir() if item.is_file() or any(item.iterdir())]
             if ocr_items:
                 has_ocr_count += 1
                 ocr_str = f"[YES] ({len(ocr_items)} item(s))"
 
-        # Truncate long section names for clean console printing
         disp_name = (d.name[:62] + "...") if len(d.name) > 65 else d.name
         print(f"{disp_name:<65} | {pdf_str:<10} | {ocr_str:<25}")
 
@@ -296,15 +301,7 @@ def cmd_status(target_dir: str) -> int:
 
 
 def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: str = None, move_pdf: bool = False) -> int:
-    """Organizes an individual section directory into canonical layout:
-    <Parent>/<CleanName>/
-    ├── <CleanName>.pdf (source PDF)
-    └── ocr markdown/
-        └── <CleanName>.pdf/
-            ├── markdown.md
-            ├── pages/
-            └── ...
-    """
+    """Organizes an individual section directory into canonical layout."""
     target = Path(target_dir).resolve()
     if not target.exists() or not target.is_dir():
         print(f"Error: Target directory does not exist or is not a directory: {target}", file=sys.stderr)
@@ -323,7 +320,6 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
     print(f"  Target Section Dir: {canonical_sec}")
     print(f"  OCR Workspace:      {ocr_item}")
 
-    # 1. Locate and move/copy source PDF file
     pdf_candidates = [f for f in target.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
     best_pdf = None
     source_is_internal = True
@@ -335,7 +331,6 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
                 best_pdf = p
                 break
     else:
-        # Check external candidate locations
         search_dirs = []
         if pdf_source_dir:
             search_dirs.append(Path(pdf_source_dir).resolve())
@@ -348,13 +343,11 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         for sdir in search_dirs:
             if not sdir.is_dir():
                 continue
-            # Direct match
             direct_cand = sdir / (clean_name + ".pdf")
             if direct_cand.exists() and direct_cand.is_file():
                 best_pdf = direct_cand
                 source_is_internal = False
                 break
-            # Normalized match
             for cand in sdir.glob("*.pdf"):
                 if normalize_name(cand.name) == norm_clean:
                     best_pdf = cand
@@ -381,13 +374,21 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         else:
             print(f"  [WARN] No source PDF found for {clean_name}")
 
-    # 2. Move OCR files & directories into ocr_item
     ocr_item.mkdir(parents=True, exist_ok=True)
 
     items_to_move = [
         item for item in target.iterdir()
         if item.resolve() != canonical_sec.resolve() and item.resolve() != ocr_dir.resolve()
     ]
+    if target.resolve() == canonical_sec.resolve():
+        looks_ocr = re.compile(
+            r"(markdown|^images?$|^pages?$|^assets$|^img-|^page-|rag_pipeline_output|_CHECKPOINT\.json$)",
+            re.I,
+        )
+        kept = [item for item in items_to_move if not looks_ocr.search(item.name) or item.suffix.lower() == ".pdf"]
+        for item in kept:
+            print(f"  [LEAVE] {item.name} (does not look like OCR output)")
+        items_to_move = [item for item in items_to_move if item not in kept]
 
     for item in items_to_move:
         if target == canonical_sec and item.name == (clean_name + ".pdf"):
@@ -398,19 +399,15 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         dest_entry = ocr_item / item.name
         if dest_entry.exists():
             if force:
-                if dest_entry.is_dir():
-                    shutil.rmtree(dest_entry)
-                else:
-                    dest_entry.unlink()
+                aside = _move_aside(dest_entry)
                 shutil.move(str(item), str(dest_entry))
-                print(f"  [OVERWRITE] {item.name} -> ocr markdown/{ocr_item.name}/")
+                print(f"  [OVERWRITE] {item.name} -> ocr markdown/{ocr_item.name}/ (previous kept as {aside.name})")
             else:
                 print(f"  [SKIP] Already exists in OCR workspace: {dest_entry.name}")
         else:
             shutil.move(str(item), str(dest_entry))
             print(f"  [MOVED] {item.name} -> ocr markdown/{ocr_item.name}/")
 
-    # 3. If target was named <Name>.pdf and is now empty, remove it
     if target.resolve() != canonical_sec.resolve():
         try:
             if not any(target.iterdir()):
@@ -419,7 +416,6 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
         except Exception as e:
             print(f"  [NOTE] Could not remove old directory {target.name}: {e}", file=sys.stderr)
 
-    # 4. Update CHECKPOINT.json if present
     rag_dir = ocr_item / "rag_pipeline_output"
     if rag_dir.exists():
         for ckpt_path in rag_dir.glob("*_CHECKPOINT.json"):
@@ -444,12 +440,7 @@ def cmd_organize_section(target_dir: str, force: bool = False, pdf_source_dir: s
 
 
 def cmd_organize_book(target_dir: str, pdf_source_dir: str = None, force: bool = False, move_pdf: bool = False) -> int:
-    """Batch-organizes all section directories within a book root directory into canonical layout:
-    - Normalizes section folder names (removing trailing .pdf)
-    - Incorporates matching source PDFs from pdf_source_dir into each section root
-    - Relocates OCR outputs (markdown.md, pages/, assets/, rag_pipeline_output/) into ocr markdown/<Prefix>.pdf/
-    - Updates RAG pipeline checkpoint JSON paths
-    """
+    """Batch-organizes all section directories within a book root directory into canonical layout."""
     target = Path(target_dir).resolve()
     if not target.exists() or not target.is_dir():
         print(f"Error: Target directory does not exist or is not a directory: {target}", file=sys.stderr)
@@ -508,34 +499,29 @@ Examples:
 
     subparsers = parser.add_subparsers(dest="command", required=True, help="Subcommand to execute")
 
-    # init
     p_init = subparsers.add_parser("init", help="Initialize book split folders from top-level PDFs")
     p_init.add_argument("--target-dir", "--target", "-t", required=True, help="Target book split or section root directory")
 
-    # ingest
     p_ingest = subparsers.add_parser("ingest", help="Ingest OCR folders into section ocr markdown directories")
     p_ingest.add_argument("--target-dir", "--target", "-t", required=True, help="Target book split or section directory")
     p_ingest.add_argument("--source-dir", "--source", "-s", default=None, help="Source directory with OCR extractions or direct OCR folder (default: Downloads)")
-    p_ingest.add_argument("--force", "-f", action="store_true", help="Force overwrite existing OCR directories")
+    p_ingest.add_argument("--force", "-f", action="store_true", help="Move existing OCR directories aside and replace them")
+    p_ingest.add_argument("--dry-run", action="store_true", help="Show what would be moved; move nothing")
 
-    # auto
     p_auto = subparsers.add_parser("auto", help="Execute both init and ingest in one pass")
     p_auto.add_argument("--target-dir", "--target", "-t", required=True, help="Target book split or section directory")
     p_auto.add_argument("--source-dir", "--source", "-s", default=None, help="Source directory with OCR extractions or direct OCR folder (default: Downloads)")
     p_auto.add_argument("--force", "-f", action="store_true", help="Force overwrite existing OCR directories")
 
-    # status
     p_status = subparsers.add_parser("status", help="Audit section directories for PDF and OCR data completeness")
     p_status.add_argument("--target-dir", "--target", "-t", required=True, help="Target book split or section directory")
 
-    # organize-book
     p_book = subparsers.add_parser("organize-book", aliases=["book", "organize-all", "batch-organize"], help="Batch organize all section directories in a book root directory")
     p_book.add_argument("--target-dir", "--target", "-t", required=True, help="Target book root directory containing section folders")
     p_book.add_argument("--pdf-source-dir", "--pdf-dir", "-p", default=None, help="Optional external directory containing source split PDFs to incorporate")
     p_book.add_argument("--force", "-f", action="store_true", help="Force overwrite/merge if target exists")
     p_book.add_argument("--move-pdf", "-m", action="store_true", help="Move source PDFs instead of copying them from pdf-source-dir")
 
-    # organize-section
     p_sec = subparsers.add_parser("organize-section", aliases=["section"], help="Organize an individual section directory into canonical layout")
     p_sec.add_argument("--target-dir", "--target", "-t", required=True, help="Target section directory to organize")
     p_sec.add_argument("--pdf-source-dir", "--pdf-dir", "-p", default=None, help="Optional external directory containing source split PDFs")
@@ -547,7 +533,7 @@ Examples:
     if args.command == "init":
         sys.exit(cmd_init(args.target_dir))
     elif args.command == "ingest":
-        sys.exit(cmd_ingest(args.target_dir, args.source_dir, args.force))
+        sys.exit(cmd_ingest(args.target_dir, args.source_dir, args.force, dry_run=args.dry_run))
     elif args.command == "auto":
         sys.exit(cmd_auto(args.target_dir, args.source_dir, args.force))
     elif args.command == "status":
