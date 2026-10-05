@@ -1,7 +1,7 @@
 ---
 name: antigravity-protocol
 version: 1.0.0
-description: Use this skill ALWAYS whenever the user asks to write code, modify files, fix bugs, plan features, or do any software development task. Trigger when the user wants efficient execution, low token usage, or mentions "antigravity", "planning mode", "fast path", or complains about too many tokens or excessive thinking.
+description: Use this skill when the user wants efficient, low-token execution of a software task (write code, fix bugs, plan features) or low token usage, or mentions "antigravity", "planning mode", "fast path", or complains about too many tokens or excessive thinking. Not a default for every coding request: it applies only when efficiency is asked for.
 ---
 
 # Antigravity Protocol: High-Efficiency Coding
