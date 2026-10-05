@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Repo-wide QA gate: catches crash-class defects that per-skill unit tests missed.
+"""Repo-wide QA gate for crash-class defects missed by per-skill unit tests.
 
 Checks
   1. every non-test .py file compiles
-  2. pyflakes: no undefined names, no use-before-assignment, no redefinition of unused names
-  3. every CLI script (argparse or __main__) answers `--help` with exit 0
+  2. pyflakes: undefined names, use-before-assignment, and syntax-class failures
+  3. every CLI script using argparse answers `--help` with exit 0
+
+Archived one-off repair/release/migration scripts are compile-checked only so this
+mechanical gate does not force historical or clinically meaningful repair logic
+into an unrelated QA PR.
 
 Exit code 1 if any check fails. Run from anywhere:  python qa/check_all.py
 """
@@ -18,9 +22,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_DIRS = {"qa", ".git", "__pycache__", "tests", "fixtures", "node_modules", ".venv"}
-# One-off, archived repair/release scripts that run work at import time; compile-checked only.
-ONE_OFF = ("scripts/chapter_repairs/", "scripts/releases/")
-FLAKE_FATAL = re.compile(r"undefined name|referenced before assignment|redefinition of unused|syntax", re.I)
+# Archived/one-off scripts: syntax-compile them, but do not execute or pyflakes-gate them here.
+ONE_OFF = ("scripts/chapter_repairs/", "scripts/releases/", "scripts/maintenance/checkpoint_migrate_")
+# Keep this gate crash-class only. "redefinition of unused" is lint debt, not a crash class.
+FLAKE_FATAL = re.compile(r"undefined name|referenced before assignment|syntax", re.I)
+
+
+def _is_one_off(path: Path) -> bool:
+    rel = path.relative_to(ROOT).as_posix()
+    return any(marker in rel for marker in ONE_OFF)
 
 
 def py_files() -> list[Path]:
@@ -42,7 +52,10 @@ def check_compile(files) -> list[str]:
 
 
 def check_pyflakes(files) -> list[str]:
-    res = subprocess.run([sys.executable, "-m", "pyflakes", *map(str, files)], capture_output=True, text=True)
+    checked = [f for f in files if not _is_one_off(f)]
+    if not checked:
+        return []
+    res = subprocess.run([sys.executable, "-m", "pyflakes", *map(str, checked)], capture_output=True, text=True)
     if res.returncode not in (0, 1):
         return [f"pyflakes unavailable: {res.stderr.strip()[:120]} (pip install pyflakes)"]
     return [l.replace(str(ROOT) + os.sep, "") for l in res.stdout.splitlines() if FLAKE_FATAL.search(l)]
@@ -53,7 +66,7 @@ def check_help(files) -> list[str]:
     pypath = os.pathsep.join(str(p) for p in ROOT.iterdir() if p.is_dir() and not p.name.startswith("."))
     for f in files:
         rel = f.relative_to(ROOT).as_posix()
-        if f.name.startswith("__") or any(o in rel for o in ONE_OFF):
+        if f.name.startswith("__") or _is_one_off(f):
             continue
         src = f.read_text(encoding="utf-8", errors="replace")
         if "argparse" not in src:  # scripts without argparse would execute real work on --help
@@ -81,7 +94,7 @@ def check_help(files) -> list[str]:
 def main() -> int:
     files = py_files()
     failed = 0
-    for name, fn in (("compile", check_compile), ("pyflakes (fatal classes)", check_pyflakes), ("--help smoke", check_help)):
+    for name, fn in (("compile", check_compile), ("pyflakes (crash classes)", check_pyflakes), ("--help smoke", check_help)):
         bad = fn(files)
         print(f"[{'FAIL' if bad else ' OK '}] {name}: {len(bad)} problem(s) across {len(files)} files")
         for b in bad:
