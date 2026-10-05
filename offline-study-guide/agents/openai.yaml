@@ -1,0 +1,8 @@
+interface:
+  display_name: "Offline Study Guide"
+  short_description: "Build or repair source-preserving offline HTML study readers from Markdown, DOCX, and guarded PDFs."
+  default_prompt: "Use $offline-study-guide to build or repair a source-preserving offline HTML study guide from the supplied source, enforce the structure census and parse-quality gates, and verify the generated artifact before reporting completion."
+metadata:
+  version: "1.2.1"
+  status: "stable"
+  lifecycle: "active"
