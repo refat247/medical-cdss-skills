@@ -1,4 +1,4 @@
-"""check_all --help smoke must run package modules with `-m` (a relative import fails as a loose script)."""
+"""Regression tests for the repo-wide crash-class QA gate."""
 import sys
 from pathlib import Path
 
@@ -25,3 +25,19 @@ def test_broken_script_is_still_reported(tmp_path, monkeypatch):
     s.write_text("import argparse\nimport definitely_not_installed_xyz\n", encoding="utf-8")
     monkeypatch.setattr(check_all, "ROOT", tmp_path)
     assert len(check_all.check_help([s])) == 1
+
+
+def test_pyflakes_skips_archived_checkpoint_migration(tmp_path, monkeypatch):
+    one_off = tmp_path / "skill" / "scripts" / "maintenance" / "checkpoint_migrate_v1.py"
+    one_off.parent.mkdir(parents=True)
+    one_off.write_text("print(os.getcwd())\n", encoding="utf-8")
+    monkeypatch.setattr(check_all, "ROOT", tmp_path)
+    assert check_all.check_pyflakes([one_off]) == []
+
+
+def test_redefinition_of_unused_is_not_a_crash_class(tmp_path, monkeypatch):
+    script = tmp_path / "skill" / "script.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("import json\njson = 1\n", encoding="utf-8")
+    monkeypatch.setattr(check_all, "ROOT", tmp_path)
+    assert check_all.check_pyflakes([script]) == []
