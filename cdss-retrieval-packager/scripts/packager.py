@@ -65,6 +65,32 @@ PRUNE_PATTERNS = [
     "*_REPAIRED_S2.md",
 ]
 
+# Subset of PRUNE_PATTERNS used as evidence by downstream trust classification.
+# These remain prunable by default for backward compatibility, but callers can preserve them explicitly.
+TRUST_EVIDENCE_PATTERNS = [
+    "*_CHECKPOINT.json",
+    "ClinicalFidelity.*",
+    "ClinicalFidelityGate.*",
+    "ClinicalFidelityFailures.*",
+    "CompletenessChecklist.*",
+    "*_L1L2_CoverageGaps.md",
+    "*_SourceLinesPrecision.*",
+    "*_Stage6_Validation.md",
+    "*_SCATTERED.json",
+    "*_SUSPECTED_GAP.json",
+    "*_COMPLETE_DISEASES.json",
+]
+
+
+def _matches_any(file_name: str, patterns) -> bool:
+    """Anchored wildcard match used consistently by prune and preservation rules."""
+    for pattern in patterns:
+        regex = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+        if re.match(regex, file_name, re.IGNORECASE):
+            return True
+    return False
+
+
 # Patterns of files strictly PROTECTED from pruning
 PROTECT_EXTENSIONS = {
     ".jpeg", ".jpg", ".png", ".webp", ".gif", ".svg",
@@ -103,13 +129,18 @@ def compress_excerpt(text: str, max_chars: int = 150, hard_cap: int = 0) -> str:
 class CDSSPackager:
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
+        self.remaining_hardcoded: List[str] = []
 
     def log(self, message: str):
         if self.verbose:
             print(f"[CDSS-PACKAGER] {message}")
 
-    def prune_directory(self, target_dir: Path) -> int:
-        """Prunes build-time QA scorecards and backup archives while strictly safeguarding images."""
+    def prune_directory(self, target_dir: Path, dry_run: bool = False, keep_trust_evidence: bool = False) -> int:
+        """Prune build-time QA and backup files while safeguarding protected assets.
+
+        ``dry_run`` reports the exact candidates without deleting them. ``keep_trust_evidence``
+        preserves checkpoint/fidelity/validation artifacts that downstream trust classification may need.
+        """
         if not target_dir.exists():
             self.log(f"Directory not found: {target_dir}")
             return 0
@@ -126,22 +157,28 @@ class CDSSPackager:
                 if file_name in PROTECTED_FILENAMES or file_ext in PROTECT_EXTENSIONS:
                     continue
 
-                # Check if file matches anchored prune patterns
-                should_prune = False
-                for pattern in PRUNE_PATTERNS:
-                    regex = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
-                    if re.match(regex, file_name, re.IGNORECASE):
-                        should_prune = True
-                        break
+                should_prune = _matches_any(file_name, PRUNE_PATTERNS)
+                if should_prune and keep_trust_evidence and _matches_any(file_name, TRUST_EVIDENCE_PATTERNS):
+                    should_prune = False
 
                 if should_prune:
+                    if dry_run:
+                        self.log(f"  [dry-run] would remove {file_path}")
+                        deleted_count += 1
+                        continue
                     try:
                         file_path.unlink()
                         deleted_count += 1
                     except Exception as e:
                         self.log(f"  Warning: could not delete {file_path.name}: {e}")
 
-        self.log(f"Pruning complete. Removed {deleted_count} non-retrieval files.")
+        verb = "Would remove" if dry_run else "Removed"
+        self.log(f"Pruning complete. {verb} {deleted_count} non-retrieval files.")
+        if not dry_run and not keep_trust_evidence:
+            self.log(
+                "NOTE: checkpoint/fidelity/Stage 6 trust evidence is prunable by default; "
+                "compile/index before pruning or use --keep-trust-evidence."
+            )
         return deleted_count
 
     def patch_paths(self, target_dir: Path) -> int:
@@ -193,6 +230,21 @@ class CDSSPackager:
                 py_file.write_text(content, encoding="utf-8")
                 patched_count += 1
                 self.log(f"  Patched paths to dynamic relative resolution: {py_file.name}")
+
+        # Regex-based rewrites can silently stop matching as router templates evolve. Re-scan and expose residue.
+        self.remaining_hardcoded = []
+        for py_file in target_dir.rglob("*.py"):
+            try:
+                for n, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
+                    if re.search(r"""['"][A-Za-z]:\\\\""", line) or re.search(r"""r['"][A-Za-z]:\\""", line):
+                        self.remaining_hardcoded.append(f"{py_file.name}:{n}")
+            except Exception:
+                continue
+        if self.remaining_hardcoded:
+            self.log(
+                f"  WARNING: {len(self.remaining_hardcoded)} hard-coded drive path(s) remain after patching, "
+                f"e.g. {self.remaining_hardcoded[:5]}"
+            )
 
         self.log(f"Path audit complete. Patched {patched_count} scripts.")
         return patched_count
@@ -756,6 +808,12 @@ def main():
     # prune
     p_prune = subparsers.add_parser("prune", help="Prune build-time QA scorecards and cold backup zips")
     p_prune.add_argument("--package-dir", "-p", required=True, help="Target CDSS Retrieval Package directory")
+    p_prune.add_argument("--dry-run", action="store_true", help="List what would be removed; delete nothing")
+    p_prune.add_argument(
+        "--keep-trust-evidence",
+        action="store_true",
+        help="Keep checkpoints, fidelity gates, and Stage 6 reports used by downstream trust classification",
+    )
 
     # patch-paths
     p_patch = subparsers.add_parser("patch-paths", help="Audit and patch hardcoded paths to dynamic relative paths")
@@ -777,11 +835,20 @@ def main():
     packager = CDSSPackager()
 
     target_dir = Path(args.package_dir).resolve()
+    if args.command in ("prune", "patch-paths", "federate", "verify", "auto") and not target_dir.is_dir():
+        print(f"[CDSS-PACKAGER] ERROR: package directory not found: {target_dir}", file=sys.stderr)
+        sys.exit(2)
 
     if args.command == "prune":
-        packager.prune_directory(target_dir)
+        packager.prune_directory(
+            target_dir,
+            dry_run=args.dry_run,
+            keep_trust_evidence=args.keep_trust_evidence,
+        )
     elif args.command == "patch-paths":
         packager.patch_paths(target_dir)
+        if packager.remaining_hardcoded:
+            sys.exit(1)
     elif args.command == "federate":
         packager.sync_encoding_guard(target_dir)
         packager.generate_federated_search(target_dir)
@@ -792,6 +859,13 @@ def main():
         failed = [k for k, v in results.items() if str(v).startswith("FAIL")]
         if failed:
             print(f"[CDSS-PACKAGER] FAILED checks: {failed}", file=sys.stderr)
+            sys.exit(1)
+        if not any(str(results.get(b, "")).startswith("PASS") for b in ("Davidson", "Harrison", "Hurst", "Kumar_and_Clark")):
+            print(
+                "[CDSS-PACKAGER] No textbook router was verified (all SKIPPED): "
+                "an empty or wrong package directory is not a pass.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
 if __name__ == "__main__":
