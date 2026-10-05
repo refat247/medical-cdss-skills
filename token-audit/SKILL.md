@@ -1,7 +1,7 @@
 ---
 name: token-audit
 version: 1.0.0
-description: Audit the Antigravity/Codex workspace setup for token waste, context bloat, oversized rules/transcripts, tool schemas, and prompt caching efficiency. Read-only, changes nothing. Trigger when the user asks for a token audit, context analysis, token cost check, or optimization review.
+description: Audit the Antigravity/Codex workspace setup for token waste, context bloat, oversized rules/transcripts, tool schemas, and prompt caching efficiency. Read-only, changes nothing. Trigger when the user asks for a token audit, context analysis, token cost check, or optimization review. Token cost only; to map overlapping rules, skills or permissions use clean-my-ai-harness instead.
 ---
 
 # Token & Context Audit Protocol
