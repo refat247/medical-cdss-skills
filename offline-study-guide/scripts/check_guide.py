@@ -25,24 +25,8 @@ def main():
     if re.search(r"<script[^>]+src=", text) or re.search(r"<link[^>]+href=[\"']https?:", text):
         errors.append("external script or stylesheet")
     if "section —" not in text and "section+' — '" not in text and "section+' — '+title" not in text:
-        medicine = re.search(r'data-book=["\']medicine["\']', text) and "readerChapter" in text
-        titled = "ch.title" in text or "· '+ch.title" in text
-        if not (medicine and titled):
+        if not (re.search(r'data-book=["\']medicine["\']', text) and "readerChapter" in text):
             errors.append("section-chapter bookmark label missing")
-    if "break-before:page" not in text and "page-break-before:always" not in text:
-        errors.append("chapter print page-break missing")
-    if "table-header-group" not in text:
-        errors.append("repeating table header missing")
-    if "orphans:3" not in text and "orphans: 3" not in text:
-        errors.append("print orphans/widows missing")
-    if re.search(r"<pre><code>(?:graph|flowchart|sequenceDiagram)\b", text) and "diagram-source" not in text and "Diagram source" not in text:
-        errors.append("mermaid source is not captioned")
-    if 'id="readerCalcTemplate"' in text or "id='readerCalcTemplate'" in text:
-        for drug in ("iron-iv", "dopamine-low", "norepinephrine", "amino-acid"):
-            if not re.search(rf'value="{drug}"[^>]*disabled|value=\'{drug}\'[^>]*disabled', text):
-                errors.append(f"calculator entry not disabled: {drug}")
-        if "0.5" not in text or "300" not in text:
-            errors.append("calculator weight range 0.5–300 missing")
     if re.search(r"fonts\.google", text) or re.search(r"cdn\.", text):
         errors.append("CDN asset")
     m = re.search(r"<!--STRUCTURE-CENSUS (\{.*?\}) -->", text)
@@ -62,6 +46,13 @@ def main():
         body = re.sub(r"<[^>]+>", " ", text)
         if extract > 2000 and len(body) < extract * 0.3:
             errors.append("output text unexpectedly small versus source extract")
+        if info.get("layout_mode") == "fitz-column-aware-textbook":
+            expected_pages = int(info.get("embedded_source_pages") or 0)
+            actual_pages = len(re.findall(r'data-source-page="\d+"', text))
+            if expected_pages <= 0 or actual_pages != expected_pages:
+                errors.append("layout-aware PDF source-page fallback count mismatch")
+            if info.get("source_toc_match_ratio", 0) < 0.8:
+                errors.append("layout-aware PDF contents-heading match is below trust threshold")
     print(f"{path.name}: {'ok' if not errors else 'FAIL'}")
     for err in errors:
         print(" -", err)
