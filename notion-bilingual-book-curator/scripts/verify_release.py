@@ -23,6 +23,7 @@ def verify(archive=None):
     assert (ROOT/'VERSION').read_text().strip()==version
     assert re.search(r'^\*\*Version:\*\* '+re.escape(version)+r'\s', (ROOT/'README.md').read_text(),re.M)
     agent=yaml.safe_load((ROOT/'agents/openai.yaml').read_text())
+    assert agent['policy']['products']==['chatgpt','codex'], 'unsupported product identifiers'
     assert agent['metadata']['version']==version
     assert agent['metadata']['status']==meta['metadata']['status']=='stable'
     assert '$notion-bilingual-book-curator' in agent['interface']['default_prompt']

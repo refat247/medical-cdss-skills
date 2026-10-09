@@ -9,8 +9,8 @@
       "size": 1908
     },
     "CHANGELOG.md": {
-      "sha256": "752d517d83c958f432613c0ca08a26ffa1d099df4e5e705e49738fb5cf4a5a24",
-      "size": 3217
+      "sha256": "ef83beccab6e570bc6c0939623b0b98ab948ee6ec9f57ccc36561859f2b076ea",
+      "size": 3334
     },
     "MANUAL_ACTIVATION.md": {
       "sha256": "57a40e24c7ff2f6263916049769d01c07f5681c88470023602d960608a716792",
@@ -37,8 +37,8 @@
       "size": 606
     },
     "agents/openai.yaml": {
-      "sha256": "97b4797adf319f37fc805f481ef07db004a29099b7206d289b4d366a14ab1c12",
-      "size": 541
+      "sha256": "60e822af83f30ec706828316c161104605a7a8639bfdf20ba8ad4ad8fc1b209c",
+      "size": 544
     },
     "assets/icon.svg": {
       "sha256": "55f7d6ebef9935bda75f4b071f2ac6c2bf310fd158b45853021282ee75823df0",
@@ -101,8 +101,8 @@
       "size": 1370
     },
     "scripts/verify_release.py": {
-      "sha256": "fec24d1e1811ff259716201aff139ddb760f12e9594a3ef06fcd4411ddbe6329",
-      "size": 2925
+      "sha256": "c28edc644780ffdf3d2a49411768eb0809d04892a2fd93c91cf96a881c63f9a7",
+      "size": 3020
     }
   }
 }

@@ -7,6 +7,6 @@ metadata:
   status: "stable"
 policy:
   products:
-    - CHAT
-    - CODEX
+    - chatgpt
+    - codex
   allow_implicit_invocation: true
