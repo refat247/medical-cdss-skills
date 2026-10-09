@@ -1,74 +1,66 @@
-# Version Manager (v1.1.1)
+# Version Manager (v1.2.1)
 
-> **Distribution status notice — 2026-10-05:** this public v1.1.1 package is a **lagging distribution**, not the current writable canonical lineage. Canonical authority is `refat247/Private_repo/skills/version-manager/` v1.2.1. Claude PR #1's relevant version-manager deltas were reconciled into that private lineage at commit `1da21d2f6d700deeb40ebfddfb0a54aa27a78fab`; public promotion remains separate.
+Portable Semantic Versioning and release synchronization for **OpenAI/ChatGPT Agent Skills**, Python packages, Node/TypeScript projects, and other file-based repositories.
 
-Automated Semantic Versioning (SemVer 2.0.0), release synchronizer, and Keep a Changelog management skill for Google Antigravity agent skills, Python packages, and multi-file codebases.
+**Version:** 1.2.1
 
----
+## What v1.2.0 adds
 
-## 🚀 Key Features
+- ChatGPT/OpenAI skill-package support without Windows/Gemini-specific paths.
+- Detection and update of both `SKILL.md` top-level `version` and nested `metadata.version`.
+- Detection and update of `agents/openai.yaml` version metadata.
+- Full SemVer 2.0.0 prerelease/build parsing in supported declarations.
+- Zero declarations now fail as `UNRESOLVED` instead of falsely passing.
+- `--dry-run` support.
+- Rollback-protected staged writes with accurate non-transactional wording.
+- Regression tests for the current Workspace Curator, Content Auditor, and Research Method Curator version-layout patterns.
+- Clean distributable packaging rules for ChatGPT skills.
 
-- **Automated Multi-File Discovery**: Automatically scans and detects version declarations across:
-  - `SKILL.md` (YAML frontmatter and inline headers)
-  - Python packages (`__init__.py`, `pyproject.toml`, `setup.cfg`, `setup.py`)
-  - Node / TypeScript (`package.json`)
-  - Documentation (`README.md` "Installed (vX.Y.Z)", title headings)
-  - Changelogs (`CHANGELOG.md`)
-  - Unit tests (`tests/test_*version*.py` pinned version assertions)
-- **Zero-Drift Synchronization**: Updates all version declarations atomically in a single pass.
-- **Drift Verification Gate**: Flags any mismatched or stale version numbers across the repository with file paths and line numbers.
-- **Changelog Automation**: Automatically prepends standardized release sections into `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-- **Zero External Dependencies**: Pure Python standard library implementation (`re`, `os`, `sys`, `datetime`, `argparse`, `typing`).
-
----
-
-## 🛠️ CLI Usage
-
-The skill provides the `scripts/bump_version.py` utility:
-
-### 1. Inspect Current Versions
-Discover all version declarations and check for drift without making any changes:
-```bash
-python -m scripts.bump_version <target_dir> --inspect
-```
-
-### 2. Verify Version Consistency
-Verifies that all files are synchronized to the exact same version (fails with exit code 1 on drift):
-```bash
-python -m scripts.bump_version <target_dir> --verify
-```
-
-### 3. Bump Version
-Bump the version atomically across all files and update `CHANGELOG.md`:
+## Typical usage
 
 ```bash
-# Bump patch (e.g. 1.0.0 -> 1.0.1)
-python -m scripts.bump_version <target_dir> --bump patch --message "Fix regex parsing edge cases"
-
-# Bump minor (e.g. 1.0.0 -> 1.1.0)
-python -m scripts.bump_version <target_dir> --bump minor --message "Add support for guideline documents"
-
-# Bump major (e.g. 1.0.0 -> 2.0.0)
-python -m scripts.bump_version <target_dir> --bump major --message "Overhaul pipeline architecture"
-
-# Set explicit version (e.g. 2.5.0-rc.1)
-python -m scripts.bump_version <target_dir> --bump 2.5.0-rc.1 --message "Release candidate 1"
+python scripts/bump_version.py <target_dir> --inspect
+python scripts/bump_version.py <target_dir> --verify
+python scripts/bump_version.py <target_dir> --bump patch --message "Repair version metadata" --dry-run
+python scripts/bump_version.py <target_dir> --bump patch --message "Repair version metadata"
+python scripts/bump_version.py --suite <skills_parent_dir> --verify
 ```
 
----
+The script is standard-library only. The bundled test suite uses `pytest` when available.
 
-## 📁 Repository Structure
+## Supported ChatGPT skill metadata
 
-```
+The manager recognizes current declarations in:
+
+- `SKILL.md` frontmatter: `version:` or `metadata.version`
+- `agents/openai.yaml`: top-level `version:`
+- current version markers in `README.md`
+- latest release heading in `CHANGELOG.md`
+
+It does not intentionally force historical version mentions in archived prose or reference notes to match the current release.
+
+## Safety boundary
+
+A file synchronization is not proof of installation, runtime activation, or Git synchronization. For manually uploaded ChatGPT skills, run a fresh-session smoke test after installing the generated ZIP.
+
+## Package layout
+
+```text
 version-manager/
-├── SKILL.md                 # Antigravity skill specification & triggers
-├── README.md                # Skill overview & CLI usage documentation
-├── CHANGELOG.md             # Keep a Changelog history
-├── scripts/
-│   └── bump_version.py      # Core deterministic version bumper & verifier
+├── SKILL.md
+├── README.md
+├── CHANGELOG.md
+├── agents/
+│   └── openai.yaml
+├── assets/
+│   └── icon.svg
 ├── references/
-│   ├── semver_rules.md      # SemVer 2.0.0 specification & agent skill rules
-│   └── changelog_spec.md    # Keep a Changelog specification & templates
+│   ├── semver_rules.md
+│   └── changelog_spec.md
+├── scripts/
+│   ├── __init__.py
+│   └── bump_version.py
 └── tests/
-    └── test_bump_version.py # Automated unit test suite
+    ├── __init__.py
+    └── test_bump_version.py
 ```

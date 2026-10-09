@@ -1,546 +1,603 @@
-"""Universal Semantic Version Bumper & Synchronizer.
+"""Portable Semantic Version Bumper & Synchronizer.
 
-Discovers, inspects, updates, and verifies version declarations across:
-- Agent Skills (SKILL.md frontmatter, provenance comments)
+Designed for OpenAI/ChatGPT Agent Skills and conventional Python/Node projects.
+Discovers, inspects, updates, and verifies current version declarations across:
+- SKILL.md YAML frontmatter (top-level version or metadata.version)
+- agents/openai.yaml top-level version
 - Python packages (pyproject.toml, setup.cfg, setup.py, __init__.py)
 - Node/TypeScript packages (package.json)
-- Documentation (README.md "Installed (vX.Y.Z)", title headings)
-- Changelogs (CHANGELOG.md Keep a Changelog releases)
-- Test files (tests/test_*version*.py pinned assertions)
+- Documentation (README.md current version/title patterns)
+- CHANGELOG.md latest Keep-a-Changelog release heading
+- Version-pinned tests and selected Python constants
+
+The updater stages all changed file contents first and uses rollback on write failure.
+This is rollback-protected multi-file synchronization, not a filesystem transaction.
 """
+from __future__ import annotations
+
 import argparse
 import os
 import re
 import sys
+import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+SEMVER_PATTERN = r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+SEMVER_FULL_RE = re.compile(rf"^v?({SEMVER_PATTERN})$")
+EXCLUDED_DIRS = {".git", ".pytest_cache", "__pycache__", "node_modules", "venv", ".venv", ".mypy_cache", ".ruff_cache"}
+
+
+def normalize_semver(value: str) -> str:
+    m = SEMVER_FULL_RE.match(value.strip())
+    if not m:
+        raise ValueError(f"Invalid SemVer string: '{value}' (expected SemVer 2.0.0)")
+    return m.group(1)
 
 
 def parse_semver(v_str: str) -> Tuple[int, int, int, Optional[str]]:
-    """Parses a SemVer string into (major, minor, patch, prerelease)."""
-    m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$", v_str.strip())
-    if not m:
-        raise ValueError(f"Invalid SemVer string: '{v_str}' (expected MAJOR.MINOR.PATCH)")
-    return int(m.group(1)), int(m.group(2)), int(m.group(3)), m.group(4)
+    """Backward-compatible parser returning (major, minor, patch, prerelease/build suffix)."""
+    normalized = normalize_semver(v_str)
+    core_and_pre, plus, build = normalized.partition("+")
+    core, dash, pre = core_and_pre.partition("-")
+    major, minor, patch = (int(x) for x in core.split("."))
+    suffix = pre or None
+    if build:
+        suffix = f"{suffix}+{build}" if suffix else f"+{build}"
+    return major, minor, patch, suffix
+
+
+def _semver_sort_key(value: str) -> Tuple[int, int, int, int, Tuple[Tuple[int, Any], ...]]:
+    """SemVer precedence key. Build metadata is ignored for precedence."""
+    normalized = normalize_semver(value)
+    core_pre = normalized.split("+", 1)[0]
+    core, sep, pre = core_pre.partition("-")
+    major, minor, patch = (int(x) for x in core.split("."))
+    if not sep:
+        return (major, minor, patch, 1, ())
+    parts: List[Tuple[int, Any]] = []
+    for token in pre.split("."):
+        if token.isdigit():
+            parts.append((0, int(token)))
+        else:
+            parts.append((1, token))
+    return (major, minor, patch, 0, tuple(parts))
 
 
 def bump_semver(current: str, part: str) -> str:
-    """Computes next SemVer string given bump type ('major', 'minor', 'patch')."""
-    major, minor, patch, _ = parse_semver(current)
+    current_norm = normalize_semver(current)
+    major, minor, patch = (int(x) for x in current_norm.split("+", 1)[0].split("-", 1)[0].split("."))
     part_lower = part.lower()
     if part_lower == "major":
         return f"{major + 1}.0.0"
-    elif part_lower == "minor":
+    if part_lower == "minor":
         return f"{major}.{minor + 1}.0"
-    elif part_lower == "patch":
+    if part_lower == "patch":
         return f"{major}.{minor}.{patch + 1}"
-    else:
-        # Validate custom version string
-        parse_semver(part)
-        return part.lstrip("v")
+    return normalize_semver(part)
 
 
 def _today_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+@dataclass(frozen=True)
 class VersionDeclaration:
-    def __init__(self, file_path: str, file_type: str, current_version: str, line_num: int, line_content: str):
-        self.file_path = file_path
-        self.file_type = file_type
-        self.current_version = current_version
-        self.line_num = line_num
-        self.line_content = line_content
+    file_path: str
+    file_type: str
+    current_version: str
+    line_num: int
+    line_content: str
 
-    def __repr__(self):
-        rel = os.path.basename(self.file_path)
-        return f"[{self.file_type}] {rel}:{self.line_num} -> {self.current_version}"
+    def __repr__(self) -> str:
+        return f"[{self.file_type}] {self.file_path}:{self.line_num} -> {self.current_version}"
+
+
+def _read(path: str) -> str:
+    with open(path, "r", encoding="utf-8", errors="ignore", newline="") as f:
+        return f.read()
+
+
+def _line_num(text: str, start: int) -> int:
+    return text.count("\n", 0, start) + 1
+
+
+def _append_match(decls: List[VersionDeclaration], path: str, kind: str, text: str, match: re.Match[str], group: int = 1) -> None:
+    version = normalize_semver(match.group(group))
+    line_no = _line_num(text, match.start(group))
+    line = text.splitlines()[line_no - 1].strip() if text.splitlines() else ""
+    decls.append(VersionDeclaration(path, kind, version, line_no, line))
+
+
+def _frontmatter(text: str) -> Optional[Tuple[int, int, str]]:
+    """Return (body_start, body_end, body) for leading YAML frontmatter."""
+    if not text.startswith("---"):
+        return None
+    m = re.match(r"^---\s*\r?\n([\s\S]*?)\r?\n---(?:\s*\r?\n|$)", text)
+    if not m:
+        return None
+    return m.start(1), m.end(1), m.group(1)
+
+
+def _discover_skill_frontmatter(path: str, text: str, decls: List[VersionDeclaration]) -> None:
+    fm = _frontmatter(text)
+    if not fm:
+        return
+    offset, _, body = fm
+
+    # Top-level version: (no indentation)
+    top = re.search(rf"(?m)^version:\s*[\"']?({SEMVER_PATTERN})[\"']?\s*$", body)
+    if top:
+        shifted = re.search(re.escape(top.group(0)), text[offset:])
+        abs_start = offset + (shifted.start() if shifted else top.start())
+        fake = re.compile(rf"({SEMVER_PATTERN})").search(text, abs_start)
+        if fake:
+            _append_match(decls, path, "SKILL_FRONTMATTER", text, fake)
+        return
+
+    # metadata.version nested below a top-level metadata key.
+    meta = re.search(r"(?m)^metadata:\s*(?:#.*)?$", body)
+    if meta:
+        tail = body[meta.end():]
+        nested = re.search(rf"(?m)^\s{{2,}}version:\s*[\"']?({SEMVER_PATTERN})[\"']?\s*$", tail)
+        if nested:
+            value_rel = meta.end() + nested.start(1)
+            value_abs = offset + value_rel
+            fake = re.compile(rf"({SEMVER_PATTERN})").search(text, value_abs)
+            if fake and fake.start() == value_abs:
+                _append_match(decls, path, "SKILL_METADATA_VERSION", text, fake)
 
 
 def discover_versions(root_dir: str) -> List[VersionDeclaration]:
-    """Scans root_dir for all standard version declarations."""
-    declarations = []
+    """Scan a package/project for canonical current version declarations."""
+    declarations: List[VersionDeclaration] = []
     root = os.path.abspath(root_dir)
 
     for dirpath, dirnames, filenames in os.walk(root):
-        # Exclude git, cache, and virtual environment directories
-        dirnames[:] = [d for d in dirnames if d not in {".git", ".pytest_cache", "__pycache__", "node_modules", "venv", ".venv"}]
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
+        rel_dir = os.path.relpath(dirpath, root)
 
         for fname in filenames:
-            fpath = os.path.join(dirpath, fname)
+            path = os.path.join(dirpath, fname)
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            text = None
 
-            # 1. SKILL.md
-            if fname == "SKILL.md":
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m = re.match(r"^version:\s*([0-9\.]+)", line.strip())
-                        if m:
-                            declarations.append(VersionDeclaration(fpath, "SKILL_FRONTMATTER", m.group(1), idx, line.strip()))
-                        m_hdr = re.search(r"^#\s+.*\(v([0-9\.]+)\)", line.strip())
-                        if m_hdr:
-                            declarations.append(VersionDeclaration(fpath, "SKILL_HEADER", m_hdr.group(1), idx, line.strip()))
+            if fname == "SKILL.md" and dirpath == root:
+                text = _read(path)
+                _discover_skill_frontmatter(path, text, declarations)
+                for m in re.finditer(rf"(?m)^#\s+.*?\(v({SEMVER_PATTERN})\)\s*$", text):
+                    _append_match(declarations, path, "SKILL_HEADER", text, m)
 
-            # 2. package.json
-            elif fname == "package.json":
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m = re.search(r'"version"\s*:\s*"([0-9\.]+)"', line)
-                        if m:
-                            declarations.append(VersionDeclaration(fpath, "PACKAGE_JSON", m.group(1), idx, line.strip()))
-                            break
+            elif rel == "agents/openai.yaml":
+                text = _read(path)
+                m = re.search(rf"(?m)^version:\s*[\"']?({SEMVER_PATTERN})[\"']?\s*$", text)
+                if m:
+                    _append_match(declarations, path, "OPENAI_YAML", text, m)
 
-            # 3. pyproject.toml
-            elif fname == "pyproject.toml":
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m = re.match(r'^version\s*=\s*["\']([0-9\.]+)["\']', line.strip())
-                        if m:
-                            declarations.append(VersionDeclaration(fpath, "PYPROJECT_TOML", m.group(1), idx, line.strip()))
-                            break
+            elif fname == "package.json" and dirpath == root:
+                text = _read(path)
+                m = re.search(rf'"version"\s*:\s*"({SEMVER_PATTERN})"', text)
+                if m:
+                    _append_match(declarations, path, "PACKAGE_JSON", text, m)
 
-            # 4. test files with pinned version assertions (must precede generic .py)
+            elif fname == "pyproject.toml" and dirpath == root:
+                text = _read(path)
+                m = re.search(rf'(?m)^version\s*=\s*["\']({SEMVER_PATTERN})["\']\s*$', text)
+                if m:
+                    _append_match(declarations, path, "PYPROJECT_TOML", text, m)
+
+            elif fname in {"setup.cfg", "setup.py"} and dirpath == root:
+                text = _read(path)
+                if fname == "setup.cfg":
+                    m = re.search(rf'(?m)^version\s*=\s*({SEMVER_PATTERN})\s*$', text)
+                else:
+                    m = re.search(rf'version\s*=\s*["\']({SEMVER_PATTERN})["\']', text)
+                if m:
+                    _append_match(declarations, path, "PYTHON_SETUP", text, m)
+
+            elif fname == "__init__.py":
+                text = _read(path)
+                for m in re.finditer(rf'(?m)^__version__\s*=\s*["\']({SEMVER_PATTERN})["\']\s*$', text):
+                    _append_match(declarations, path, "PYTHON_INIT", text, m)
+
+            elif fname.endswith(".py") and not fname.startswith("test_"):
+                text = _read(path)
+                for m in re.finditer(rf'(?m)^(?:PIPELINE_VERSION|SKILL_VERSION|VERSION|APP_VERSION)\s*=\s*["\']({SEMVER_PATTERN})["\']\s*$', text):
+                    _append_match(declarations, path, "PYTHON_CONST", text, m)
+
+            elif fname == "README.md" and dirpath == root:
+                text = _read(path)
+                patterns = [
+                    ("README_INSTALLED", rf"Installed\s*\(v({SEMVER_PATTERN})\)"),
+                    ("README_HEADER", rf"(?m)^#\s+.*?\(v({SEMVER_PATTERN})\)\s*$"),
+                    ("README_VERSION", rf"(?mi)^\*\*Version:\*\*\s*`?\**({SEMVER_PATTERN})\**`?\s*$"),
+                    ("README_VERSION", rf"(?mi)^Version:\s*`?\**({SEMVER_PATTERN})\**`?\s*$"),
+                    ("README_WORKING_VERSION", rf"(?mi)^\*\*Working version:\*\*\s*`?\**({SEMVER_PATTERN})\**`?\s*$"),
+                ]
+                seen_spans = set()
+                for kind, pattern in patterns:
+                    for m in re.finditer(pattern, text):
+                        span = m.span(1)
+                        if span not in seen_spans:
+                            _append_match(declarations, path, kind, text, m)
+                            seen_spans.add(span)
+
+            elif fname == "CHANGELOG.md" and dirpath == root:
+                text = _read(path)
+                m = re.search(rf"(?m)^##\s*\[?({SEMVER_PATTERN})\]?\s*(?:-|—|$)", text)
+                if m:
+                    _append_match(declarations, path, "CHANGELOG_LATEST", text, m)
+
             elif fname.startswith("test_") and ("version" in fname or "consistency" in fname):
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m = re.search(r'assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\']([0-9\.]+)["\']', line)
-                        if m:
-                            declarations.append(VersionDeclaration(fpath, "TEST_ASSERTION", m.group(1), idx, line.strip()))
+                text = _read(path)
+                for m in re.finditer(
+                    rf'(?m)^\s*assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\']({SEMVER_PATTERN})["\']',
+                    text,
+                ):
+                    _append_match(declarations, path, "TEST_ASSERTION", text, m)
 
-            # 5. Python scripts with __version__, PIPELINE_VERSION, or VERSION constants
-            elif fname.endswith(".py"):
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m_init = re.match(r'^__version__\s*=\s*["\']([0-9\.]+)["\']', line.strip())
-                        if m_init:
-                            declarations.append(VersionDeclaration(fpath, "PYTHON_INIT", m_init.group(1), idx, line.strip()))
-                        m_const = re.match(r'^(?:PIPELINE_VERSION|VERSION|APP_VERSION)\s*=\s*["\']([0-9\.]+)["\']', line.strip())
-                        if m_const:
-                            declarations.append(VersionDeclaration(fpath, "PYTHON_CONST", m_const.group(1), idx, line.strip()))
-
-            # 6. README.md
-            elif fname == "README.md":
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m_inst = re.search(r"Installed\s*\(v([0-9\.]+)\)", line)
-                        if m_inst:
-                            declarations.append(VersionDeclaration(fpath, "README_INSTALLED", m_inst.group(1), idx, line.strip()))
-                        m_hdr = re.search(r"^#\s+.*\(v([0-9\.]+)\)", line)
-                        if m_hdr:
-                            declarations.append(VersionDeclaration(fpath, "README_HEADER", m_hdr.group(1), idx, line.strip()))
-
-            # 7. CHANGELOG.md (latest release heading)
-            elif fname == "CHANGELOG.md":
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for idx, line in enumerate(f, start=1):
-                        m = re.match(r"^##\s*\[([0-9\.]+)\]", line.strip())
-                        if m:
-                            declarations.append(VersionDeclaration(fpath, "CHANGELOG_LATEST", m.group(1), idx, line.strip()))
-                            break
-
-    return declarations
+    # Stable deterministic order and exact-declaration de-duplication.
+    unique: Dict[Tuple[str, str, int, str], VersionDeclaration] = {}
+    for d in declarations:
+        unique[(d.file_path, d.file_type, d.line_num, d.current_version)] = d
+    return sorted(unique.values(), key=lambda d: (d.file_path, d.line_num, d.file_type))
 
 
 def check_consistency(root_dir: str) -> Tuple[bool, Optional[str], Dict[str, List[VersionDeclaration]]]:
-    """Verifies that all discovered version declarations in root_dir are mutually consistent."""
+    """Return False when there are zero declarations or when declarations drift."""
     decls = discover_versions(root_dir)
     if not decls:
-        return True, None, {}
-
-    versions = {}
+        return False, None, {}
+    groups: Dict[str, List[VersionDeclaration]] = {}
     for d in decls:
-        versions.setdefault(d.current_version, []).append(d)
+        groups.setdefault(d.current_version, []).append(d)
+    if len(groups) == 1:
+        return True, next(iter(groups)), groups
+    return False, None, groups
 
-    is_consistent = (len(versions) == 1)
-    primary_version = next(iter(versions.keys())) if is_consistent else None
-    return is_consistent, primary_version, versions
+
+def _replace_skill_frontmatter(text: str, target: str) -> str:
+    fm = _frontmatter(text)
+    if not fm:
+        return text
+    start, end, body = fm
+    if re.search(r"(?m)^version:", body):
+        body2 = re.sub(rf"(?m)^(version:\s*[\"']?)({SEMVER_PATTERN})([\"']?\s*)$", rf"\g<1>{target}\g<3>", body, count=1)
+    elif re.search(r"(?m)^metadata:\s*(?:#.*)?$", body):
+        meta = re.search(r"(?m)^metadata:\s*(?:#.*)?$", body)
+        assert meta is not None
+        head, tail = body[: meta.end()], body[meta.end():]
+        tail2 = re.sub(
+            rf"(?m)^(\s{{2,}}version:\s*[\"']?)({SEMVER_PATTERN})([\"']?\s*)$",
+            rf"\g<1>{target}\g<3>", tail, count=1,
+        )
+        body2 = head + tail2
+    else:
+        body2 = body
+    result = text[:start] + body2 + text[end:]
+    return re.sub(rf"(?m)^(#\s+.*?\(v)({SEMVER_PATTERN})(\)\s*)$", rf"\g<1>{target}\g<3>", result)
 
 
-def apply_version_bump(
-    root_dir: str,
-    target_version: str,
-    release_notes: Optional[str] = None
-) -> List[str]:
-    """Atomically updates all discovered version declarations to target_version."""
+def _replace_current_versions(rel: str, text: str, target: str) -> str:
+    if rel == "SKILL.md":
+        text = _replace_skill_frontmatter(text, target)
+        text = re.sub(rf'(skill_version:\s*["\'])({SEMVER_PATTERN})(["\'])', rf"\g<1>{target}\g<3>", text)
+        return text
+    if rel == "agents/openai.yaml":
+        return re.sub(rf"(?m)^(version:\s*[\"']?)({SEMVER_PATTERN})([\"']?\s*)$", rf"\g<1>{target}\g<3>", text, count=1)
+    if rel == "package.json":
+        return re.sub(rf'("version"\s*:\s*")({SEMVER_PATTERN})(")', rf"\g<1>{target}\g<3>", text, count=1)
+    if rel == "pyproject.toml":
+        return re.sub(rf'(?m)^(version\s*=\s*["\'])({SEMVER_PATTERN})(["\']\s*)$', rf"\g<1>{target}\g<3>", text, count=1)
+    if rel == "setup.cfg":
+        return re.sub(rf"(?m)^(version\s*=\s*)({SEMVER_PATTERN})(\s*)$", rf"\g<1>{target}\g<3>", text, count=1)
+    if rel == "setup.py":
+        return re.sub(rf'(version\s*=\s*["\'])({SEMVER_PATTERN})(["\'])', rf"\g<1>{target}\g<3>", text, count=1)
+    if rel == "README.md":
+        replacements = [
+            (rf"(Installed\s*\(v)({SEMVER_PATTERN})(\))", rf"\g<1>{target}\g<3>"),
+            (rf"(?m)^(#\s+.*?\(v)({SEMVER_PATTERN})(\)\s*)$", rf"\g<1>{target}\g<3>"),
+            (rf"(?mi)^(\*\*Version:\*\*\s*`?\**?)({SEMVER_PATTERN})(\**`?\s*)$", rf"\g<1>{target}\g<3>"),
+            (rf"(?mi)^(Version:\s*`?\**?)({SEMVER_PATTERN})(\**`?\s*)$", rf"\g<1>{target}\g<3>"),
+            (rf"(?mi)^(\*\*Working version:\*\*\s*`?\**?)({SEMVER_PATTERN})(\**`?\s*)$", rf"\g<1>{target}\g<3>"),
+        ]
+        for pattern, repl in replacements:
+            text = re.sub(pattern, repl, text)
+        return text
+    return text
+
+
+def _replace_dynamic_decls(path: str, text: str, types: Iterable[str], target: str) -> str:
+    kinds = set(types)
+    if "PYTHON_INIT" in kinds:
+        text = re.sub(rf'(?m)^(__version__\s*=\s*["\'])({SEMVER_PATTERN})(["\']\s*)$', rf"\g<1>{target}\g<3>", text)
+    if "PYTHON_CONST" in kinds:
+        text = re.sub(rf'(?m)^((?:PIPELINE_VERSION|SKILL_VERSION|VERSION|APP_VERSION)\s*=\s*["\'])({SEMVER_PATTERN})(["\']\s*)$', rf"\g<1>{target}\g<3>", text)
+    if "TEST_ASSERTION" in kinds:
+        text = re.sub(
+            rf'(?m)^(\s*assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\'])({SEMVER_PATTERN})(["\'])',
+            rf"\g<1>{target}\g<3>", text,
+        )
+    return text
+
+
+def _with_changelog_release(content: str, target: str, release_notes: Optional[str]) -> str:
+    if re.search(rf"(?m)^##\s*\[?{re.escape(target)}\]?\s*(?:-|—|$)", content):
+        return content
+    newline = "\r\n" if "\r\n" in content else "\n"
+    body = release_notes.strip() if release_notes else "### Changed\n- Version synchronization update."
+    body = body.replace("\r\n", "\n").replace("\r", "\n").replace("\n", newline)
+    entry = f"## [{target}] - {_today_iso()}{newline}{newline}{body}{newline}{newline}"
+    first = re.search(rf"(?m)^##\s*\[?{SEMVER_PATTERN}\]?\s*(?:-|—|$)", content)
+    if first:
+        return content[: first.start()] + entry + content[first.start():]
+    return content.rstrip() + "\n\n" + entry
+
+
+def plan_version_bump(root_dir: str, target_version: str, release_notes: Optional[str] = None) -> Dict[str, Tuple[str, str]]:
+    """Return path -> (original, updated) without writing."""
+    target = normalize_semver(target_version)
     decls = discover_versions(root_dir)
     if not decls:
         raise RuntimeError(f"No version declarations discovered in: {root_dir}")
-
-    modified_files = set()
     root = os.path.abspath(root_dir)
-
-    # 1. Update SKILL.md
-    skill_path = os.path.join(root, "SKILL.md")
-    if os.path.exists(skill_path):
-        with open(skill_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        new_content = re.sub(r"^(version:\s*)([0-9\.]+)", rf"\g<1>{target_version}", content, flags=re.MULTILINE)
-        new_content = re.sub(r'^(#\s+.*\(v)([0-9\.]+)(\))', rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
-        new_content = re.sub(r'(skill_version:\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", new_content)
-        if new_content != content:
-            with open(skill_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            modified_files.add(skill_path)
-
-    # 2. Update package.json
-    pkg_path = os.path.join(root, "package.json")
-    if os.path.exists(pkg_path):
-        with open(pkg_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        new_content = re.sub(r'("version"\s*:\s*")([0-9\.]+)(")', rf"\g<1>{target_version}\g<3>", content)
-        if new_content != content:
-            with open(pkg_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            modified_files.add(pkg_path)
-
-    # 3. Update pyproject.toml
-    pyproj_path = os.path.join(root, "pyproject.toml")
-    if os.path.exists(pyproj_path):
-        with open(pyproj_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        new_content = re.sub(r'^(version\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
-        if new_content != content:
-            with open(pyproj_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            modified_files.add(pyproj_path)
-
-    # 4. Update __init__.py files
+    by_path: Dict[str, List[VersionDeclaration]] = {}
     for d in decls:
-        if d.file_type == "PYTHON_INIT":
-            with open(d.file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            new_content = re.sub(r'(__version__\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content)
-            new_content = re.sub(r'(\(v)([0-9\.]+)(\))', rf"\g<1>{target_version}\g<3>", new_content)
-            if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
-                modified_files.add(d.file_path)
+        by_path.setdefault(d.file_path, []).append(d)
 
-    # 5. Update Python constant declarations (PIPELINE_VERSION, etc.)
-    for d in decls:
-        if d.file_type == "PYTHON_CONST":
-            with open(d.file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            new_content = re.sub(r'^((?:PIPELINE_VERSION|VERSION|APP_VERSION)\s*=\s*["\'])([0-9\.]+)(["\'])', rf"\g<1>{target_version}\g<3>", content, flags=re.MULTILINE)
-            if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
-                modified_files.add(d.file_path)
+    candidates = set(by_path)
+    changelog = os.path.join(root, "CHANGELOG.md")
+    if os.path.exists(changelog):
+        candidates.add(changelog)
 
-    # 6. Update README.md
-    readme_path = os.path.join(root, "README.md")
-    if os.path.exists(readme_path):
-        with open(readme_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        new_content = re.sub(r"(Installed\s*\(v)([0-9\.]+)(\))", rf"\g<1>{target_version}\g<3>", content)
-        new_content = re.sub(r"^([#]+\s+.*\(v)([0-9\.]+)(\))", rf"\g<1>{target_version}\g<3>", new_content, flags=re.MULTILINE)
-        new_content = re.sub(r"(`v)([0-9\.]+)(`)", rf"\g<1>{target_version}\g<3>", new_content)
-        if new_content != content:
-            with open(readme_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            modified_files.add(readme_path)
+    changes: Dict[str, Tuple[str, str]] = {}
+    for path in sorted(candidates):
+        original = _read(path)
+        rel = os.path.relpath(path, root).replace(os.sep, "/")
+        updated = _replace_current_versions(rel, original, target)
+        updated = _replace_dynamic_decls(path, updated, (d.file_type for d in by_path.get(path, [])), target)
+        if rel == "CHANGELOG.md":
+            updated = _with_changelog_release(updated, target, release_notes)
+        if updated != original:
+            changes[path] = (original, updated)
+    return changes
 
-    # 7. Update CHANGELOG.md
-    changelog_path = os.path.join(root, "CHANGELOG.md")
-    if os.path.exists(changelog_path):
-        with open(changelog_path, "r", encoding="utf-8") as f:
-            content = f.read()
 
-        today = _today_iso()
-        # Check if this release heading already exists
-        if not re.search(rf"^##\s*\[{re.escape(target_version)}\]", content, re.MULTILINE):
-            # Format release section
-            body = release_notes.strip() if release_notes else (
-                "### Added\n- Feature additions for this release.\n\n"
-                "### Changed\n- Backward-compatible improvements.\n\n"
-                "### Fixed\n- Bug fixes and optimizations."
-            )
-            new_entry = f"\n## [{target_version}] - {today}\n\n{body}\n"
+def _commit_with_rollback(changes: Dict[str, Tuple[str, str]]) -> List[str]:
+    """Write staged contents with rollback on ordinary write/replace failures."""
+    staged: Dict[str, str] = {}
+    replaced: List[str] = []
+    try:
+        for path, (_, updated) in changes.items():
+            fd, tmp = tempfile.mkstemp(prefix=".version-manager-", dir=os.path.dirname(path), text=True)
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                f.write(updated)
+                f.flush()
+                os.fsync(f.fileno())
+            staged[path] = tmp
+        for path in sorted(staged):
+            os.replace(staged[path], path)
+            replaced.append(path)
+        return replaced
+    except Exception:
+        for path in reversed(replaced):
+            original = changes[path][0]
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(original)
+        raise
+    finally:
+        for tmp in staged.values():
+            if os.path.exists(tmp):
+                os.unlink(tmp)
 
-            # Insert above the first existing release heading
-            first_release = re.search(r"^##\s*\[[0-9\.]+\]", content, re.MULTILINE)
-            if first_release:
-                idx = first_release.start()
-                new_content = content[:idx] + new_entry.lstrip("\n") + "\n" + content[idx:]
-            else:
-                new_content = content + "\n" + new_entry
 
-            with open(changelog_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            modified_files.add(changelog_path)
-
-    # 8. Update test assertions
-    for d in decls:
-        if d.file_type == "TEST_ASSERTION":
-            with open(d.file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            new_content = re.sub(
-                r'(assert\s+(?:__version__|PIPELINE_VERSION|VERSION|skill_v|changelog_v)\s*==\s*["\'])([0-9\.]+)(["\'])',
-                rf"\g<1>{target_version}\g<3>",
-                content
-            )
-            # Also update test function names like test_pipeline_version_is_2_23_0
-            target_slug = target_version.replace(".", "_")
-            new_content = re.sub(
-                r'(def\s+test_[a-zA-Z0-9_]*_is_)(\d+_\d+_\d+)(\(\):)',
-                rf"\g<1>{target_slug}\g<3>",
-                new_content
-            )
-            if new_content != content:
-                with open(d.file_path, "w", encoding="utf-8") as f:
-                    f.write(new_content)
-                modified_files.add(d.file_path)
-
-    return sorted(list(modified_files))
+def apply_version_bump(root_dir: str, target_version: str, release_notes: Optional[str] = None, dry_run: bool = False) -> List[str]:
+    changes = plan_version_bump(root_dir, target_version, release_notes)
+    if dry_run:
+        return sorted(changes)
+    return sorted(_commit_with_rollback(changes))
 
 
 def verify_versions(root_dir: str) -> Tuple[bool, Optional[str], List[VersionDeclaration]]:
-    """Verifies that all discovered version declarations in root_dir are mutually consistent.
-    
-    Returns:
-        (is_consistent, canonical_version, list_of_mismatched_declarations)
-    """
-    is_consistent, primary_v, groups = check_consistency(root_dir)
+    is_consistent, primary, groups = check_consistency(root_dir)
+    if not groups:
+        return False, None, []
     if is_consistent:
-        return True, primary_v, []
-    
-    # Identify minority/drifted declarations
-    # Find the version with the highest count (mode) as candidate canonical
-    sorted_groups = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
-    canonical = sorted_groups[0][0] if sorted_groups else None
-    mismatches = []
-    for ver, items in sorted_groups[1:]:
-        mismatches.extend(items)
+        return True, primary, []
+    sorted_groups = sorted(groups.items(), key=lambda item: (-len(item[1]), _semver_sort_key(item[0])), reverse=False)
+    canonical = max(groups, key=lambda v: (len(groups[v]), _semver_sort_key(v)))
+    mismatches = [d for ver, items in groups.items() if ver != canonical for d in items]
     return False, canonical, mismatches
 
 
-def bump_all(
-    root_dir: str,
-    bump_type: str,
-    message: Optional[str] = None,
-    category: Optional[str] = None
-) -> Tuple[bool, str]:
-    """Computes target version, updates all files, and appends a changelog entry.
-    
-    Args:
-        root_dir: Target directory path
-        bump_type: 'major', 'minor', 'patch', or explicit version string
-        message: Summary message for the changelog
-        category: Changelog category (e.g. 'Added', 'Changed', 'Fixed')
-        
-    Returns:
-        (success, target_version)
-    """
-    is_consistent, current_v, groups = check_consistency(root_dir)
-    if not current_v:
-        # If drift exists, select highest version as baseline
-        versions = sorted(list(groups.keys()), key=lambda s: parse_semver(s), reverse=True)
-        current_v = versions[0]
-
-    target_v = bump_semver(current_v, bump_type)
-
+def bump_all(root_dir: str, bump_type: str, message: Optional[str] = None, category: Optional[str] = None, dry_run: bool = False) -> Tuple[bool, str]:
+    is_consistent, current, groups = check_consistency(root_dir)
+    if not groups:
+        raise RuntimeError(f"No version declarations discovered in: {root_dir}")
+    action = bump_type.lower()
+    if current is None and action in {"major", "minor", "patch"}:
+        raise RuntimeError(
+            "Version drift makes a relative bump baseline ambiguous. "
+            "Repair drift first or provide an explicit target SemVer."
+        )
+    target = normalize_semver(bump_type) if action not in {"major", "minor", "patch"} else bump_semver(current, action)
     release_notes = None
     if message:
-        cat = category.strip().capitalize() if category else ("Added" if bump_type == "minor" else "Changed")
-        release_notes = f"### {cat}\n- {message.strip()}\n"
-
-    apply_version_bump(root_dir, target_v, release_notes=release_notes)
-    
-    verified, new_v, _ = check_consistency(root_dir)
-    if verified and new_v == target_v:
-        return True, target_v
-    return False, target_v
+        cat = (category or ("Added" if bump_type.lower() == "minor" else "Changed")).strip().capitalize()
+        release_notes = f"### {cat}\n- {message.strip()}"
+    apply_version_bump(root_dir, target, release_notes, dry_run=dry_run)
+    if dry_run:
+        return True, target
+    verified, new_v, _ = verify_versions(root_dir)
+    return verified and new_v == target, target
 
 
 def discover_skill_suite(parent_dir: str, name_filter: Optional[str] = None) -> List[Tuple[str, str]]:
-    """Scans parent_dir for all skill or package subdirectories.
-    
-    Args:
-        parent_dir: Parent directory containing multiple skills
-        name_filter: Optional substring filter for skill directory names
-        
-    Returns:
-        List of (skill_name, absolute_skill_path)
-    """
-    suite = []
+    suite: List[Tuple[str, str]] = []
     parent = os.path.abspath(parent_dir)
     if not os.path.exists(parent):
-        return []
-
-    # First check immediate child directories
+        return suite
     for entry in sorted(os.listdir(parent)):
-        entry_path = os.path.join(parent, entry)
-        if not os.path.isdir(entry_path):
-            continue
-        if entry in {".git", ".pytest_cache", "__pycache__", "node_modules", "venv", ".venv", "tmp"}:
+        path = os.path.join(parent, entry)
+        if not os.path.isdir(path) or entry in EXCLUDED_DIRS:
             continue
         if name_filter and name_filter.lower() not in entry.lower():
             continue
-        if os.path.exists(os.path.join(entry_path, "SKILL.md")) or os.path.exists(os.path.join(entry_path, "pyproject.toml")):
-            suite.append((entry, entry_path))
-
-    # If none found at depth 1 and no filter was given, search up to depth 3
+        if os.path.exists(os.path.join(path, "SKILL.md")) or os.path.exists(os.path.join(path, "pyproject.toml")):
+            suite.append((entry, path))
     if not suite and not name_filter:
         for root, dirs, files in os.walk(parent):
-            dirs[:] = [d for d in dirs if d not in {".git", ".pytest_cache", "__pycache__", "node_modules", "venv", ".venv"}]
-            rel_depth = os.path.relpath(root, parent).count(os.sep)
-            if rel_depth > 3:
+            dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
+            rel = os.path.relpath(root, parent)
+            depth = 0 if rel == "." else rel.count(os.sep) + 1
+            if depth > 3:
+                dirs[:] = []
                 continue
-            if "SKILL.md" in files:
-                skill_name = os.path.basename(root)
-                suite.append((skill_name, root))
-
+            if "SKILL.md" in files and root != parent:
+                suite.append((os.path.basename(root), root))
     return suite
 
 
-def audit_suite(
-    parent_dir: str,
-    verify: bool = False,
-    inspect: bool = False,
-    name_filter: Optional[str] = None
-) -> Tuple[bool, List[Dict[str, Any]]]:
-    """Audits version consistency across all skills in a suite.
-    
-    Returns:
-        (all_passed, results_list)
-    """
+def audit_suite(parent_dir: str, verify: bool = False, inspect: bool = False, name_filter: Optional[str] = None) -> Tuple[bool, List[Dict[str, Any]]]:
     suite = discover_skill_suite(parent_dir, name_filter=name_filter)
     if not suite:
-        filter_msg = f" matching '{name_filter}'" if name_filter else ""
-        print(f"[SUITE] No skill packages found in: {parent_dir}{filter_msg}")
-        return True, []
-
-    results = []
-    all_consistent = True
-
-    for name, skill_path in suite:
-        decls = discover_versions(skill_path)
-        is_consistent, canonical, groups = check_consistency(skill_path)
-        
-        has_tests = os.path.exists(os.path.join(skill_path, "tests"))
-        if not is_consistent:
-            all_consistent = False
-
+        print(f"[SUITE] No skill packages found in: {parent_dir}", file=sys.stderr)
+        return False, []
+    results: List[Dict[str, Any]] = []
+    all_ok = True
+    for name, path in suite:
+        decls = discover_versions(path)
+        consistent, canonical, groups = check_consistency(path)
+        if not consistent:
+            all_ok = False
         results.append({
             "name": name,
-            "path": skill_path,
+            "path": path,
             "declarations": len(decls),
-            "version": canonical or "DRIFT",
-            "is_consistent": is_consistent,
-            "drift_groups": groups if not is_consistent else {},
-            "has_tests": has_tests,
+            "version": canonical or ("UNRESOLVED" if not groups else "DRIFT"),
+            "is_consistent": consistent,
+            "drift_groups": groups if not consistent else {},
+            "has_tests": os.path.isdir(os.path.join(path, "tests")),
         })
-
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 88)
     print(f" SKILL SUITE VERIFICATION REPORT: {parent_dir}")
-    print("=" * 80)
-    print(f"{'Skill Package':<36} | {'Version':<10} | {'Decls':<6} | {'Status'}")
-    print("-" * 80)
-
+    print("=" * 88)
+    print(f"{'Skill Package':<38} | {'Version':<16} | {'Decls':<6} | Status")
+    print("-" * 88)
     for r in results:
-        status_str = "[OK] Consistent" if r["is_consistent"] else f"[FAIL] Drift ({len(r['drift_groups'])} versions)"
-        v_str = f"v{r['version']}" if r['version'] != "DRIFT" else "DRIFT"
-        print(f"{r['name']:<36} | {v_str:<10} | {r['declarations']:<6} | {status_str}")
-
-    print("-" * 80)
-    passed_cnt = sum(1 for r in results if r["is_consistent"])
-    total_cnt = len(results)
-
-    if all_consistent:
-        print(f" Suite Health: {passed_cnt}/{total_cnt} skills 100% verified with 0 drift.\n")
-    else:
-        print(f" [ALERT] Drift detected in {total_cnt - passed_cnt} skill(s)!\n", file=sys.stderr)
-        for r in results:
-            if not r["is_consistent"]:
-                print(f"  * {r['name']}:", file=sys.stderr)
-                for ver, items in r["drift_groups"].items():
-                    print(f"      - v{ver}: {len(items)} file(s)", file=sys.stderr)
-        print()
-
-    return all_consistent, results
+        status = "[OK] Consistent" if r["is_consistent"] else ("[FAIL] No declarations" if r["declarations"] == 0 else "[FAIL] Drift")
+        print(f"{r['name']:<38} | {r['version']:<16} | {r['declarations']:<6} | {status}")
+    print("-" * 88)
+    passed = sum(1 for r in results if r["is_consistent"])
+    print(f" Suite Health: {passed}/{len(results)} package(s) verified.\n")
+    return all_ok, results
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Universal Semantic Version Bumper & Synchronizer")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Portable Semantic Version Bumper & Synchronizer")
     parser.add_argument("target", nargs="?", default=None, help="Target repository or skill directory")
-    parser.add_argument("--dir", "-d", default=None, help="Alternative flag for target directory")
-    parser.add_argument("--suite", "-s", help="Audit or operate on all skills in a parent workspace directory")
-    parser.add_argument("--filter", "-f", help="Optional substring filter for skill names in suite mode")
-    parser.add_argument("--inspect", action="store_true", help="Inspect and display all version declarations without modifying")
-    parser.add_argument("--verify", action="store_true", help="Verify 100%% mutual consistency across all version declarations")
-    parser.add_argument("--bump", help="Bump type (major, minor, patch) or explicit version string (e.g. 1.3.0)")
-    parser.add_argument("--set-version", help="Explicit target version string (e.g. 2.25.0)")
-    parser.add_argument("--message", "-m", help="Summary message for changelog")
-    parser.add_argument("--notes", help="Full markdown release notes content for CHANGELOG.md")
-    parser.add_argument("--category", default="Changed", help="Changelog category (Added, Changed, Fixed, etc.)")
-
+    parser.add_argument("--dir", "-d", default=None, help="Alternative target directory")
+    parser.add_argument("--suite", "-s", help="Audit all skills in a parent directory")
+    parser.add_argument("--filter", "-f", help="Substring filter for suite skill names")
+    parser.add_argument("--inspect", action="store_true", help="Read-only declaration inventory and drift report")
+    parser.add_argument("--verify", action="store_true", help="Exit 0 only when >=1 declarations exist and all agree")
+    parser.add_argument("--bump", help="major, minor, patch, or explicit SemVer")
+    parser.add_argument("--set-version", help="Explicit SemVer target")
+    parser.add_argument("--message", "-m", help="Single changelog bullet")
+    parser.add_argument("--notes", help="Full markdown release-note body")
+    parser.add_argument("--category", default=None, help="Changelog category")
+    parser.add_argument("--dry-run", action="store_true", help="Plan bump without writing files")
     args = parser.parse_args()
 
-    # Suite mode branch
+    if args.suite and (args.bump or args.set_version):
+        print("Error: --suite is audit-only; run the bump on one skill directory at a time.", file=sys.stderr)
+        raise SystemExit(2)
+
     if args.suite:
-        suite_dir = os.path.abspath(args.suite)
-        if not os.path.exists(suite_dir):
-            print(f"Error: Suite directory not found: {suite_dir}", file=sys.stderr)
-            sys.exit(1)
-        all_ok, _ = audit_suite(suite_dir, verify=args.verify, inspect=args.inspect, name_filter=args.filter)
-        sys.exit(0 if all_ok else 1)
+        suite = os.path.abspath(args.suite)
+        if not os.path.exists(suite):
+            print(f"Error: Suite directory not found: {suite}", file=sys.stderr)
+            raise SystemExit(1)
+        ok, _ = audit_suite(suite, verify=args.verify, inspect=args.inspect, name_filter=args.filter)
+        raise SystemExit(0 if ok else 1)
 
-    target_path = args.target or args.dir or "."
-    target_dir = os.path.abspath(target_path)
-
-    if not os.path.exists(target_dir):
-        print(f"Error: Target directory not found: {target_dir}", file=sys.stderr)
-        sys.exit(1)
+    target = os.path.abspath(args.target or args.dir or ".")
+    if not os.path.exists(target):
+        print(f"Error: Target directory not found: {target}", file=sys.stderr)
+        raise SystemExit(1)
 
     if args.inspect:
-        decls = discover_versions(target_dir)
-        print(f"\nDiscovered {len(decls)} version declaration(s) in: {target_dir}")
-        print("-" * 60)
+        decls = discover_versions(target)
+        print(f"\nDiscovered {len(decls)} version declaration(s) in: {target}")
+        print("-" * 72)
         for d in decls:
             print(f"  {d}")
-        is_consistent, v, groups = check_consistency(target_dir)
-        print("-" * 60)
-        if is_consistent:
-            print(f"Status: OK (Consistent version: {v})\n")
+        consistent, version, groups = check_consistency(target)
+        print("-" * 72)
+        if consistent:
+            print(f"Status: OK (Consistent version: {version})\n")
+            raise SystemExit(0)
+        if not groups:
+            print("Status: UNRESOLVED (no version declarations discovered)\n", file=sys.stderr)
         else:
-            print(f"Status: DRIFT DETECTED across {len(groups)} distinct version(s):")
+            print(f"Status: DRIFT DETECTED across {len(groups)} version(s):", file=sys.stderr)
             for ver, items in groups.items():
-                print(f"  - v{ver}: {len(items)} file(s)")
-            print()
-        sys.exit(0 if is_consistent else 1)
+                print(f"  - v{ver}: {len(items)} declaration(s)", file=sys.stderr)
+        raise SystemExit(1)
 
     if args.verify:
-        is_consistent, v, groups = check_consistency(target_dir)
-        if is_consistent:
-            print(f"[OK] All version declarations in {os.path.basename(target_dir)} agree on v{v}")
-            sys.exit(0)
+        consistent, version, groups = check_consistency(target)
+        if consistent:
+            print(f"[OK] All discovered version declarations in {os.path.basename(target)} agree on v{version}")
+            raise SystemExit(0)
+        if not groups:
+            print(f"[FAIL] No version declarations discovered in {target}", file=sys.stderr)
         else:
-            print(f"[FAIL] Version drift detected in {target_dir}:", file=sys.stderr)
+            print(f"[FAIL] Version drift detected in {target}:", file=sys.stderr)
             for ver, items in groups.items():
                 print(f"  - v{ver}:", file=sys.stderr)
-                for it in items:
-                    print(f"      {it}", file=sys.stderr)
-            sys.exit(1)
+                for item in items:
+                    print(f"      {item}", file=sys.stderr)
+        raise SystemExit(1)
 
-    bump_action = args.bump or args.set_version
-    if bump_action:
-        msg = args.notes or args.message
-        success, target_v = bump_all(
-            root_dir=target_dir,
-            bump_type=bump_action,
-            message=msg,
-            category=args.category
-        )
+    action = args.bump or args.set_version
+    if action:
+        notes = args.notes
+        message = None if notes else args.message
+        try:
+            if notes:
+                consistent, current, groups = check_consistency(target)
+                if not groups:
+                    raise RuntimeError(f"No version declarations discovered in: {target}")
+                action_lower = action.lower()
+                if current is None and action_lower in {"major", "minor", "patch"}:
+                    raise RuntimeError(
+                        "Version drift makes a relative bump baseline ambiguous. "
+                        "Repair drift first or provide an explicit target SemVer."
+                    )
+                target_v = normalize_semver(action) if action_lower not in {"major", "minor", "patch"} else bump_semver(current, action_lower)
+                changed = apply_version_bump(target, target_v, notes, dry_run=args.dry_run)
+                success = True if args.dry_run else verify_versions(target)[0]
+            else:
+                success, target_v = bump_all(target, action, message=message, category=args.category, dry_run=args.dry_run)
+                changed = plan_version_bump(target, target_v).keys() if args.dry_run else []
+        except (RuntimeError, ValueError) as exc:
+            print(f"[FAIL] {exc}", file=sys.stderr)
+            raise SystemExit(1)
+        if args.dry_run:
+            print(f"[DRY RUN] Planned version target: v{target_v}")
+            for path in changed:
+                print(f"  - {path}")
+            raise SystemExit(0)
         if success:
-            print(f"\n[SUCCESS] Version bump to v{target_v} complete and 100% consistent!")
-            sys.exit(0)
-        else:
-            print(f"\n[ERROR] Post-bump consistency check failed for v{target_v}!", file=sys.stderr)
-            sys.exit(1)
+            print(f"[SUCCESS] Version synchronization to v{target_v} completed and verified.")
+            raise SystemExit(0)
+        print(f"[ERROR] Post-bump verification failed for v{target_v}.", file=sys.stderr)
+        raise SystemExit(1)
 
-    # Default if no action arguments
     parser.print_help()
 
 
 if __name__ == "__main__":
     main()
-
