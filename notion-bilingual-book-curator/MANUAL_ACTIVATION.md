@@ -1,4 +1,4 @@
-# Manual Activation Protocol — Notion Bilingual Book Curator v1.2.0
+# Manual Activation Protocol — Notion Bilingual Book Curator v1.2.1
 
 ## Purpose
 
@@ -28,7 +28,7 @@ Supporting references:
 
 ## Fresh-chat bootstrap prompt
 
-MANUAL PROTOCOL LOAD — `notion-bilingual-book-curator` v1.2.0
+MANUAL PROTOCOL LOAD — `notion-bilingual-book-curator` v1.2.1
 
 Native personal-Skill runtime activation is currently unavailable or unreliable. Do NOT infer or claim native Skill activation.
 
@@ -45,7 +45,7 @@ Before doing the task:
    - MANUAL PROTOCOL LOAD: YES/NO
 8. After loading, report only:
 
-MANUAL LOAD — notion-bilingual-book-curator v1.2.0
+MANUAL LOAD — notion-bilingual-book-curator v1.2.1
 Primary protocol: SKILL.md
 Relevant references loaded: <list>
 Native runtime activation: NOT CLAIMED

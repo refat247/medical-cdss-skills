@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2026-10-09
+
+### Changed
+- Correct inherited agent product identifiers from CHAT/CODEX to supported chatgpt/codex for save-service retention.
+- Clarify existing bilingual/readability rules and specialist HTML handoff without adding a new mode.
+
 ## 1.2.0 — 2026-10-03
 
 ### Added

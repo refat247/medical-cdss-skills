@@ -36,3 +36,7 @@ Meaning, why it matters, how it works, failure interpretation, project/clinical 
 **Evidence boundary:** what the source does and does not establish.
 
 **আপনার যা বুঝতে হবে:** minimum practical understanding.
+
+## Compact reference entries
+
+Use the same language split in top-down HTML: supplied technical/source row, then concise Bengali understanding beneath its entry. Avoid parallel duplicated paragraphs. Read `references/html-reader-handoff.md` for source/formulation ownership and actual-artifact gates.

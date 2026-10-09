@@ -1,10 +1,30 @@
 # Changelog
-## 1.2.0 — 2026-10-02
-- V5 reader contract: A4 chapter page-breaks, repeating table headers, orphans and widows.
-- Mermaid source must be captioned as an offline diagram. Bare graph blocks fail the checker.
-- Medicine calculator disables IV iron, low-dose dopamine, norepinephrine, and amino acids in the control, and rejects weights outside 0.5–300 kg. The script gate remains.
-- Medicine chapter menus must include the chapter title. A reader chrome presence check is no longer enough.
-- Repaired guides still use `--legacy-v4` for the missing census. Print and calculator checks apply to them too.
+## [1.3.0] - 2026-10-09
+
+### Added
+- Add opt-in source-span reference layout, density reporting, formulation fidelity checks and bilingual handoff.
+
+## 1.2.1 — 2026-10-01
+- Governance-only PATCH release; reader/parser behavior is unchanged from v1.2.0.
+- Adds `README.md`, `MANUAL_ACTIVATION.md`, `ACTIVATION_SMOKE_TEST.md`, `agents/openai.yaml`, `VERSIONING_DECISION.md`, `RELEASE_AUDIT.md`, and a machine-verifiable package manifest.
+- Adds `scripts/verify_release.py` to enforce version agreement across the canonical `SKILL.md` metadata, visible skill version, `VERSION`, README, OpenAI agent metadata, activation files, changelog, and package manifest.
+- Standardizes the install archive with `SKILL.md` at the ZIP root and checks for nested/duplicate package roots, empty required files, compiled Python residue, and archive/file drift.
+- Preserves the v1.2.0 functional code and all 59 regression checks unchanged; governance release verification re-runs the suite from the final extracted ZIP.
+## 1.2.0 — 2026-10-01
+- Adds a guarded layout-aware parser for extractable multi-column textbook PDFs that lack explicit `Chapter N` markers. Activation requires a large title page, at least five page-numbered source-contents entries, and at least 80% agreement with later display headings.
+- Uses PyMuPDF layout coordinates and dehyphenation to read left-column then right-column text without weakening the existing hostile-layout gate for ordinary PDFs.
+- Preserves page-1 authors/source contents as front matter, prevents smaller repeated headings inside worked examples from becoming duplicate navigation chapters, and filters decorative chapter stripes/footer glyphs.
+- Reconstructs numbered boxed-table columns from source coordinates when PyMuPDF merges cells; records semantic versus visual-only table counts.
+- Embeds every original page as a compressed, collapsed visual-fidelity appendix in layout-aware mode so figures and complex page layouts remain inspectable offline without pretending they were semantically extracted.
+- Checker now verifies the embedded source-page fallback count and the contents-heading trust threshold.
+- Regression matrix expanded from 54 to 59 checks. External integration test used the supplied 12-page Davidson clinical decision-making chapter and reached PARSE SUCCESS with 27 navigation chapters, 25/25 source-contents matches, six semantic boxed tables, one visual-only boxed table, and 12 embedded source-page fallbacks.
+## 1.1.4 — 2026-10-01
+- Final parser-contract hardening for PDF ownership, census table accounting, Markdown aligned pipe tables, and hyperlink preservation.
+- PDF prose before the first Chapter is book front matter; prose after a recognized Part/Section and before its first Chapter is section intro. No phantom chapter is created.
+- Census table totals now include book front matter, section intros, and chapter content, with component counts.
+- Markdown table alignment rows (`---`, `:---`, `---:`, `:---:`) are structural separators, not data.
+- Markdown and DOCX HTTP/HTTPS hyperlinks are preserved through controlled inline rendering; unsafe executable schemes remain non-active and raw source HTML stays escaped.
+- Regression matrix expanded from 39 to 54 checks; runner exits explicitly after flushing results for deterministic automation.
 ## 1.1.3 — 2026-10-01
 - Latent structural-quality defects found after the 1.1.2 source-preservation repair.
 - A source-authored chapter or section named Guide is valid. Fallback is recorded only when the parser creates it.
