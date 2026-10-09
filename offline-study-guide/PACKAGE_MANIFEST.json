@@ -21,8 +21,8 @@
       "size": 3208
     },
     "RELEASE_AUDIT.md": {
-      "sha256": "7f8a14557bfff492c40d8586debefd48b7532eee0dcd65eefe9374546ca856e1",
-      "size": 842
+      "sha256": "c52666a09d5798015422301c250525401a41648033175a75e389968d65f96370",
+      "size": 1109
     },
     "SKILL.md": {
       "sha256": "2ba982256c440765ee17c9d5023613acd875261976796481c1878c712e45acc7",
@@ -51,6 +51,10 @@
     "assets/icon.svg": {
       "sha256": "55f7d6ebef9935bda75f4b071f2ac6c2bf310fd158b45853021282ee75823df0",
       "size": 250
+    },
+    "assets/print-v5.css": {
+      "sha256": "a98c6bb2025f7250f1cb071dac81c957e6747eb2bf7e9274407e2adb632083ea",
+      "size": 1843
     },
     "assets/reader.css": {
       "sha256": "b068693461eb59b5ab07f1c5d53fba0e5218899ef606c66f917904179a4f0934",
