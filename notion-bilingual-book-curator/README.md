@@ -1,6 +1,6 @@
 # Notion Bilingual Book Curator
 
-**Version:** 1.2.0  
+**Version:** 1.2.1  
 **Status:** stable  
 **Internal skill name:** `notion-bilingual-book-curator`
 
@@ -49,3 +49,7 @@ Examples:
 - "Run a jargon coverage audit and produce the locked Appendix glossary patch."
 - "Audit the regenerated book and give only the repair micro-patch."
 - "Run the final freeze audit and compare it with the previous PDF."
+
+## v1.2.1 reference HTML clarification
+
+Clarify the existing bilingual/readability and specialist-builder route for top-down offline HTML. No new mode or orchestrator is introduced. Load both skills explicitly for combined work; preserve English technical/source identity and place concise Bengali explanation underneath. Browser QA and clinical validation are separate from static/package checks.

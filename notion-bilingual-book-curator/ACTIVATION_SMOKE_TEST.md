@@ -1,4 +1,4 @@
-# Activation Smoke Test — Notion Bilingual Book Curator v1.2.0
+# Activation Smoke Test — Notion Bilingual Book Curator v1.2.1
 
 ## Purpose
 
@@ -38,7 +38,7 @@ If the skill is actually loaded, report:
 
 Expected:
 - internal name: `notion-bilingual-book-curator`
-- version: `1.2.0`
+- version: `1.2.1`
 - status: `stable`
 - title/header: `Notion Bilingual Book Curator`
 - first operational heading: `1. Operating Contract`
@@ -50,7 +50,7 @@ Expected:
 
 Final verdict exactly one of:
 
-PASS — notion-bilingual-book-curator v1.2.0 activated
+PASS — notion-bilingual-book-curator v1.2.1 activated
 
 or
 

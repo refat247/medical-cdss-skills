@@ -1,17 +1,26 @@
 ---
 name: offline-study-guide
 description: "Build or repair a self-contained offline HTML study guide with chapter navigation, search, section-aware bookmarks, themes, and A4 print. Use when the user wants a mobile study guide, reader HTML, or a successor to the investigation or medicine guides. Not for dashboards, web apps, or clinical rewriting."
-type: workflow
-lifecycle: active
+metadata:
+  type: workflow
+  lifecycle: active
+  version: "1.3.0"
+  status: "stable"
 ---
 
 # Offline study guide — standalone HTML reader
 
-Version 1.2.0. Build a single HTML file that opens offline with no build step. Preserve the supplied book. Do not replace it with a dashboard or a summary.
+Version 1.3.0. Build a single HTML file that opens offline with no build step. Preserve the supplied book. Do not replace it with a dashboard or a summary.
 
 Read `references/input-contract.md` before accepting a markdown, Word, or PDF source. A file that opens is not a parsed book. Render only after the structure census says PARSE SUCCESS.
 
 Reference guides already in this project: `artifacts/BEGINNERS_GUIDE_MOBILE_V4.html` and `artifacts/SELECTION_OF_MEDICINE_MOBILE_V4.html`. Copy their reader shell when repairing those books. Read `references/reader-contract.md` before changing navigation, bookmarks, or print. Read `references/clinical-constraints.md` before touching medical text or the calculator.
+
+## Dense reference entries and bilingual work
+
+Read `references/reference-layout.md` for compact drug/formulation or other reference entries. Use supported source boundaries for top-down rows; preserve ordinary prose and true comparison tables. Use explicit `reference-entry-v1` blocks rather than punctuation-based clinical splitting. Review census density findings; use `--density-policy error` when unresolved density should block output.
+
+Read `references/bilingual-handoff.md` when pairing with `$notion-bilingual-book-curator`. Keep English technical identity and source wording, with concise Bengali explanation beneath the entry. Load both skills explicitly. Curator owns evidence and bilingual meaning; this skill owns HTML rendering. Static QA does not close browser, print, clinical or publication-freeze gates.
 
 ## Workflow
 
@@ -21,7 +30,7 @@ Reference guides already in this project: `artifacts/BEGINNERS_GUIDE_MOBILE_V4.h
 4. Wrap content in the reader shell: skip link, sticky header (tools row + chapter row), native `<dialog>`, progress bar, main landmark.
 5. Label every chapter with its section. Bookmark titles and the chapter menu must show `Section — Chapter`, never a serial index alone.
 6. Keep wide tables in a scroll container. Do not let them widen the page.
-7. Add the V5 print sheet from `assets/print-v5.css`: hide chrome, chapter page-breaks, repeating table headers, orphans and widows, `@page { size: A4; margin: 14mm 12mm }`. Caption Mermaid source; do not leave a bare graph block.
+7. Add print CSS: hide chrome, `@page { size: A4; margin: 14mm 12mm }`.
 8. Run `python3 scripts/check_guide.py PATH` from this skill directory. Fix failures.
 9. Serve over HTTP and check 360×800 and 390×844: `scrollWidth === clientWidth`, `visualViewport.scale === 1`. Do not claim `file://` was tested unless that exact open was logged.
 10. If printing is requested, generate an A4 PDF and confirm page size is about 595×842 pt. Do not call the guide clinically validated.
@@ -48,8 +57,8 @@ When the user supplies markdown, PDF, or Word and asks for this reader:
 python3 scripts/build_guide.py INPUT --title "Book title" --book investigation --out OUTPUT.html
 ```
 
-`--book medicine` only for a medicine guide. Add `--calculator` only when the source already has the medicine calculator; leave IV iron, low-dose dopamine, norepinephrine, and amino acids disabled in the control, and reject weights outside 0.5–300 kg.
-3. Markdown: `#` title, `##` section, `###` chapter. Word: real Heading 1/2/3 styles; tables and lists stay in document order. PDF: only explicit Chapter, Part, and Appendix lines are headings. The builder writes a census and exits 3 when the parse is only a file read. Do not override that gate unless the user accepts the structure.
+`--book medicine` only for a medicine guide. Add `--calculator` only when the source already has the medicine calculator; leave IV iron, low-dose dopamine, norepinephrine, and amino acids disabled.
+3. Markdown: `#` title, `##` section, `###` chapter. Word: real Heading 1/2/3 styles; tables and lists stay in document order. PDF: the strict path recognizes explicit Chapter, Part, and Appendix lines. If that path finds no chapter, a guarded layout-aware textbook path may activate only when a large title page and at least five page-numbered contents entries are strongly corroborated by later display headings. That mode reorders two columns, preserves the source contents, reconstructs numbered boxed tables when reliable, and embeds compressed original PDF pages as a collapsed visual-fidelity appendix for figures/complex layouts. The builder writes a census and exits 3 when the parse is only a file read. Do not override that gate unless the user accepts the structure.
 4. Run `python3 scripts/check_guide.py OUTPUT.html`.
 5. Open over HTTP at 360 and 390. Confirm section — chapter labels, no page overflow, and `visualViewport.scale` 1.
 6. Compare the shell with `artifacts/BEGINNERS_GUIDE_MOBILE_V4.html`: same header ids, dialog, theme options, bookmark label function, and A4 rule. Content will differ. Do not claim byte-identical output.

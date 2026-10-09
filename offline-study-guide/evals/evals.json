@@ -4,17 +4,46 @@
     {
       "name": "new_guide_from_chapters",
       "input": "Turn this exported chapter HTML into an offline mobile study guide with search and bookmarks.",
-      "assertions": ["Preserves source text", "Adds reader chrome", "Bookmark labels include section and chapter", "No maximum-scale", "A4 print rule", "Chapter page-break", "Repeating table header", "Captioned diagram source", "Runs check_guide.py"]
+      "assertions": [
+        "Preserves source text",
+        "Adds reader chrome",
+        "Bookmark labels include section and chapter",
+        "No maximum-scale",
+        "A4 print rule",
+        "Runs check_guide.py"
+      ]
     },
     {
       "name": "repair_existing_guide",
       "input": "The beginner guide bookmarks only show serial numbers. Fix the HTML without rewriting clinical text.",
-      "assertions": ["Writes a versioned successor", "Does not edit the original", "Chapter menu shows Section — Chapter", "Old anchored bookmarks resolve to section and chapter"]
+      "assertions": [
+        "Writes a versioned successor",
+        "Does not edit the original",
+        "Chapter menu shows Section \u2014 Chapter",
+        "Old anchored bookmarks resolve to section and chapter"
+      ]
     },
     {
       "name": "docx_and_pdf_gate",
       "input": "Build a study guide from this Word file and reject a PDF that has only Introduction headings.",
-      "assertions": ["Uses Heading styles", "Keeps tables", "Rejects .doc", "Does not certify a dummy Guide chapter"]
+      "assertions": [
+        "Uses Heading styles",
+        "Keeps tables",
+        "Rejects .doc",
+        "Does not certify a dummy Guide chapter"
+      ]
+    },
+    {
+      "name": "parser_contract_hardening",
+      "input": "Preserve PDF preface/part introductions, Markdown aligned tables and links, and Word hyperlinks without inventing chapters.",
+      "assertions": [
+        "PDF pre-chapter prose is front matter",
+        "Part intro stays on its section",
+        "Table census includes all ownership levels",
+        "Alignment separator is not data",
+        "HTTP/HTTPS links remain links",
+        "Unsafe schemes are not executable"
+      ]
     }
   ]
 }

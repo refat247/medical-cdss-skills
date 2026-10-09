@@ -2,9 +2,12 @@
 """Regression matrix for the offline study-guide input contract."""
 import json
 import re
-import subprocess
 import sys
 import tempfile
+from contextlib import redirect_stdout, redirect_stderr
+from io import StringIO
+from types import SimpleNamespace
+import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,42 +15,124 @@ BUILD = ROOT / "scripts" / "build_guide.py"
 CHECK = ROOT / "scripts" / "check_guide.py"
 PY = sys.executable
 
+_LOCAL_MODULES = {}
+
+def _load_local_module(name, path):
+    if name not in _LOCAL_MODULES:
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _LOCAL_MODULES[name] = mod
+    return _LOCAL_MODULES[name]
+
+
 def run(args):
-    return subprocess.run([PY, *args], capture_output=True, text=True)
+    """Run the local builder/checker in-process to keep the regression suite fast."""
+    script = Path(args[0]).name
+    stdout, stderr = StringIO(), StringIO()
+    old_argv = sys.argv[:]
+    code = 0
+    try:
+        sys.argv = [str(args[0]), *map(str, args[1:])]
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                if script == "build_guide.py":
+                    mod = _load_local_module("offline_study_build_guide", BUILD)
+                    mod.main()
+                elif script == "check_guide.py":
+                    mod = _load_local_module("offline_study_check_guide", CHECK)
+                    code = int(mod.main() or 0)
+                else:
+                    raise RuntimeError("unsupported regression command: " + script)
+            except SystemExit as exc:
+                if isinstance(exc.code, int):
+                    code = exc.code
+                elif exc.code is None:
+                    code = 0
+                else:
+                    print(exc.code, file=sys.stderr)
+                    code = 1
+    finally:
+        sys.argv = old_argv
+    return SimpleNamespace(returncode=code, stdout=stdout.getvalue(), stderr=stderr.getvalue())
 
 def write_pdf(path, lines):
-    # Minimal text PDF. Lines are drawn as separate text objects.
-    chunks = []
+    # Deterministic one-page text PDF using reportlab; avoids malformed-xref repair cost.
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    c = canvas.Canvas(str(path), pagesize=letter, pageCompression=0)
     y = 760
     for line in lines:
-        safe = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        chunks.append(f"BT /F1 12 Tf 72 {y} Td ({safe}) Tj ET")
+        c.drawString(72, y, str(line))
         y -= 18
-    stream = "\n".join(chunks).encode()
-    pdf = f"""%PDF-1.4
-1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
-2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
-3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj
-4 0 obj << /Length {len(stream)} >> stream
-{stream.decode()}
-endstream
-endobj
-5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000266 00000 n 
-0000000{266+len(stream)+40:06d} n 
-trailer << /Size 6 /Root 1 0 R >>
-startxref
-0
-%%EOF
-""".encode()
-    # pypdf is more reliable than a hand xref. Rebuild with pypdf if import works.
-    path.write_bytes(pdf)
+    c.save()
+
+
+def make_textbook_pdf(path):
+    """Synthetic multi-page two-column textbook chapter with source contents."""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    c = canvas.Canvas(str(path), pagesize=letter, pageCompression=0)
+    w, h = letter
+    # Title / source contents page.
+    c.setFont("Helvetica-Bold", 28)
+    c.drawString(150, 650, "Synthetic clinical chapter")
+    c.setFont("Helvetica", 12)
+    c.drawString(160, 690, "Test Author")
+    toc = [
+        ("Introduction", 2), ("Foundations", 2), ("Tests", 2),
+        ("Biases", 2), ("Summary", 3), ("Answers", 3),
+    ]
+    c.setFont("Helvetica", 8)
+    y = 560
+    for label, pg in toc:
+        c.drawString(72, y, f"{label} {pg}")
+        y -= 18
+    c.showPage()
+
+    def para(x, y, text, width_chars=48, leading=11):
+        words = text.split()
+        lines=[]; cur=[]
+        for wd in words:
+            if len(" ".join(cur+[wd])) > width_chars:
+                lines.append(" ".join(cur)); cur=[wd]
+            else:
+                cur.append(wd)
+        if cur: lines.append(" ".join(cur))
+        c.setFont("Helvetica", 8)
+        for line in lines:
+            c.drawString(x, y, line); y -= leading
+        return y
+
+    # Page 2: two columns, including one boxed table.
+    c.setFont("Helvetica-Bold", 13.5); c.drawString(54, 735, "Introduction")
+    y = para(54, 710, "This is the introduction paragraph for the synthetic textbook parser test."*2)
+    c.setFont("Helvetica-Bold", 13.5); c.drawString(54, y-15, "Foundations")
+    y = para(54, y-40, "Foundational text remains in the left column and should be read before the right column."*2)
+    # Simple numbered boxed table.
+    top = max(280, y-35); left=54; right=286; mid=135; rowh=22
+    c.rect(left, top-4*rowh, right-left, 4*rowh)
+    for r in range(1,4): c.line(left, top-r*rowh, right, top-r*rowh)
+    c.line(mid, top-rowh, mid, top-4*rowh)
+    c.setFont("Helvetica-Bold", 9); c.drawString(left+6, top-15, "1.1 Example table")
+    c.setFont("Helvetica", 8); c.drawString(left+6, top-rowh-15, "Item"); c.drawString(mid+6, top-rowh-15, "Value")
+    c.drawString(left+6, top-2*rowh-15, "Alpha"); c.drawString(mid+6, top-2*rowh-15, "One")
+    c.drawString(left+6, top-3*rowh-15, "Beta"); c.drawString(mid+6, top-3*rowh-15, "Two")
+
+    c.setFont("Helvetica-Bold", 12); c.drawString(324, 735, "Tests")
+    yr = para(324, 710, "Tests appear at the top of the right column and retain their body text."*2)
+    c.setFont("Helvetica-Bold", 12); c.drawString(324, yr-18, "Biases")
+    para(324, yr-43, "Biases text appears after tests in the same column."*3)
+    c.showPage()
+
+    # Page 3: include a smaller repeated TOC label that must stay a subheading.
+    c.setFont("Helvetica-Bold", 13.5); c.drawString(54, 735, "Summary")
+    y = para(54, 710, "Summary text starts the final source navigation chapter."*2)
+    c.setFont("Helvetica-Bold", 11); c.drawString(54, y-18, "Biases")
+    y = para(54, y-40, "This repeated Biases label is a local subheading, not a second navigation chapter.")
+    c.setFont("Helvetica-Bold", 13.5); c.drawString(324, 735, "Answers")
+    para(324, 710, "Answer material occupies the final right column."*3)
+    c.save()
 
 def pdf_with_pypdf(path, lines):
     from pypdf import PdfWriter
@@ -87,6 +172,41 @@ def make_docx(path, blocks):
                 for c, cell in enumerate(row):
                     table.rows[r].cells[c].text = cell
     d.save(path)
+
+def add_docx_hyperlink(paragraph, text, url):
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    rid = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), rid)
+    run = OxmlElement("w:r")
+    node = OxmlElement("w:t")
+    node.text = text
+    run.append(node)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+
+
+def make_docx_links(path):
+    import docx
+    d = docx.Document()
+    d.add_heading("Book", 1)
+    d.add_heading("Part", 2)
+    d.add_heading("Topic", 3)
+    p = d.add_paragraph("See ")
+    add_docx_hyperlink(p, "WHO", "https://www.who.int/")
+    p.add_run(" guidance.")
+    p = d.add_paragraph(style="List Bullet")
+    p.add_run("Visit ")
+    add_docx_hyperlink(p, "OpenAI", "https://openai.com/")
+    table = d.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Site"
+    table.cell(0, 1).text = "Link"
+    table.cell(1, 0).text = "WHO"
+    add_docx_hyperlink(table.cell(1, 1).paragraphs[0], "WHO", "https://www.who.int/")
+    d.save(path)
+
 
 def main_html(text):
     i = text.find("<main")
@@ -292,6 +412,19 @@ def main():
     pdf_case("PDF-04", ["Introduction", "Background prose. " * 20, "Discussion", "More prose."], False, "plain headings blocked")
     pdf_case("PDF-05", ["Col A    Col B    Col C"] * 10 + ["Introduction", "Body"], False, "hostile columns blocked")
     pdf_case("PDF-05B", ["Chapter 1 First"] + ["Left    Right    Third"] * 10 + ["Chapter 2 Second"], False, "hostile columns with chapters blocked")
+    layout_pdf = tmp / "PDF-LAYOUT-01.pdf"
+    make_textbook_pdf(layout_pdf)
+    layout_out = tmp / "PDF-LAYOUT-01.html"
+    r = run([str(BUILD), str(layout_pdf), "--out", str(layout_out)])
+    html = layout_out.read_text(encoding="utf-8") if layout_out.exists() else ""
+    census = json.loads((tmp / "PDF-LAYOUT-01.census.json").read_text(encoding="utf-8")) if (tmp / "PDF-LAYOUT-01.census.json").exists() else {}
+    results.append(expect("PDF-LAYOUT-01", r.returncode, html, lambda c, t: c == 0 and census.get("layout_mode") == "fitz-column-aware-textbook" and census.get("source_toc_match_ratio") == 1.0 and census.get("status") == "PARSE SUCCESS", "guarded textbook layout mode"))
+    results.append(expect("PDF-LAYOUT-02", r.returncode, html, lambda c, t: len(re.findall(r'data-source-page="\d+"', t)) == 3 and census.get("embedded_source_pages") == 3, "source page visual fallback embedded"))
+    results.append(expect("PDF-LAYOUT-03", r.returncode, html, lambda c, t: len(re.findall(r'class="chapter-title">Biases<', t)) == 1 and 'class="source-subheading">Biases<' in t, "smaller repeated contents label stays local"))
+    results.append(expect("PDF-LAYOUT-04", r.returncode, html, lambda c, t: '<td>Alpha</td><td>One</td>' in t and '<td>Beta</td><td>Two</td>' in t and census.get("source_box_tables") == 1, "boxed table columns reconstructed"))
+    ck = run([str(CHECK), str(layout_out)])
+    results.append(expect("PDF-LAYOUT-05", ck.returncode, ck.stdout, lambda c, t: c == 0, "layout-aware artifact checker"))
+
     blank = tmp / "PDF-06.pdf"
     from pypdf import PdfWriter
     w = PdfWriter()
@@ -309,8 +442,77 @@ def main():
     (tmp / "nocensus.html").write_text(stripped, encoding="utf-8")
     c = run([str(CHECK), str(tmp / "nocensus.html")])
     results.append(expect("CHECK-02", c.returncode, c.stdout, lambda code, t: code != 0 and "census missing" in t, "missing census fails"))
+    # v1.1.4 contract hardening retained; v1.2.0 adds guarded layout-aware textbook PDF checks.
+    pdf_case_path = tmp / "PDF-07.pdf"
+    write_pdf(pdf_case_path, ["Preface text before chapter", "Chapter 1 First", "Body one."])
+    r = run([str(BUILD), str(pdf_case_path), "--out", str(tmp / "PDF-07.html")])
+    html = (tmp / "PDF-07.html").read_text(encoding="utf-8") if (tmp / "PDF-07.html").exists() else ""
+    census = json.loads((tmp / "PDF-07.census.json").read_text(encoding="utf-8"))
+    results.append(expect("PDF-07", r.returncode, html, lambda c, t: c == 0 and census["chapters"] == ["Chapter 1 First"] and census["front_matter"] and "chapter-title\">Guide" not in t, "pdf preface is front matter"))
+
+    pdf_case_path = tmp / "PDF-08.pdf"
+    write_pdf(pdf_case_path, ["Part I Foundations", "This is part introduction.", "Chapter 1 First", "Body one."])
+    r = run([str(BUILD), str(pdf_case_path), "--out", str(tmp / "PDF-08.html")])
+    html = main_html((tmp / "PDF-08.html").read_text(encoding="utf-8")) if (tmp / "PDF-08.html").exists() else ""
+    census = json.loads((tmp / "PDF-08.census.json").read_text(encoding="utf-8"))
+    results.append(expect("PDF-08", r.returncode, html, lambda c, t: c == 0 and census["chapters"] == ["Chapter 1 First"] and census["section_intro_blocks"] == 1 and t.find("This is part introduction.") < t.find("chapter-title\">Chapter 1 First"), "pdf part intro stays on section"))
+
+    pdf_case_path = tmp / "PDF-09.pdf"
+    write_pdf(pdf_case_path, ["Introduction", "Introductory prose.", "Chapter 1 First", "Body."])
+    r = run([str(BUILD), str(pdf_case_path), "--out", str(tmp / "PDF-09.html")])
+    html = (tmp / "PDF-09.html").read_text(encoding="utf-8") if (tmp / "PDF-09.html").exists() else ""
+    census = json.loads((tmp / "PDF-09.census.json").read_text(encoding="utf-8"))
+    results.append(expect("PDF-09", r.returncode, html, lambda c, t: c == 0 and census["chapters"] == ["Chapter 1 First"] and "Introduction" in census["heading_candidates"] and "chapter-title\">Guide" not in t, "pdf candidate heading does not create phantom chapter"))
+
+    md = tmp / "census-table-md.md"
+    md.write_text("# Book\n\n## Part\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n### Topic\n\nBody.\n", encoding="utf-8")
+    r = run([str(BUILD), str(md), "--out", str(tmp / "census-table-md.html")])
+    census = json.loads((tmp / "census-table-md.census.json").read_text(encoding="utf-8"))
+    results.append(expect("CENSUS-TABLE-01", r.returncode, json.dumps(census), lambda c, t: c == 0 and census["tables"] == 1 and census["section_intro_tables"] == 1, "markdown section table counted"))
+
+    docx = tmp / "census-table-docx.docx"
+    make_docx(docx, [("h1", "Book"), ("h2", "Part"), ("table", [["A", "B"], ["1", "2"]]), ("h3", "Topic"), ("p", "Body.")])
+    r = run([str(BUILD), str(docx), "--out", str(tmp / "census-table-docx.html")])
+    census = json.loads((tmp / "census-table-docx.census.json").read_text(encoding="utf-8"))
+    results.append(expect("CENSUS-TABLE-02", r.returncode, json.dumps(census), lambda c, t: c == 0 and census["tables"] == 1 and census["section_intro_tables"] == 1, "docx section table counted"))
+
+    md = tmp / "census-table-all.md"
+    md.write_text("# Book\n\n| F | V |\n| --- | --- |\n| f | 0 |\n\n## Part\n\n| S | V |\n| --- | --- |\n| s | 1 |\n\n### Topic\n\n| C | V |\n| --- | --- |\n| c | 2 |\n", encoding="utf-8")
+    r = run([str(BUILD), str(md), "--out", str(tmp / "census-table-all.html")])
+    census = json.loads((tmp / "census-table-all.census.json").read_text(encoding="utf-8"))
+    results.append(expect("CENSUS-TABLE-03", r.returncode, json.dumps(census), lambda c, t: c == 0 and census["tables"] == 3 and census["front_matter_tables"] == 1 and census["section_intro_tables"] == 1 and census["chapter_tables"] == 1, "tables counted at all ownership levels"))
+
+    md = tmp / "md-table-align.md"
+    md.write_text("# Book\n\n## Part\n\n### Topic\n\n| Item | Value |\n|:---|---:|\n| A | 1 |\n", encoding="utf-8")
+    r = run([str(BUILD), str(md), "--out", str(tmp / "md-table-align.html")])
+    html = (tmp / "md-table-align.html").read_text(encoding="utf-8")
+    results.append(expect("MD-TABLE-ALIGN-01", r.returncode, html, lambda c, t: c == 0 and ":---" not in t and "---:" not in t and t.count("<tbody><tr>") == 1, "markdown alignment row is not data"))
+
+    md = tmp / "md-links.md"
+    md.write_text("# Book\n\n## Part\n\n### Topic\n\nSee [WHO](https://www.who.int/) guidance and [bad](javascript:alert(1)).\n\n- Visit [OpenAI](https://openai.com/)\n\n| Site | Link |\n| --- | --- |\n| WHO | [WHO](https://www.who.int/) |\n\n<script>alert('x')</script>\n", encoding="utf-8")
+    r = run([str(BUILD), str(md), "--out", str(tmp / "md-links.html")])
+    html = (tmp / "md-links.html").read_text(encoding="utf-8")
+    results.append(expect("MD-LINK-01", r.returncode, html, lambda c, t: c == 0 and '<a href="https://www.who.int/"' in t, "markdown https link"))
+    results.append(expect("MD-LINK-02", r.returncode, html, lambda c, t: '<li>Visit <a href="https://openai.com/"' in t, "markdown link in list"))
+    results.append(expect("MD-LINK-03", r.returncode, html, lambda c, t: '<td><a href="https://www.who.int/"' in t, "markdown link in table"))
+    results.append(expect("MD-LINK-04", r.returncode, html, lambda c, t: 'href="javascript:' not in t.lower(), "unsafe markdown link is not executable"))
+
+    docx = tmp / "docx-links.docx"
+    make_docx_links(docx)
+    r = run([str(BUILD), str(docx), "--out", str(tmp / "docx-links.html")])
+    html = (tmp / "docx-links.html").read_text(encoding="utf-8")
+    results.append(expect("DOCX-LINK-01", r.returncode, html, lambda c, t: c == 0 and 'See <a href="https://www.who.int/"' in t and "guidance." in t, "docx paragraph hyperlink"))
+    results.append(expect("DOCX-LINK-02", r.returncode, html, lambda c, t: '<li>Visit <a href="https://openai.com/"' in t, "docx hyperlink ordering"))
+    results.append(expect("DOCX-LINK-03", r.returncode, html, lambda c, t: '<td><a href="https://www.who.int/"' in t, "docx table-cell hyperlink"))
+
+    results.append(expect("INLINE-SAFETY-01", 0, html + (tmp / "md-links.html").read_text(encoding="utf-8"), lambda c, t: "<script>alert('x')</script>" not in t and 'href="javascript:' not in t.lower(), "source html and unsafe links stay non-executable"))
+
     print("RESULTS", sum(results), "/", len(results))
     return 0 if all(results) else 1
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import os
+    rc = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc)

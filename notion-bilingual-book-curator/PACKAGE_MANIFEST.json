@@ -1,0 +1,108 @@
+{
+  "name": "notion-bilingual-book-curator",
+  "version": "1.2.1",
+  "status": "stable",
+  "lifecycle": "active",
+  "files": {
+    "ACTIVATION_SMOKE_TEST.md": {
+      "sha256": "667c324da97da7635c84bb0175a60314f26b5b173a759a49aaafb4ed537d23b6",
+      "size": 1908
+    },
+    "CHANGELOG.md": {
+      "sha256": "752d517d83c958f432613c0ca08a26ffa1d099df4e5e705e49738fb5cf4a5a24",
+      "size": 3217
+    },
+    "MANUAL_ACTIVATION.md": {
+      "sha256": "57a40e24c7ff2f6263916049769d01c07f5681c88470023602d960608a716792",
+      "size": 4790
+    },
+    "README.md": {
+      "sha256": "6c21fecc41a006dde25b4b1671259a4110edcbbe02dbb58f722d8fbe3db7be6d",
+      "size": 2962
+    },
+    "SKILL.md": {
+      "sha256": "5afcfbcabe564b5623740fe8b867a928cd26897374efa703026c9a56a7b527c0",
+      "size": 23815
+    },
+    "TEST_REPORT.md": {
+      "sha256": "959b214a0bd4ff31719e00950ffab66e47d7d1128b809034fc9132ff11889f35",
+      "size": 1133
+    },
+    "VERSION": {
+      "sha256": "6cf4e084b47f33c9b02ef79279d157833868f8f70514169a768be353ee328fea",
+      "size": 6
+    },
+    "VERSIONING_DECISION.md": {
+      "sha256": "4725a6553398c0410aa39434f097a75a3e355dee0f6999d5b9bbecdadf40af21",
+      "size": 606
+    },
+    "agents/openai.yaml": {
+      "sha256": "97b4797adf319f37fc805f481ef07db004a29099b7206d289b4d366a14ab1c12",
+      "size": 541
+    },
+    "assets/icon.svg": {
+      "sha256": "55f7d6ebef9935bda75f4b071f2ac6c2bf310fd158b45853021282ee75823df0",
+      "size": 250
+    },
+    "references/artifact-diff-regression.md": {
+      "sha256": "74bcc15c11c9fda48429f2482d8a655c6bcf875b361bf7e8ec9db11beb289c43",
+      "size": 1879
+    },
+    "references/bilingual-convention.md": {
+      "sha256": "c79260d8ec52ad36b3d27dbbc4830811936fa17b66c31449706be02be1926200",
+      "size": 1554
+    },
+    "references/book-readability-audit.md": {
+      "sha256": "90c874f1b45637199e3ef30b8d9a7117866c9c9aebb158145965e5fc39b3aef0",
+      "size": 1493
+    },
+    "references/builder-verification.md": {
+      "sha256": "a3540b29cf962c06929aa3b41a59e082f4bc508533581d3aa74924d4d24cc41c",
+      "size": 1635
+    },
+    "references/content-audit.md": {
+      "sha256": "8ba6c2e37b9d1d6fbb1b66a9e4fea491e927d3c96b448ae070e45760632057e8",
+      "size": 1295
+    },
+    "references/freeze-gates.md": {
+      "sha256": "8bf9b7ac6fbd05447df69b16efdb9ba8a275f81cd0212049bc0113ecd0054439",
+      "size": 2215
+    },
+    "references/governed-production-orchestration.md": {
+      "sha256": "3dcbd1b52bd98e42d5d490dd44421f87ba5cc3014ed7b457188b3b756fd2a883",
+      "size": 2584
+    },
+    "references/html-reader-handoff.md": {
+      "sha256": "4313f82247c8764c90deb629ce78c480b194cb91145f45b16284301e6616867d",
+      "size": 4119
+    },
+    "references/humanizer.md": {
+      "sha256": "b60d335511372072d3e0ea80345900aa50e46484d94cc0b48f6b66621e70a5cb",
+      "size": 871
+    },
+    "references/jargon-coverage-audit.md": {
+      "sha256": "7a2037ba6409edd5a10f8a9a05c066e79f6eccde6bd3d6921ad471ee2fb35732",
+      "size": 2785
+    },
+    "references/output-templates.md": {
+      "sha256": "33c6d70118d3540da01c8697172939f2fc85dcc60f3137e4bc6e5057bb5599bf",
+      "size": 1287
+    },
+    "references/package-maintenance.md": {
+      "sha256": "b960249f5f694d4724bbdf4f2007da3424880d6425630336ee68d034d03e1492",
+      "size": 2761
+    },
+    "references/prompt-compiler.md": {
+      "sha256": "7020cabae68cbc45d8f12a2521b9afac531e5d29c0d669c50d045dd8768e3644",
+      "size": 2079
+    },
+    "references/typography-color.md": {
+      "sha256": "64a77bdeb7d72d42076f5fb1711fadbe3d32e2a6fca4ac126163bbe56fd564a6",
+      "size": 1370
+    },
+    "scripts/verify_release.py": {
+      "sha256": "fec24d1e1811ff259716201aff139ddb760f12e9594a3ef06fcd4411ddbe6329",
+      "size": 2925
+    }
+  }
+}

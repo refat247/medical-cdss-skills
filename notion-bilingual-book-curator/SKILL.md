@@ -2,13 +2,13 @@
 name: notion-bilingual-book-curator
 description: Turn Notion-derived or source-backed material into an evidence-preserving bilingual technical reference book, or audit an existing book/PDF for source fidelity, bilingual consistency, jargon coverage, readability, duplication, navigation, production defects, artifact-diff regressions, and freeze readiness. Use for source audit, master-prompt generation for an external document builder, post-build book audit, jargon coverage audit, repair-only prompt generation, and final freeze audit.
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   status: "stable"
 ---
 
 # Notion Bilingual Book Curator
 
-Version: 1.2.0
+Version: 1.2.1
 
 ## 1. Operating Contract
 
@@ -316,6 +316,8 @@ For major teaching concepts, use when useful:
 Do not force this template on every paragraph.
 
 Read `references/bilingual-convention.md` when performing a bilingual rewrite or audit.
+
+For offline HTML readers or dense reference entries, read `references/html-reader-handoff.md`. Use the existing specialist-builder production route with `$offline-study-guide` explicitly loaded alongside this skill. Transfer source-ordered rows, supported formulation membership, concise Bengali explanation and unresolved evidence states. Retain narrative prose and comparison tables. Audit the actual HTML plus source/diff integrity; leave browser QA open when it was not executed. This clarifies existing readability and artifact-verification obligations without adding a new mode.
 
 ## 5. Content Audit
 
