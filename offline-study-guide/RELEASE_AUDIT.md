@@ -1,51 +1,7 @@
-# Release audit — offline-study-guide v1.2.1
+# Release audit — offline-study-guide v1.3.0
 
-Date: 2026-10-01
+Additive reference-layout release from verified upload v1.2.1. Functional modifications: explicit reference JSON parser/rendering, density reporting/strict policy, source/role/formulation/census checks and one-column reference CSS. New synthetic regression suite complements the unchanged 59-check legacy suite. Bilingual/source handoff docs establish separate browser and clinical boundaries.
 
-## Scope
+Version Manager engine plus supplementary release verifier check all current mirrors. Manifest hashes exclude the manifest itself. Root-correct ZIP is extracted and checked again before release sync. Original sources and historical changelog sections are retained. Save/review locations and archive hashes are recorded in the release record. Native activation and browser visual QA are not claimed.
 
-Governance-only PATCH over v1.2.0. Functional code remains byte-identical to the proven v1.2.0 baseline. No parser, reader-shell, source-preservation, PDF-gate, calculator, reference-contract, eval, or trigger behavior was changed.
-
-## Proven predecessor
-
-- release: `offline-study-guide v1.2.0`
-- ZIP SHA-256: `3e674bdf1efd93251c254466bb026694281c5381b449b34142dfe2663d4018c1`
-- regression baseline: 59/59 PASS
-
-## v1.2.1 governance gates
-
-- `SKILL.md metadata.version` is canonical: PASS (`1.2.1`)
-- visible SKILL version agrees: PASS
-- `VERSION` agrees: PASS
-- `README.md` agrees: PASS
-- `agents/openai.yaml` agrees: PASS
-- `MANUAL_ACTIVATION.md` agrees: PASS
-- `ACTIVATION_SMOKE_TEST.md` agrees: PASS
-- current release is recorded in `CHANGELOG.md`: PASS
-- default agent prompt explicitly names `$offline-study-guide`: PASS
-- required governance files exist and are non-empty: PASS
-- release verifier executes successfully before packaging: PASS
-- compiled Python release residue is rejected by the verifier: VERIFIED (carried-over `__pycache__` was detected and removed)
-- functional files versus v1.2.0 baseline: BYTE-IDENTICAL
-- unchanged functional regression suite: 59/59 PASS
-
-## Archive contract
-
-Final install ZIP must:
-
-- place `SKILL.md` at archive root;
-- contain no extra `offline-study-guide/` wrapper directory;
-- contain no duplicate paths;
-- contain no `__pycache__`/`.pyc` residue;
-- match `PACKAGE_MANIFEST.json` file sizes and SHA-256 values.
-
-The final gate is performed after creating the exact ZIP by extracting it into a clean directory and rerunning release verification plus the unchanged 59-check regression suite.
-
-## External state
-
-- Git sync: NOT PERFORMED
-- Notion mirror/registry update: NOT PERFORMED
-- ChatGPT installation/discoverability: NOT VERIFIED
-- Native runtime activation: NOT VERIFIED
-
-Package correctness does not imply any of those external states.
+Repository reconciliation retains the pre-existing assets/print-v5.css byte-for-byte (Git blob c3e3a477d8e02235e308da8851a1f3f9bc4425b3). It is included in the package manifest for exact GitHub/tree parity; the new reader does not load this legacy standalone asset.

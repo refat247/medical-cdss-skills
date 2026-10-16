@@ -1,6 +1,6 @@
 # Offline Study Guide
 
-**Version:** 1.2.1  
+**Version:** 1.3.0  
 **Status:** stable  
 **Lifecycle:** active
 
@@ -56,3 +56,7 @@ The v1.2.0 capability baseline remains unchanged: 59/59 automated regression che
 - Layout-aware textbook parsing activates only under a strong title/contents/body-heading corroboration gate.
 - Complex figures or boxes can remain visual-only with source-page fallbacks rather than guessed semantic reconstruction.
 - The static checker does not substitute for an actual mobile browser/HTTP viewport test.
+
+## v1.3.0 reference HTML clarification
+
+Add opt-in source-span blocks, top-down formulation groups, density reporting and exact rendered-source checks. Legacy input paths remain available. Load both skills explicitly for combined work; preserve English technical/source identity and place concise Bengali explanation underneath. Browser QA and clinical validation are separate from static/package checks.

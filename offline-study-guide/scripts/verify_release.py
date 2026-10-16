@@ -32,6 +32,11 @@ REQUIRED = [
     "scripts/check_guide.py",
     "scripts/run_regression.py",
     "scripts/verify_release.py",
+    "scripts/reference_layout.py",
+    "scripts/test_reference_layout.py",
+    "references/reference-layout.md",
+    "references/bilingual-handoff.md",
+    "assets/icon.svg",
     "evals/evals.json",
     "evals/triggers.json",
 ]
@@ -88,7 +93,7 @@ def verify_tree() -> tuple[str, dict]:
     skill = read("SKILL.md")
     version = find_one(r'^\s*version:\s*["\']?([^"\'\s]+)', skill, "SKILL.md metadata.version")
     status = find_one(r'^\s*status:\s*["\']?([^"\'\s]+)', skill, "SKILL.md metadata.status")
-    lifecycle = find_one(r'^lifecycle:\s*([^\s]+)', skill, "SKILL.md lifecycle")
+    lifecycle = find_one(r'^\s*lifecycle:\s*([^\s]+)', skill, "SKILL.md metadata.lifecycle")
     visible = find_one(r'^Version\s+([0-9]+\.[0-9]+\.[0-9]+)\.', skill, "SKILL.md visible Version")
 
     mirrors = {
@@ -114,7 +119,7 @@ def verify_tree() -> tuple[str, dict]:
         errors.append("agents/openai.yaml default_prompt does not name $offline-study-guide")
 
     changelog = read("CHANGELOG.md")
-    if not re.search(rf'^##\s+{re.escape(version)}\s+—\s+', changelog, re.MULTILINE):
+    if not re.search(rf'^##\s+\[?{re.escape(version)}\]?\s+(?:—|-)\s+', changelog, re.MULTILINE):
         errors.append(f"CHANGELOG.md missing current release heading {version}")
 
     if not MANIFEST.is_file():

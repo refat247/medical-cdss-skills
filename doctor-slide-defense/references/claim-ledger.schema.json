@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doctor slide defense claim ledger",
+  "type": "object",
+  "required": ["deck_title", "ward_limit", "one_sentence", "groups"],
+  "properties": {
+    "deck_title": {"type": "string"},
+    "deck_path": {"type": "string"},
+    "ward_limit": {"type": "string"},
+    "one_sentence": {"type": "string"},
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "bridge", "claims"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "bridge": {"type": "string"},
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["slide", "claim", "status", "say", "locator", "ward"],
+              "properties": {
+                "slide": {"type": "string"},
+                "claim": {"type": "string"},
+                "status": {"enum": ["SUPPORTED", "SLIDE_PAPER", "DO_NOT_SAY", "CONFLICT"]},
+                "say": {"type": "string"},
+                "locator": {"type": "string"},
+                "ward": {"type": "string"},
+                "if_asked": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["q", "a", "locator"],
+        "properties": {
+          "q": {"type": "string"},
+          "a": {"type": "string"},
+          "locator": {"type": "string"}
+        }
+      }
+    }
+  }
+}

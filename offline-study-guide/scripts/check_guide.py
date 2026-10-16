@@ -4,6 +4,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from reference_layout import check_reference_artifact
 
 def main():
     legacy = "--legacy-v4" in sys.argv
@@ -13,7 +14,7 @@ def main():
         return 2
     path = Path(args[0])
     text = path.read_text(encoding="utf-8")
-    errors = []
+    errors = check_reference_artifact(text)
     if "maximum-scale" in text or "user-scalable=no" in text:
         errors.append("pinch zoom disabled")
     if not re.search(r'name="viewport"[^>]+width=device-width', text):
@@ -34,6 +35,8 @@ def main():
         errors.append("structure census missing")
     if m:
         info = json.loads(m.group(1))
+        if int(info.get('reference_entries') or 0) != len(re.findall(r'<section\s[^>]*data-reference-id=', text)):
+            errors.append('structured reference census count mismatch')
         if info.get("status") != "PARSE SUCCESS":
             errors.append("census status is not PARSE SUCCESS")
         if not info.get("chapters"):
@@ -53,6 +56,7 @@ def main():
                 errors.append("layout-aware PDF source-page fallback count mismatch")
             if info.get("source_toc_match_ratio", 0) < 0.8:
                 errors.append("layout-aware PDF contents-heading match is below trust threshold")
+    print("STATIC CHECK ONLY — browser visual/interaction QA remains separate")
     print(f"{path.name}: {'ok' if not errors else 'FAIL'}")
     for err in errors:
         print(" -", err)

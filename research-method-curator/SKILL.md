@@ -2,7 +2,7 @@
 name: research-method-curator
 description: Create, audit, repair, and structure high-integrity research outputs for Notion and project decision-making. Use for deep research prompts, source-provenance repair, claim verification, research methodology design, Notion-ready research pages, model-selection evidence, CDSS/RAG research, timestamped discovery archives, and anti-hallucination research workflows.
 metadata:
-  version: "1.1.2"
+  version: "1.2.0"
   status: "stable"
 ---
 
@@ -176,4 +176,21 @@ For audits or research updates, lead with findings, then show what was checked, 
 
 ## Version Note
 
-v1.1.2 adds a preservation-safe Humanizer finishing layer without changing the evidence, verification, archive, benchmark, or decision-readiness workflow. It is a manual-upload candidate until installed and smoke-tested.
+v1.2.0 adds NIQS v1.0 research-method enforcement for source authority, claim/evidence verification, freshness and recheck triggers, evidence debt, contradiction handling, uncertainty budgets, and research-to-monitoring transitions. It preserves the v1.1.2 preservation-safe Humanizer finishing layer and the existing evidence, verification, archive, benchmark, and decision-readiness workflow. The v1.1.2 manual-install runtime was fresh-session verified on 23 Sep 2026 and its canonical Git mirror was synchronized at commit `5cec4d6b8b16f47752b0ffa1e9efe10208e79065`; those facts remain historical v1.1.2 provenance and do not establish v1.2.0 runtime activation. Runtime installation/activation of v1.2.0 remains NOT VERIFIED by this source update. For versioning and smoke testing, read [references/package-maintenance.md](references/package-maintenance.md).
+
+
+## NIQS v1.0 research-method enforcement
+
+Read [references/notion-information-quality-standard.md](references/notion-information-quality-standard.md) for the shared information-quality contract.
+
+The Research Method Curator owns:
+- Source Authority Matrix selection and conflict resolution.
+- Claim-to-source support and atomic evidence verification.
+- Research-specific Evidence State and Claim Type assignment.
+- Freshness Class and recheck triggers for research inputs.
+- Confidence × Consequence escalation for source verification.
+- Timestamped evidence archives and source cards.
+- Research readiness, evidence debt, contradiction handling and uncertainty budget.
+- Research → Monitoring transition once a research question is mature.
+
+A research synthesis may satisfy NIQS readability while still failing evidence methodology. External evidence may update a shortlist or policy but cannot substitute for required local benchmark, artifact verification, legal review, human clinical review or other downstream gate.

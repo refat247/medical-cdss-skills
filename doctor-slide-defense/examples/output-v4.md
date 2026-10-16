@@ -1,0 +1,52 @@
+# Angina and trimetazidine — doctor defense
+
+## Before you speak
+### The ward limit
+
+Not essential. Not a survival drug. Class IIb in ESC 2024 CCS. Absent from AHA 2023 CCD. Do not use in Parkinson disease, pregnancy, breastfeeding, or creatinine clearance below 30 mL/min.
+
+Angina is a mismatch, not only a tight artery. This drug changes fuel use when you cannot lower demand further. Europe allows that at Class IIb.
+
+## The talk
+
+### Slides 1 to 5 — leftover angina
+
+The early slides are about the patient, not the molecule.
+
+DO NOT SAY. Trimetazidine is an essential part of therapy. Say: It may be considered as add-on, or in a selected first combination, Class IIb. Locator: ESC 2024 CCS PDF p16 Table 4. Harrison L2-634 says second-line, not essential. Ward: Do not say essential.
+
+SLIDE-PAPER. 40% said angina affected quality of life completely or very much. BRIDGE 2. Say: Leftover angina is a real burden. The 40% is that survey. Locator: Slide 2 only. Ward: Do not cite Harrison for 40%.
+
+SLIDE-PAPER. Angina at 1 year linked to 32% higher cardiovascular death or infarction. CLARIFY. Say: Persistent symptoms mark higher risk. This figure does not prove the drug prevents those deaths. Locator: Slide 3. Direction without 32%: Harrison L2-622, Davidson L2-164. Ward: Do not claim a mortality benefit.
+
+
+### Slides 6 to 12 — not one blocked artery
+
+Ischaemia is a mismatch. A tight stenosis is the usual cause, not the only one.
+
+SUPPORTED. CCS is a transient demand-supply mismatch from arteries and/or microcirculation. Say: Use the 2024 definition if challenged. Locator: ESC 2024 CCS PDF p9-10. Davidson L2-155. Harrison L2-610. Kumar L2-280. Ward: A definition is not a licence to call every chest pain ischaemia.
+
+CONFLICT. About 50% have non-obstructive disease. Say: Davidson says 10-20% of effort angina have normal coronaries. Selected no-obstruction meta-analysis: about 41% microvascular and 40% vasospastic. Locator: Davidson L2-156. ESC 2024 CCS PDF p31. Ward: Do not say Davidson or the guideline sentence is 50%.
+
+DO NOT SAY. Nitrates worsen endothelium in spasm. Say: Nitrates act on large vessels and preload. They relieve spasm acutely. Isolated spasm: calcium-channel blocker, Class I, Level A. Locator: Harrison L2-658. ESC 2024 CCS PDF p15. Ward: Do not repeat the endothelium clause as a book fact.
+
+
+### Slides 15 to 18 — metabolism
+
+Defend the direction of the fuel shift. Do not defend the percentage.
+
+DO NOT SAY. Trimetazidine gives +33% ATP. Say: Harrison states the shift from fatty-acid oxidation toward glucose. The percentage is Filmore 2014 on the slide. Locator: Harrison L2-634. Slides 15-18 for +33%. Ward: Do not attribute +33% to Harrison or ESC.
+
+
+### Slides 43 and 44 — class change
+
+The downgrade is printed. The congress anecdote is not.
+
+SUPPORTED. Class moved from IIa to IIb. Say: Nicorandil or trimetazidine may be considered, Class IIb. Nitrates and ranolazine stayed IIa. Locator: ESC 2024 CCS PDF p16 Table 4. Gap: PDF p84. Ward: IIb means may, not essential.
+
+CONFLICT. AHA agrees. Say: AHA 2023 does not list trimetazidine and uses ranolazine. Ivabradine is Class 3 Harm if the ventricle is normal. Locator: AHA 2023 CCD PDF p51. Ward: Do not translate a European IIb into an American recommendation.
+
+## If you are stopped
+### One sentence
+
+Angina is a mismatch, not only a tight artery. This drug changes fuel use when you cannot lower demand further. Europe allows that at Class IIb.

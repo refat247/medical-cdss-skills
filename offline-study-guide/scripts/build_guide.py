@@ -7,6 +7,8 @@ contents, search, section-aware bookmarks, themes, chapter menu, A4 print.
 import argparse
 import html
 import re
+import json
+from reference_layout import validate_entry, render_entry, density_findings
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
@@ -99,6 +101,9 @@ def blocks_to_html(blocks):
             parts.append("<div class=\"table-wrapper\"><table><thead><tr>" + head + "</tr></thead><tbody>" + "".join(body) + "</tbody></table></div>")
         elif kind == "h3":
             parts.append(f"<h3 class=\"source-subheading\">{inline(data)}</h3>")
+        elif kind == "reference":
+            entry_id = data["_render_id"]
+            parts.append(render_entry(data, entry_id))
         elif kind == "pre":
             parts.append(f"<pre><code>{html.escape(str(data))}</code></pre>")
     return "\n".join(parts)
@@ -170,8 +175,21 @@ def parse_markdown(text):
         current["chapters"].append(chapter)
         recognized.append(name)
 
+    reference_lines = None
     for raw in lines:
         line = raw.rstrip()
+        if reference_lines is not None:
+            if line == "```":
+                blocks().append(("reference", validate_entry(json.loads("\n".join(reference_lines)))))
+                placed += 1
+                reference_lines = None
+            else:
+                reference_lines.append(raw)
+            continue
+        if line == "```reference-entry":
+            flush_para(); flush_list(); flush_table()
+            reference_lines = []
+            continue
         if line.startswith("# "):
             flush_para(); flush_list(); flush_table()
             title = line[2:].strip()
@@ -208,6 +226,8 @@ def parse_markdown(text):
             flush_para()
             continue
         para.append(line.strip())
+    if reference_lines is not None:
+        raise ValueError("reference-entry: unclosed fence")
     flush_para(); flush_list(); flush_table()
     if current and (current["chapters"] or current["intro"]):
         sections.append(current)
@@ -889,6 +909,16 @@ def parse_pdf(path):
 
 def render(title, book, sections, calculator=False, intro=None, source_pdf=None, embed_source_pages=False):
     used = set()
+    reference_number = 0
+    block_sets = [intro or []]
+    for sec in sections:
+        block_sets.append(sec.get("intro") or [])
+        block_sets.extend(ch["blocks"] for ch in sec["chapters"])
+    for block_set in block_sets:
+        for index, (kind, data) in enumerate(block_set):
+            if kind == "reference":
+                reference_number += 1
+                block_set[index] = (kind, dict(data, _render_id="reference-" + str(reference_number)))
     toc = []
     intro = intro or []
     front = blocks_to_html(intro) if intro and isinstance(intro[0], tuple) else (f"<p>{inline(' '.join(intro))}</p>" if intro else "")
@@ -1096,6 +1126,7 @@ def main():
     parser.add_argument("--calculator", action="store_true")
     parser.add_argument("--expect")
     parser.add_argument("--override-structure", action="store_true")
+    parser.add_argument("--density-policy", choices=["report", "error"], default="report")
     args = parser.parse_args()
     path = Path(args.input)
     kind, loaded = load(path)
@@ -1104,12 +1135,18 @@ def main():
         title = args.title
     info = census_for(path, kind, title, sections, intro)
     expect = json.loads(Path(args.expect).read_text(encoding="utf-8")) if args.expect else None
+    info["density_findings"] = density_findings(sections, intro)
+    info["visual_qa"] = "NOT EXECUTED"
+    info["reference_entries"] = sum(kindb == "reference" for sec in sections for ch in sec["chapters"] for kindb, _ in ch["blocks"]) + sum(kindb == "reference" for kindb, _ in intro) + sum(kindb == "reference" for sec in sections for kindb, _ in sec.get("intro", []))
     errors = quality_gate(info, expect)
+    if info["density_findings"] and args.density_policy == "error":
+        errors.append("READABILITY REVIEW REQUIRED: dense source blocks; preserve source and provide reviewed reference spans")
     info["gate_errors"] = errors
     info["status"] = "PARSE SUCCESS" if not errors else "FILE READ SUCCESS"
     census_path = Path(args.out).with_suffix(".census.json")
     census_path.write_text(json.dumps(info, indent=2), encoding="utf-8")
     print("STRUCTURE CENSUS", info["status"])
+    print("READABILITY FINDINGS", len(info["density_findings"]), "VISUAL QA NOT EXECUTED")
     print(f"source={info['source']} type={info['source_type']} chars={info['extract_chars']} sections={len(info['sections'])} chapters={len(info['chapters'])} tables={info['tables']} dummy={info['dummy_chapter']}")
     for err in errors:
         print("GATE", err)

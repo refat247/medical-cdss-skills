@@ -1,36 +1,7 @@
-# Versioning decision — v1.2.1
+# Versioning decision — 1.3.0
 
-## Proven predecessor
+MINOR from verified upload v1.2.1: additive explicit reference-entry schema, density policy, source-span checks and presentation CSS. Legacy Markdown/DOCX/PDF behavior is retained; the 59-check suite remains unchanged. This is functional behavior and is not a governance-only PATCH.
 
-- package: `offline-study-guide-skill-v1.2.0.zip`
-- version: `1.2.0`
-- SHA-256: `3e674bdf1efd93251c254466bb026694281c5381b449b34142dfe2663d4018c1`
-- functional regression baseline: 59/59 PASS
+Canonical engine: refat247/Private_repo/skills/version-manager, v1.2.1 on main, inspected 2026-10-09. Public copy v1.1.1 and Notion Source Vault v1.2.0 lag that private source; neither overrides it. Used --bump minor after dry-run. Engine discovers only three declarations in this package; nested agent metadata, visible heading, VERSION, activation files and manifest are separately synchronized/verified. Historical release mentions are retained.
 
-## Decision
-
-Release `1.2.1` as a SemVer **PATCH**.
-
-Reason: this release repairs package/version governance and install-archive structure without materially changing the skill's decisions, parser, reader shell, source handling, or supported workflow. A MINOR bump would overstate functional change; a MAJOR bump is not justified.
-
-## Retained unchanged
-
-- `scripts/build_guide.py`
-- `scripts/check_guide.py`
-- `scripts/run_regression.py`
-- all reader assets
-- all input/reader/clinical references
-- eval/triggers behavior
-
-## Added/changed
-
-- version mirrors updated to `1.2.1`;
-- OpenAI agent metadata added;
-- README/manual activation/smoke test added;
-- release verifier and package manifest added;
-- install ZIP shape standardized with `SKILL.md` at archive root;
-- changelog and release audit updated.
-
-## Compatibility
-
-Backward compatible. No migration is required for v1.2.0 workflows or generated readers.
+Baseline archive SHA-256: 31d70b72dee1859bf7e5a46b5176b147d8c2aafa14935e8aa595a2775e1a0d6e. Public main v1.2.0 predates recovered v1.2.1 draft PR #22; this change carries the verified governance baseline forward and leaves that prior review intact.

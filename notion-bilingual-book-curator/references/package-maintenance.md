@@ -59,3 +59,5 @@ Mirror the same value in `agents/openai.yaml` and record every release in `CHANG
 8. Package the exact skill directory.
 9. Compute a SHA-256 of the release ZIP.
 10. If Git sync is not actually performed, report `Git sync: NOT PERFORMED` rather than implying a commit exists.
+
+The v1.2.1 package also requires `references/html-reader-handoff.md`, `assets/icon.svg`, `VERSION`, `VERSIONING_DECISION.md`, `TEST_REPORT.md`, `PACKAGE_MANIFEST.json`, and `scripts/verify_release.py`. Use the canonical Version Manager engine first, then verify every nested or visible version mirror explicitly. Preserve historical version references.

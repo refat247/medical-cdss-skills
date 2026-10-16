@@ -1,0 +1,8 @@
+interface:
+  display_name: "Doctor slide defense"
+  short_description: "Render a doctor-panel slide defense as output version 1, 2, 3, or 4 from one claim ledger."
+  default_prompt: "Use $doctor-slide-defense. Freeze slide claims, label each against books and guidelines, then render --output-version 4 unless another output version is requested."
+metadata:
+  version: "1.0.0"
+  status: "stable"
+  lifecycle: "active"

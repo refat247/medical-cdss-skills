@@ -1,102 +1,124 @@
 ---
 name: version-manager
-version: 1.1.1
-description: |
-  Universal Semantic Version Bumper, Release Synchronizer, and Keep a Changelog Manager.
-  ACTIVATE this skill whenever the user asks to bump version, update skill or software version,
-  prepare a release, maintain changelogs, synchronize version declarations across code, tests,
-  and documentation, or verify zero-drift version consistency across files.
+description: Portable Semantic Versioning and release-synchronization skill for OpenAI/ChatGPT Agent Skills and conventional software projects. Use when inspecting version drift, choosing a SemVer bump, synchronizing current version declarations across SKILL.md and agents/openai.yaml plus package/runtime/docs files, updating changelogs, preparing releases, or verifying package version consistency.
+metadata:
+  version: 1.2.1
 ---
 
-# Version Manager Skill (v1.1.1)
+# Version Manager
 
-Production-grade automated Semantic Versioning ([SemVer 2.0.0](https://semver.org/)) bumper, multi-file release synchronizer, and [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) management skill for Antigravity agent skills, Python packages, and modular codebases.
+Use this skill to inspect, synchronize, bump, and verify software or skill-package versions without assuming a specific operating system or agent runtime.
 
----
+## Core rule
 
-## 1. When to Activate This Skill
+**Discover before changing. Treat zero discovered declarations as unresolved, not success. Stage edits before writing. Verify after writing. Never infer Git sync, installation, or runtime activation from a file edit alone.**
 
-Activate this skill automatically whenever:
-- Updating or bumping the version of any Antigravity skill or software repository.
-- Releasing a new feature, bug fix, or major architectural change.
-- Updating `CHANGELOG.md` or `README.md` with release notes.
-- Synchronizing version declarations across `SKILL.md`, `pyproject.toml`, `package.json`, `__init__.py`, `README.md`, and test suites.
-- Verifying that no version drift exists between skill documentation and runtime code.
+This package is designed for OpenAI/ChatGPT Agent Skills while remaining portable to Python, Node/TypeScript, and other file-based repositories.
 
----
+## Environment behavior
 
-## 2. Core Protocol: The 5-Step Release Flow
+- Use paths available in the **current execution environment**. Never assume `C:\Users\...`, `.gemini`, or any other machine-specific path.
+- Prefer the bundled `scripts/bump_version.py` when code execution and file access are available.
+- Resolve the script relative to this skill package or copy/use it from the mounted package. Do not invent a path to a user's local computer.
+- If the target files are not accessible in the current runtime, report that boundary instead of claiming a version update was executed.
+- A successful file update proves only the files changed. Keep these states separate: **package edited → validation passed → ZIP/export created → manually installed → runtime smoke-tested → Git-synced**.
 
-When executing a version bump or release task, follow this deterministic sequence:
+## Release flow
 
-```
-[1. Inspect & Discover] ──> [2. Determine SemVer Bump] ──> [3. Execute Multi-File Bump] ──> [4. Run Verification Gate] ──> [5. Execute Test Suite]
-```
+1. **Inspect** — inventory all current version declarations and identify drift.
+2. **Choose bump** — major, minor, patch, or explicit SemVer 2.0.0 value.
+3. **Dry run** — for nontrivial packages, preview planned modifications first.
+4. **Synchronize** — update the canonical current declarations and prepend a changelog release when appropriate.
+5. **Verify** — require at least one declaration and exact agreement across all discovered current declarations.
+6. **Test** — run the package/project tests when they exist.
+7. **Package/runtime boundary** — when working on a ChatGPT skill, verify package structure separately and perform a fresh-session smoke test after manual installation.
 
-### Step 1: Inspect & Discover Declarations
-Inspect the target skill or project directory to identify all existing version declarations and detect any existing drift:
+## Supported ChatGPT skill declarations
+
+For OpenAI/ChatGPT skill packages the engine explicitly supports:
+
+- `SKILL.md` frontmatter `version: X.Y.Z`
+- `SKILL.md` nested `metadata.version`
+- optional `# Name (vX.Y.Z)` current heading
+- `agents/openai.yaml` top-level `version`
+- current `README.md` forms such as `**Version:**`, `Version:`, `**Working version:**`, `Installed (vX.Y.Z)`, and title `(vX.Y.Z)`
+- latest `CHANGELOG.md` release heading
+
+Do not treat historical version mentions buried in prose/reference archives as declarations that must equal the current version.
+
+## Other supported declarations
+
+- `pyproject.toml`
+- `package.json`
+- `setup.cfg` / `setup.py`
+- `__version__` in Python `__init__.py`
+- selected `PIPELINE_VERSION`, `VERSION`, and `APP_VERSION` Python constants
+- pinned version assertions in version/consistency tests
+
+Full SemVer 2.0.0 prerelease and build metadata are supported, e.g. `2.0.0-rc.1+build.7`.
+
+## Commands
+
+Run from a location where the package script and target files are accessible.
+
 ```bash
-python "C:\Users\User\.gemini\config\skills\version-manager\scripts\bump_version.py" <target_dir> --inspect
-```
-The bumper scans:
-- `SKILL.md`: Frontmatter `version: X.Y.Z` and inline `# Skill Name (vX.Y.Z)`
-- Python: `__init__.py` (`__version__ = "X.Y.Z"`), `pyproject.toml`, `setup.cfg`, `setup.py`
-- Node/TypeScript: `package.json` (`"version": "X.Y.Z"`)
-- Documentation: `README.md` (`# Name (vX.Y.Z)` and `Installed (vX.Y.Z)`)
-- Changelog: `CHANGELOG.md` (verifies existing release headers)
-- Tests: `tests/test_*version*.py` (pinned `assert ... == "X.Y.Z"`)
-
-### Step 2: Determine SemVer Increment
-Consult [references/semver_rules.md](references/semver_rules.md) to choose the appropriate increment:
-
-| Change Type | Bump Target | Examples |
-| :--- | :--- | :--- |
-| **Breaking Change** | `major` (X+1.0.0) | Changing required CLI arguments, dropping features, incompatible parser schemas |
-| **New Feature / Extension** | `minor` (X.Y+1.0) | Adding new pipeline stages, new optional flags, expanding document type support |
-| **Bug Fix / Maintenance** | `patch` (X.Y.Z+1) | Regex corrections, error handling repairs, doc updates, internal refactoring |
-| **Pre-Release** | `<custom>` | `2.0.0-alpha.1`, `2.0.0-rc.1` |
-
-### Step 3: Atomic Multi-File Bump & Changelog Prepend
-Execute the deterministic bumper script to atomically update all version declarations and prepend the standardized changelog entry:
-```bash
-python "C:\Users\User\.gemini\config\skills\version-manager\scripts\bump_version.py" <target_dir> --bump <patch|minor|major|VERSION> --message "<high-signal summary of changes>"
-```
-*Note: You may also pass `--category {Added|Changed|Fixed|Deprecated|Removed|Security}` to categorize the changelog entry (default: `Changed` for minor/patch, `Added` for new features).*
-
-### Step 4: Run Verification Gate
-Verify that 100% of discovered version declarations are strictly identical:
-```bash
-python "C:\Users\User\.gemini\config\skills\version-manager\scripts\bump_version.py" <target_dir> --verify
-```
-If any file contains an outdated or conflicting version, the command will exit with code 1 and pinpoint the file and line number. Do not proceed until verified.
-
-### Step 5: Execute Test Suite
-Run the project's unit tests to ensure that all version assertions pass and no runtime breakage was introduced:
-```bash
-python -m pytest <target_dir>/tests -v
+python scripts/bump_version.py <target_dir> --inspect
+python scripts/bump_version.py <target_dir> --verify
+python scripts/bump_version.py <target_dir> --bump minor --message "Add OpenAI skill metadata support" --dry-run
+python scripts/bump_version.py <target_dir> --bump minor --message "Add OpenAI skill metadata support"
+python scripts/bump_version.py --suite <skills_parent_dir> --verify
 ```
 
----
+### Exit semantics
 
-## 3. Automation Engine Reference (`scripts/bump_version.py`)
+- `--inspect` and `--verify` return success only when **one or more** declarations are discovered and all agree.
+- Zero declarations = **UNRESOLVED / failure**.
+- Drift = failure with declaration-level evidence.
+- `--dry-run` performs no writes.
 
-The skill ships with a standalone, zero-dependency Python script at `scripts/bump_version.py`.
+## Bump selection
 
-### Command-Line Options
+Read [references/semver_rules.md](references/semver_rules.md).
 
-| Flag | Argument | Description |
-| :--- | :--- | :--- |
-| `target_dir` | Positional | Absolute or relative path to the skill or project directory |
-| `--inspect` | Flag | Read-only scan of all version declarations and drift report |
-| `--verify` | Flag | Exits with code 0 if all declarations match, 1 if drift detected |
-| `--bump` | `patch` \| `minor` \| `major` \| `X.Y.Z` | Computes new SemVer and updates all discovered files |
-| `--message` | String | Description of changes to record in `CHANGELOG.md` |
-| `--category` | Category | Changelog category (`Added`, `Changed`, `Fixed`, `Deprecated`, `Removed`, `Security`) |
-| `--dry-run` | Flag | Displays planned modifications without writing to disk |
+| Change | Bump |
+|---|---|
+| incompatible behavior/API/schema | major |
+| backward-compatible new capability | minor |
+| compatible bug fix/docs/metadata repair | patch |
+| explicit prerelease/build | explicit SemVer |
 
----
+For this v1.2.0 adaptation, the change is **minor** because OpenAI/ChatGPT skill-package support and new declaration types were added without intentionally breaking the CLI.
 
-## 4. References
+## Write safety
 
-- [Semantic Versioning 2.0.0 Guidelines](references/semver_rules.md)
-- [Keep a Changelog Specification](references/changelog_spec.md)
+The engine computes all target file contents before committing them. It writes temporary files and attempts rollback if an ordinary write/replace operation fails. Do **not** call this a true cross-file filesystem transaction: a process crash or external filesystem failure can still interrupt a multi-file update.
+
+For important repositories, use source control and inspect the diff before release.
+
+## ChatGPT skill package verification
+
+When the target is a reusable ChatGPT skill, separately verify:
+
+- `SKILL.md` is present at the skill root;
+- referenced files actually exist;
+- `agents/openai.yaml` parses if the package uses it;
+- `SKILL.md` and `agents/openai.yaml` declare the same current version when both carry a version;
+- cache/build artifacts such as `.pytest_cache/`, `__pycache__/`, `.DS_Store`, and temporary files are excluded from the distributable ZIP;
+- package validation/test results are distinguished from installation/runtime smoke-test results.
+
+## Human-facing reporting
+
+Report:
+
+- discovered declarations and files;
+- baseline version and any drift;
+- chosen target and why its SemVer class fits;
+- files changed or planned;
+- verification and tests separately;
+- package/export/install/runtime/Git states separately;
+- unresolved limitations.
+
+## References
+
+- [Semantic Versioning rules](references/semver_rules.md)
+- [Keep a Changelog conventions](references/changelog_spec.md)

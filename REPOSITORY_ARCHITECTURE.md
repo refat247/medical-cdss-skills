@@ -41,6 +41,7 @@ These packages participate in corpus manufacturing, retrieval, packaging, naviga
 - `humanizer`
 - `mobile-first-google-sheets`
 - `speaker-notes-builder`
+- `doctor-slide-defense`
 - `offline-study-guide`
 - `version-manager`
 - `antigravity-protocol`

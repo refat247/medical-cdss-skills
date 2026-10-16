@@ -1,0 +1,33 @@
+name: version-manager
+version: 1.2.1
+primary_skill: true
+metadata:
+  status: stable
+  trigger_examples:
+  - Inspect this skill package for version drift.
+  - Bump this ChatGPT skill to the next minor version and update its changelog.
+  - Verify SKILL.md and agents/openai.yaml use the same version.
+  - Audit all skill packages in this directory for version consistency.
+  required_files:
+  - SKILL.md
+  - README.md
+  - CHANGELOG.md
+  - references/semver_rules.md
+  - references/changelog_spec.md
+  - scripts/bump_version.py
+  - agents/openai.yaml
+  - assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  allow_implicit_invocation: true
+interface:
+  display_name: Version Manager
+  short_description: Synchronize and verify SemVer across skill and software packages
+  default_prompt: Use $version-manager to inspect the accessible target package, identify
+    version drift, choose or apply the appropriate SemVer change, and verify all current
+    declarations without assuming local-machine paths.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg

@@ -1,4 +1,4 @@
-# Activation smoke test — offline-study-guide v1.2.1
+# Activation smoke test — offline-study-guide v1.3.0
 
 ## Native runtime read-only test
 
@@ -9,7 +9,7 @@ After selecting `@offline-study-guide`, use this prompt without reading package 
 Expected release identity when native injection is actually present:
 
 - skill: `offline-study-guide`
-- version: `1.2.1`
+- version: `1.3.0`
 - status: `stable`
 
 ## Package smoke test
@@ -24,7 +24,7 @@ python3 scripts/run_regression.py
 For the final ZIP:
 
 ```bash
-python3 scripts/verify_release.py --archive /path/to/offline-study-guide-skill-v1.2.1.zip
+python3 scripts/verify_release.py --archive /path/to/offline-study-guide-skill-v1.3.0.zip
 ```
 
 Package smoke-test success does not establish native runtime activation.

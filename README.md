@@ -1,6 +1,6 @@
 # Medical CDSS & Antigravity Agent Skills
 
-A modular ecosystem of 30 production-grade skills for clinical decision support (CDSS), medical textbook RAG pipelines, clinical presentations, knowledge curation, document production, and autonomous agent orchestration. **29 skills are maintained in this monorepo; 1 independently governed skill has been extracted to its own canonical repository.**
+A modular ecosystem of 31 production-grade skills for clinical decision support (CDSS), medical textbook RAG pipelines, clinical presentations, knowledge curation, document production, and autonomous agent orchestration. **30 skills are maintained in this monorepo; 1 independently governed skill has been extracted to its own canonical repository.**
 
 ## Repository Overview
 
@@ -17,7 +17,7 @@ The **Evidence-Locked Clinical PPTX Builder** is now maintained independently at
 
 ---
 
-## Skills Catalog (30 Ecosystem Skills: 29 Monorepo + 1 Standalone)
+## Skills Catalog (31 Ecosystem Skills: 30 Monorepo + 1 Standalone)
 
 ### 1. Clinical Decision Support & Textbook Navigation
 | Skill | Role / Function |
@@ -47,6 +47,7 @@ The **Evidence-Locked Clinical PPTX Builder** is now maintained independently at
 | **`clinical-pptx-builder`** | Create, edit, merge, and audit clinical/academic PowerPoint decks with source-traceable content, geometry-first layouts, and QA. |
 | **[`evidence-locked-clinical-pptx-builder`](https://github.com/refat247/evidence-locked-clinical-pptx-builder)** *(standalone canonical repo)* | Evidence-locked clinical presentation system with source/correction control, decision nodes, case-corpus workflows, content-locked visual polish, and full-render visual QA (v2.4.0). |
 | **`speaker-notes-builder`** | Evidence-bounded, deck-aware speaker notes builder from PPTX/PDF with rehearsal companion DOCX generation. |
+| **`doctor-slide-defense`** | Doctor-panel slide defense. One claim ledger rendered as output version 1, 2, 3, or 4. Package v1.0.0. Output versions are reading shapes, not SemVer. |
 | **`offline-study-guide`** | Self-contained offline HTML study guide generator with chapter navigation, search, section bookmarks, and A4 print layout. |
 
 ### 4. Notion Workspace, Knowledge Curation & Research

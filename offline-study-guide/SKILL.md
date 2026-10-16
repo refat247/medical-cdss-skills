@@ -1,20 +1,26 @@
 ---
 name: offline-study-guide
 description: "Build or repair a self-contained offline HTML study guide with chapter navigation, search, section-aware bookmarks, themes, and A4 print. Use when the user wants a mobile study guide, reader HTML, or a successor to the investigation or medicine guides. Not for dashboards, web apps, or clinical rewriting."
-type: workflow
-lifecycle: active
 metadata:
-  version: "1.2.1"
+  type: workflow
+  lifecycle: active
+  version: "1.3.0"
   status: "stable"
 ---
 
 # Offline study guide — standalone HTML reader
 
-Version 1.2.1. Build a single HTML file that opens offline with no build step. Preserve the supplied book. Do not replace it with a dashboard or a summary.
+Version 1.3.0. Build a single HTML file that opens offline with no build step. Preserve the supplied book. Do not replace it with a dashboard or a summary.
 
 Read `references/input-contract.md` before accepting a markdown, Word, or PDF source. A file that opens is not a parsed book. Render only after the structure census says PARSE SUCCESS.
 
 Reference guides already in this project: `artifacts/BEGINNERS_GUIDE_MOBILE_V4.html` and `artifacts/SELECTION_OF_MEDICINE_MOBILE_V4.html`. Copy their reader shell when repairing those books. Read `references/reader-contract.md` before changing navigation, bookmarks, or print. Read `references/clinical-constraints.md` before touching medical text or the calculator.
+
+## Dense reference entries and bilingual work
+
+Read `references/reference-layout.md` for compact drug/formulation or other reference entries. Use supported source boundaries for top-down rows; preserve ordinary prose and true comparison tables. Use explicit `reference-entry-v1` blocks rather than punctuation-based clinical splitting. Review census density findings; use `--density-policy error` when unresolved density should block output.
+
+Read `references/bilingual-handoff.md` when pairing with `$notion-bilingual-book-curator`. Keep English technical identity and source wording, with concise Bengali explanation beneath the entry. Load both skills explicitly. Curator owns evidence and bilingual meaning; this skill owns HTML rendering. Static QA does not close browser, print, clinical or publication-freeze gates.
 
 ## Workflow
 

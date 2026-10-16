@@ -1,4 +1,9 @@
 # Changelog
+## [1.3.0] - 2026-10-09
+
+### Added
+- Add opt-in source-span reference layout, density reporting, formulation fidelity checks and bilingual handoff.
+
 ## 1.2.1 — 2026-10-01
 - Governance-only PATCH release; reader/parser behavior is unchanged from v1.2.0.
 - Adds `README.md`, `MANUAL_ACTIVATION.md`, `ACTIVATION_SMOKE_TEST.md`, `agents/openai.yaml`, `VERSIONING_DECISION.md`, `RELEASE_AUDIT.md`, and a machine-verifiable package manifest.
